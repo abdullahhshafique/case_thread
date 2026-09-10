@@ -1,0 +1,44 @@
+name: case_thread
+description: "CaseThread — case-room platform for collaborative case management (legal, academic, corporate, medical, technical)."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Pinned exact versions per Rules.md §4 (no unbounded ranges for
+  # auth/client-touching dependencies).
+  supabase_flutter: 2.17.2
+  flutter_riverpod: 3.4.3
+  go_router: 18.0.1
+  shared_preferences: 2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/licenses/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
