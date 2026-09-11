@@ -75,13 +75,14 @@ void main() {
   }
 
   testWidgets('unconfigured app shows the setup screen', (tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(child: CaseThreadApp()),
-    );
+    await tester.pumpWidget(const ProviderScope(child: CaseThreadApp()));
     await tester.pumpAndSettle();
 
     expect(find.text('CaseThread'), findsOneWidget);
-    expect(find.textContaining('isn\'t connected to a backend'), findsOneWidget);
+    expect(
+      find.textContaining('isn\'t connected to a backend'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('configured + signed out → auth screen', (tester) async {

@@ -47,10 +47,17 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned to match the local devDependency (Rules.md §4: no
+          # silent version drift between environments).
+          version: 2.117.0
 
-      - name: Start Postgres + apply all migrations (0001→0006, ordered)
-        run: supabase db reset
+      - name: Show Docker + CLI environment
+        run: |
+          docker --version
+          supabase --version
+
+      - name: Start Postgres + apply all migrations (ordered)
+        run: supabase db reset --debug
 
       - name: Run pgTAP RLS contract tests
-        run: supabase test db
+        run: supabase test db --debug

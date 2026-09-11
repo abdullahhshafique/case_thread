@@ -1,0 +1,5 @@
+flutter run -d chrome \
+  --dart-define=SUPABASE_URL=https://hxrztoakimebjcibvkaa.supabase.co/rest/v1/
+  --dart-define=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4cnp0b2FraW1lYmpjaWJ2a2FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzNDUsImV4cCI6MjEwNDYyMjM0NX0.MQ6c0FraSyC9mQiwL2odszKLkWv8NgA2og2KbR-kbaI
+
+flutter run -d chrome --dart-define=SUPABASE_URL=https://hxrztoakimebjcibvkaa.supabase.co/rest/v1/ --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4cnp0b2FraW1lYmpjaWJ2a2FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzNDUsImV4cCI6MjEwNDYyMjM0NX0.MQ6c0FraSyC9mQiwL2odszKLkWv8NgA2og2KbR-kbaI
