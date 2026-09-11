@@ -56,7 +56,12 @@ jobs:
           docker --version
           supabase --version
 
-      - name: Start Postgres + apply all migrations (ordered)
+      # CLI 2.117's `db reset` does NOT auto-start the stack (it fails
+      # with "supabase start is not running") — start first.
+      - name: Start local Supabase stack
+        run: supabase start --exclude studio,auth,imgproxy,inbucket,edge-runtime,logflare,vector,realtime,storage-api
+
+      - name: Apply all migrations (ordered)
         run: supabase db reset --debug
 
       - name: Run pgTAP RLS contract tests
