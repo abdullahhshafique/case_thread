@@ -19,12 +19,6 @@ select plan(1);
 
 create schema if not exists tests;
 
--- pgTAP assertion helpers execute with SET ROLE from the caller's
--- context; grant the runner everything on the tests schema.
-grant usage, create on schema tests to public;
-grant all on all tables in schema tests to public;
-grant all on all functions in schema tests to public;
-
 create table if not exists tests.fixtures (
   key text primary key,
   user_id uuid,
@@ -32,6 +26,12 @@ create table if not exists tests.fixtures (
   member_id uuid,
   text_value text
 );
+
+-- pgTAP assertions execute after SET ROLE (impersonation); every role
+-- that can appear must reach the schema, fixtures table, and helpers.
+grant usage, create on schema tests to public;
+grant select, insert, update, delete on tests.fixtures to public;
+grant execute on all functions in schema tests to public;
 
 create or replace function tests.create_test_user(user_email text)
 returns uuid
@@ -125,6 +125,14 @@ select is(
   true,
   'test helpers installed'
 );
+
+-- Re-grant AFTER function creation: the earlier grant ran before these
+-- existed. Covers impersonated sessions in later test files.
+grant execute on all functions in schema tests to public;
+alter default privileges in schema tests
+  grant execute on functions to public;
+alter default privileges in schema tests
+  grant select, insert, update, delete on tables to public;
 
 select * from finish();
 commit; -- keep schema + helpers for subsequent test files
