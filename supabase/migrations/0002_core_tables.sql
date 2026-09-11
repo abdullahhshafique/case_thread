@@ -197,9 +197,12 @@ create table public.entities (
     check (entity_type in ('person', 'org', 'location', 'evidence')),
   name text not null check (char_length(name) between 1 and 200),
   attributes jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  unique (room_id, entity_type, lower(name))
+  created_at timestamptz not null default now()
 );
+
+-- Expression uniqueness needs an index, not a table constraint.
+create unique index entities_room_type_name_unique
+  on public.entities (room_id, entity_type, lower(name));
 
 create table public.entity_relationships (
   id uuid primary key default gen_random_uuid(),
