@@ -1,54 +1,61 @@
 -- RLS contract tests: audit_log immutability + visibility.
 -- The append-only guarantee is the product's defensibility promise
--- (PRD §6.5, Architecture.md §4) — these tests are non-negotiable.
+-- (PRD §6.5, Architecture.md §4). No psql metacommands.
 
 begin;
 select plan(5);
 
 select tests.unimpersonate();
-select tests.create_test_user('auditor@example.com') as owner_id \gset
-select tests.create_test_user('intruder@example.com') as intruder_id \gset
+select tests.create_test_user('auditor@example.com');
+select tests.create_test_user('intruder@example.com');
+select tests.create_test_user('outsider@example.com');
 
-insert into public.case_types (id, display_name) values
-  ('legal', 'Legal / Investigative') -- exists via migration; re-insert tolerated by on conflict? No: guard.
-on conflict (id) do nothing;
-
--- Room owned by owner; owner + intruder both approved members.
+-- Room owned by auditor; auditor + intruder both approved members.
 insert into public.case_rooms (name, case_type, owner_id, access_code_hash)
-values ('Audit Test Room', 'legal', :'owner_id', 'hash')
-returning id as room_id \gset
+select 'Audit Test Room', 'legal', user_id, 'hash'
+from tests.fixtures where key = 'auditor@example.com';
 
-select tests.add_approved_member(:room_id, :'owner_id', 'lead_investigator');
-select tests.add_approved_member(:room_id, :'intruder_id', 'observer');
+insert into tests.fixtures (key, room_id)
+select 'audit_room', id from public.case_rooms
+where name = 'Audit Test Room';
 
--- A seed audit entry (postgres context — inserts go via triggers in
--- production; policy allows none, so tests insert as postgres).
+select tests.add_approved_member(
+  (select room_id from tests.fixtures where key = 'audit_room'),
+  'auditor@example.com', 'lead_investigator'
+);
+select tests.add_approved_member(
+  (select room_id from tests.fixtures where key = 'audit_room'),
+  'intruder@example.com', 'observer'
+);
+
+-- Seed audit entry (postgres context; production inserts go via the
+-- security-definer append_audit() helper — no client insert policy).
 insert into public.audit_log (room_id, actor_id, action_type, object_type)
-values (:room_id, :'owner_id', 'room_created', 'case_room');
+select (select room_id from tests.fixtures where key = 'audit_room'),
+       (select user_id from tests.fixtures where key = 'auditor@example.com'),
+       'room_created', 'case_room';
 
 -- 1. Member can see the room's audit entries.
-select tests.impersonate(:'owner_id');
+select tests.impersonate('auditor@example.com');
 select is(
   count(*),
   1::bigint,
   'approved member sees audit log entries for their room'
-) from public.audit_log where room_id = :room_id;
+) from public.audit_log
+where room_id = (select room_id from tests.fixtures where key = 'audit_room');
 
 -- 2. Non-member cannot see them.
-select tests.impersonate(:'intruder_id');
--- intruder IS a member here; use a non-member third user instead.
-select tests.unimpersonate();
-select tests.create_test_user('outsider@example.com') as outsider_id \gset
-select tests.impersonate(:'outsider_id');
+select tests.impersonate('outsider@example.com');
 select is(
   count(*),
   0::bigint,
   'non-member cannot see audit log entries'
-) from public.audit_log where room_id = :room_id;
+) from public.audit_log
+where room_id = (select room_id from tests.fixtures where key = 'audit_room');
 
 -- 3. UPDATE must fail for ANY role — even the owner (grant-level revoke).
 select tests.unimpersonate();
-select tests.impersonate(:'owner_id');
+select tests.impersonate('auditor@example.com');
 select throws_ok(
   'update public.audit_log set action_type = ''tampered''',
   null,
@@ -62,11 +69,11 @@ select throws_ok(
   'audit_log DELETE throws for room owner'
 );
 
--- 5. Direct client INSERT has no policy → fails even for members
--- (appends only via security-definer triggers in production).
+-- 5. Direct client INSERT has no policy → fails even for members.
 select throws_ok(
   'insert into public.audit_log (room_id, action_type, object_type) '
-    || 'values (' || quote_literal(:room_id) || ', ''fake'', ''case_room'')',
+    || 'select room_id, ''fake'', ''case_room'' from tests.fixtures '
+    || 'where key = ''audit_room''',
   null,
   'audit_log INSERT via client is not permitted (no policy)'
 );

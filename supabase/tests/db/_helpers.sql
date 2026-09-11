@@ -4,10 +4,20 @@
 -- alphabetically; the underscore prefix keeps this first). Everything
 -- runs inside the runner's transaction and rolls back, so tests can
 -- freely create fixtures.
+--
+-- NOTE: no psql client metacommands (\gset etc.) — the Supabase CLI test
+-- runner is not psql; values pass between statements via tables/DO
+-- blocks instead.
 
--- Create a fake auth user + profile in one step. Returns the user id.
--- Supabase local dev has the auth schema; we insert a user with a stable
--- id so jwt claims can impersonate them via auth.uid().
+-- Fixture store: test-owned users/rooms/members addressable by email.
+create table if not exists tests.fixtures (
+  key text primary key,
+  user_id uuid,
+  room_id uuid,
+  member_id uuid,
+  text_value text
+);
+
 create or replace function tests.create_test_user(user_email text)
 returns uuid
 language plpgsql
@@ -26,21 +36,26 @@ begin
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object('display_name', split_part(user_email, '@', 1))
   );
+  insert into tests.fixtures (key, user_id) values (user_email, new_id)
+  on conflict (key) do update set user_id = excluded.user_id;
   return new_id;
 end;
 $$;
 
 -- Impersonate a user for subsequent statements in the test transaction:
 -- sets the JWT claim PostgREST would send, so auth.uid() resolves.
-create or replace function tests.impersonate(user_id uuid)
+create or replace function tests.impersonate(user_email text)
 returns void
 language plpgsql
 as $$
+declare
+  target uuid;
 begin
+  select user_id into target from tests.fixtures where key = user_email;
   perform set_config(
     'request.jwt.claims',
     json_build_object(
-      'sub', user_id,
+      'sub', target,
       'role', 'authenticated',
       'aud', 'authenticated'
     )::text,
@@ -50,7 +65,8 @@ begin
 end;
 $$;
 
--- Reset back to superuser context (for fixture setup between impersonations).
+-- Reset back to superuser context (for fixture setup between
+-- impersonations).
 create or replace function tests.unimpersonate()
 returns void
 language plpgsql
@@ -61,18 +77,20 @@ end;
 $$;
 
 -- Create an approved member fixture directly (bypasses RLS since this
--- helper runs as postgres in tests). Returns the room_members row id.
+-- helper runs as postgres in tests).
 create or replace function tests.add_approved_member(
-  target_room uuid, member_user uuid, member_role text
+  target_room uuid, member_email text, member_role text
 )
 returns uuid
 language plpgsql
 as $$
 declare
   row_id uuid;
+  member uuid;
 begin
+  select user_id into member from tests.fixtures where key = member_email;
   insert into public.room_members (room_id, user_id, role_id, status, joined_at)
-  values (target_room, member_user, member_role, 'approved', now())
+  values (target_room, member, member_role, 'approved', now())
   returning id into row_id;
   return row_id;
 end;

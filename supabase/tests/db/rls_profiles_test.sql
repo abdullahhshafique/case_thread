@@ -1,16 +1,16 @@
 -- RLS contract tests: profiles table (0001 migration).
 -- Rules.md §7: every policy proves BOTH the allowed and denied case.
+-- No psql metacommands — values pass via the tests.fixtures table.
 
 begin;
 select plan(4);
 
--- Fixtures: two users, created in postgres context.
 select tests.unimpersonate();
-select tests.create_test_user('alice@example.com') as alice_id \gset
-select tests.create_test_user('bob@example.com') as bob_id \gset
+select tests.create_test_user('alice@example.com');
+select tests.create_test_user('bob@example.com');
 
 -- Owner can read their own profile (policy: profiles_select_own).
-select tests.impersonate(:'alice_id');
+select tests.impersonate('alice@example.com');
 select is(
   count(*),
   1::bigint,
@@ -28,21 +28,26 @@ where display_name like 'bob%';
 select tests.unimpersonate();
 
 -- Owner can update own profile.
-select tests.impersonate(:'alice_id');
-update public.profiles set display_name = 'Alice Edited' where id = :'alice_id';
+select tests.impersonate('alice@example.com');
+update public.profiles
+set display_name = 'Alice Edited'
+where id = (select user_id from tests.fixtures where key = 'alice@example.com');
 select is(
   display_name,
   'Alice Edited',
   'user can update own display_name'
-) from public.profiles where id = :'alice_id';
+) from public.profiles
+where id = (select user_id from tests.fixtures where key = 'alice@example.com');
 
 -- Update of someone else's row must not apply (row invisible → 0 rows).
-update public.profiles set display_name = 'Hacked' where id = :'bob_id';
+update public.profiles set display_name = 'Hacked'
+where id = (select user_id from tests.fixtures where key = 'bob@example.com');
 select is(
   display_name,
   'bob',
   'cannot update another user profile (row filtered out)'
-) from public.profiles where id = :'bob_id';
+) from public.profiles
+where id = (select user_id from tests.fixtures where key = 'bob@example.com');
 
 select * from finish();
 rollback;
