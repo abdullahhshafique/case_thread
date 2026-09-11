@@ -28,6 +28,11 @@ alter table public.case_types
   foreign key (owner_role_id) references public.roles (id);
 
 -- ---------------------------------------------------------------------------
+-- pgcrypto: digest() for code hashing (self-contained migration — the
+-- extension is a no-op if already present).
+-- ---------------------------------------------------------------------------
+create extension if not exists pgcrypto;
+
 -- Code alphabet: 8 chars, unambiguous (no 0/O/1/I — PRD §6.1), generated
 -- server-side with pgcrypto. Codes are stored ONLY as sha256 hashes.
 -- ---------------------------------------------------------------------------
@@ -53,7 +58,9 @@ returns text
 language sql
 immutable
 as $$
-  select encode(digest(upper(code), 'sha256'), 'hex');
+  -- Schema-qualified: digest() lives in the extensions schema, which is
+  -- not on this function's search_path in Supabase.
+  select encode(extensions.digest(upper(code), 'sha256'), 'hex');
 $$;
 
 -- ---------------------------------------------------------------------------

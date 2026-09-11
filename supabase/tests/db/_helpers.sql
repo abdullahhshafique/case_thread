@@ -32,7 +32,9 @@ begin
   ) values (
     '00000000-0000-0000-0000-000000000000', new_id, 'authenticated',
     'authenticated', user_email,
-    crypt(user_email, gen_salt('bf')), now(), now(), now(),
+    -- Schema-qualified: crypt/gen_salt live in the extensions schema.
+    extensions.crypt(user_email, extensions.gen_salt('bf')),
+    now(), now(), now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object('display_name', split_part(user_email, '@', 1))
   );
