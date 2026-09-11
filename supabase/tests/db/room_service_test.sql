@@ -83,6 +83,10 @@ select is(
   'join request lands pending'
 ) from tests.fixtures where key = 'svc-join-result';
 
+-- Audit reads are member-scoped (0005); the pending joiner can't see
+-- the room's audit log yet — check as the owner instead.
+select tests.unimpersonate();
+select tests.impersonate('svc-owner@example.com');
 select is(
   count(*),
   1::bigint,
@@ -92,6 +96,7 @@ where room_id = (select room_id from tests.fixtures where key = 'svc-room')
   and action_type = 'join_requested';
 
 -- 7. Pending joiner cannot read room content yet (approval gates access).
+select tests.impersonate('svc-joiner@example.com');
 select is(
   count(*),
   0::bigint,
@@ -133,25 +138,35 @@ where id = (select room_id from tests.fixtures where key = 'svc-room');
 
 -- 10. Rotation invalidates old code for previews; new code works.
 -- Pending requests stay valid (keyed to room, not code — PRD §6.1).
+-- Clear the rate-limit window first: the suite's many code calls would
+-- otherwise trip the 10-attempts limit (0006) mid-test.
+select tests.unimpersonate();
+delete from public.join_attempts;
+
 select tests.impersonate('svc-owner@example.com');
 insert into tests.fixtures (key, text_value)
 select 'svc-room-new-code', public.rotate_room_code(
   (select room_id from tests.fixtures where key = 'svc-room')
 );
 
+-- The old-code preview RAISES 'Invalid or inactive room code.' (a denied
+-- lookup is an exception, not an empty result) — assert that directly.
 select tests.impersonate('svc-joiner@example.com');
-select is(
-  count(*),
-  0::bigint,
+select throws_ok(
+  'select * from public.preview_room_by_code('
+    || quote_literal((select text_value from tests.fixtures where key = 'svc-room'))
+    || ')',
+  'Invalid or inactive room code.',
   'old code no longer previews the room'
-) from public.preview_room_by_code(
-  (select text_value from tests.fixtures where key = 'svc-room')
 );
+
+select tests.unimpersonate();
+delete from public.join_attempts;
 
 select tests.impersonate('svc-intruder@example.com');
 select is(
-  count(*),
-  1::bigint,
+  room_name,
+  'Service Test Room'::text,
   'new code previews the room'
 ) from public.preview_room_by_code(
   (select text_value from tests.fixtures where key = 'svc-room-new-code')

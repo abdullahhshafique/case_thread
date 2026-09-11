@@ -114,6 +114,11 @@ create policy "members visible to room members"
   using (
     public.user_room_role(auth.uid(), room_id) is not null
     or user_id = auth.uid() -- see own pending request
+    or exists ( -- owner sees their room's member list (ownership, not
+      select 1    -- membership, is the source of owner authority)
+      from public.case_rooms cr
+      where cr.id = room_id and cr.owner_id = auth.uid()
+    )
   );
 
 drop policy if exists "join requests insertable by self" on public.room_members;

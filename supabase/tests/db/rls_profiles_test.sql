@@ -42,12 +42,16 @@ where id = (select user_id from tests.fixtures where key = 'alice@example.com');
 -- Update of someone else's row must not apply (row invisible → 0 rows).
 update public.profiles set display_name = 'Hacked'
 where id = (select user_id from tests.fixtures where key = 'bob@example.com');
+-- Verify the stored value as postgres (Alice's UPDATE ran impersonated;
+-- this is row-state verification, not visibility testing). Scalar form:
+-- is() over an empty set would silently skip the assertion.
+select tests.unimpersonate();
 select is(
-  display_name,
+  (select display_name from public.profiles
+   where id = (select user_id from tests.fixtures where key = 'bob@example.com')),
   'bob',
   'cannot update another user profile (row filtered out)'
-) from public.profiles
-where id = (select user_id from tests.fixtures where key = 'bob@example.com');
+);
 
 select * from finish();
 rollback;

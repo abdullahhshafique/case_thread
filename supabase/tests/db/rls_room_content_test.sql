@@ -74,7 +74,7 @@ select throws_ok(
     || '''rooms/evidence-test/sneak.pdf'', ''x'', 1 '
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' and f.key = ''observer@example.com''',
-  'observer upload rejected by RLS (upload_evidence false)'
+  'new row violates row-level security policy for table "evidence_items"'
 );
 
 select is(
@@ -128,7 +128,7 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  'observer comment rejected by RLS (comment false)'
+  'new row violates row-level security policy for table "discussion_messages"'
 );
 
 -- 6. Observer cannot create tasks or timeline events (edit_case false).
@@ -138,7 +138,7 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  'observer task creation rejected by RLS (edit_case false)'
+  'new row violates row-level security policy for table "tasks"'
 );
 
 select throws_ok(
@@ -147,7 +147,7 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  'observer manual timeline event rejected by RLS'
+  'new row violates row-level security policy for table "timeline_events"'
 );
 
 -- 7. Analyst can create tasks + manual timeline events (edit_case true).

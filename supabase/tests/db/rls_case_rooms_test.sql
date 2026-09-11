@@ -39,7 +39,12 @@ select is(
   'non-member cannot see the room'
 ) from public.case_rooms where name = 'Fraud Case 2026';
 
--- 4. Elena submits a pending join request (self, pending status).
+-- 4. Elena submits a pending join request. In production the security-
+-- definer RPC creates this row; a direct INSERT from a non-member is
+-- blocked by RLS (the caller can't even resolve the room id), so the
+-- fixture is created as postgres — the RLS INSERT policy itself is
+-- covered by the room_service RPC tests.
+select tests.unimpersonate();
 insert into public.room_members (room_id, user_id, role_id, status)
 select cr.id, f.user_id, 'analyst', 'pending'
 from public.case_rooms cr, tests.fixtures f
@@ -54,6 +59,7 @@ join tests.fixtures f on f.user_id = rm.user_id and f.key = 'elena@example.com'
 join public.case_rooms cr on cr.id = rm.room_id and cr.name = 'Fraud Case 2026';
 
 -- 5. Pending member cannot see the room yet (approval gates access).
+select tests.impersonate('elena@example.com');
 select is(
   count(*),
   0::bigint,
@@ -68,6 +74,9 @@ from tests.fixtures f
 where f.user_id = rm.user_id and f.key = 'elena@example.com'
   and rm.room_id in (select id from public.case_rooms where name = 'Fraud Case 2026');
 
+-- Row-state checks run as postgres: they verify the UPDATE's effect,
+-- not the reader's visibility.
+select tests.unimpersonate();
 select is(
   count(*),
   0::bigint,
