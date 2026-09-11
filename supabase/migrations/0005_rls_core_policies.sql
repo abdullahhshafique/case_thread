@@ -79,7 +79,13 @@ drop policy if exists "rooms visible to members" on public.case_rooms;
 create policy "rooms visible to members"
   on public.case_rooms for select
   to authenticated
-  using (public.user_room_role(auth.uid(), id) is not null);
+  using (
+    -- Owner always sees their own room even if the membership row is
+    -- missing/stale (defense against policy-ordering gaps in room
+    -- creation), in addition to the approved-member check.
+    owner_id = auth.uid()
+    or public.user_room_role(auth.uid(), id) is not null
+  );
 
 drop policy if exists "rooms creatable by anyone authenticated" on public.case_rooms;
 create policy "rooms creatable by anyone authenticated"

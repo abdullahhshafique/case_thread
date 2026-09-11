@@ -3,7 +3,7 @@
 -- edge cases those functions encode. No psql metacommands.
 
 begin;
-select plan(14);
+select plan(15);
 
 select tests.unimpersonate();
 select tests.create_test_user('svc-owner@example.com');
@@ -51,10 +51,19 @@ select tests.unimpersonate();
 
 -- 5. Joiner previews by code: name + case type revealed (PRD §6.2).
 select tests.impersonate('svc-joiner@example.com');
+-- Record comparison hits unknown-type literal issues; assert the two
+-- columns separately.
 select is(
-  (room_name::text, case_type_id::text),
-  ('Service Test Room', 'legal')::record,
-  'preview_room_by_code reveals name and case type'
+  room_name,
+  'Service Test Room'::text,
+  'preview_room_by_code reveals the room name'
+) from public.preview_room_by_code(
+  (select text_value from tests.fixtures where key = 'svc-room')
+);
+select is(
+  case_type_id,
+  'legal'::text,
+  'preview_room_by_code reveals the case type'
 ) from public.preview_room_by_code(
   (select text_value from tests.fixtures where key = 'svc-room')
 );

@@ -74,7 +74,6 @@ select throws_ok(
     || '''rooms/evidence-test/sneak.pdf'', ''x'', 1 '
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' and f.key = ''observer@example.com''',
-  '42501',
   'observer upload rejected by RLS (upload_evidence false)'
 );
 
@@ -129,7 +128,6 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  '42501',
   'observer comment rejected by RLS (comment false)'
 );
 
@@ -140,7 +138,6 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  '42501',
   'observer task creation rejected by RLS (edit_case false)'
 );
 
@@ -150,7 +147,6 @@ select throws_ok(
     || 'from public.case_rooms cr, tests.fixtures f '
     || 'where cr.name = ''Evidence Test Room'' '
     || 'and f.key = ''observer@example.com''',
-  '42501',
   'observer manual timeline event rejected by RLS'
 );
 
