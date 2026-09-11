@@ -35,3 +35,23 @@ jobs:
 
       - name: Build web bundle
         run: flutter build web --release
+
+  # RLS contract tests — non-negotiable merge gate (Rules.md §7,
+  # Architecture.md §12). Runs every migration + pgTAP suite against a
+  # local Postgres (Docker available on GitHub-hosted runners).
+  # `db reset` starts Postgres if needed, then applies migrations in
+  # order — which is itself the migration dry-run gate.
+  rls-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Postgres + apply all migrations (0001→0006, ordered)
+        run: supabase db reset
+
+      - name: Run pgTAP RLS contract tests
+        run: supabase test db

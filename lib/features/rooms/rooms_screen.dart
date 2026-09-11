@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import '../profiles/profiles_repository.dart';
 
 /// Authenticated home: lists the user's case rooms. Sprint 0 ships the
 /// shell with an empty state; room CRUD arrives in Sprint 3 (ExecutionPlan.md §3).
@@ -11,8 +12,10 @@ class RoomsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watching session keeps the app bar in sync with sign-in state.
-    final user = ref.watch(sessionProvider).value;
+    // Profile name from the `profiles` table (Sprint 2 wiring), with the
+    // auth metadata name as fallback while it loads.
+    final authName = ref.watch(sessionProvider).value?.displayName ?? '';
+    final profile = ref.watch(myProfileProvider).value;
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -23,7 +26,7 @@ class RoomsScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Center(
               child: Text(
-                user?.displayName ?? '',
+                profile?.displayName ?? authName,
                 style: text.bodyMedium?.copyWith(
                   color: text.bodyMedium?.color?.withValues(alpha: 0.7),
                 ),

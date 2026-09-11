@@ -78,6 +78,15 @@ class RoomNotFoundException extends AppException {
 /// Unexpected failure that none of the above types describe. The UI shows
 /// the generic message; `cause` is logged, never displayed (Rules.md §5).
 class UnexpectedException extends AppException {
-  const UnexpectedException({super.cause})
-    : super(message: 'Something went wrong on our side. Please try again.');
+  const UnexpectedException({
+    super.message = 'Something went wrong on our side. Please try again.',
+    super.cause,
+  });
+}
+
+/// Requested case type or role definition is unknown (config data).
+class UnknownCaseTypeException extends AppException {
+  const UnknownCaseTypeException(this.caseTypeId)
+    : super(message: 'Case type "$caseTypeId" is not available.');
+  final String caseTypeId;
 }
