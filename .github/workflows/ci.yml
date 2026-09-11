@@ -1,12 +1,11 @@
 name: CI
 
 # Sprint 0 CI pipeline (ExecutionPlan.md §2.2): format → analyze → test →
-# web build on every PR and push to main. RLS contract tests (pgTAP) and
-# migration dry-run join these gates in Sprint 2 once the schema lands.
+# web build on every PR. Feature branches also run the full pipeline on
+# push (fail fast before PR review); main additionally gates deploy.
 on:
   pull_request:
   push:
-    branches: [main]
 
 jobs:
   flutter:
@@ -35,3 +34,35 @@ jobs:
 
       - name: Build web bundle
         run: flutter build web --release
+
+  # RLS contract tests — non-negotiable merge gate (Rules.md §7,
+  # Architecture.md §12). Runs every migration + pgTAP suite against a
+  # local Postgres (Docker available on GitHub-hosted runners).
+  # `db reset` starts Postgres if needed, then applies migrations in
+  # order — which is itself the migration dry-run gate.
+  rls-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          # Pinned to match the local devDependency (Rules.md §4: no
+          # silent version drift between environments).
+          version: 2.117.0
+
+      - name: Show Docker + CLI environment
+        run: |
+          docker --version
+          supabase --version
+
+      # CLI 2.117's `db reset` does NOT auto-start the stack (it fails
+      # with "supabase start is not running") — start first.
+      - name: Start local Supabase stack
+        run: supabase start --exclude studio,auth,imgproxy,inbucket,edge-runtime,logflare,vector,realtime,storage-api
+
+      - name: Apply all migrations (ordered)
+        run: supabase db reset --debug
+
+      - name: Run pgTAP RLS contract tests
+        run: supabase test db --debug

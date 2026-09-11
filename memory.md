@@ -1,13 +1,13 @@
 # CaseThread — Project Memory
 
-**Last updated:** 2026-09-10 (Sprint 0–1 session)
+**Last updated:** 2026-09-11 (Sprint 2 session)
 **Update this file at the end of every work session — it's the fastest way for anyone (including a resuming AI assistant) to get back up to speed.**
 
 ---
 
 ## 1. Current Project State Summary
 
-Sprint 0 + Sprint 1 (auth) are code-complete as of 2026-09-10: the Flutter app is scaffolded feature-first (`lib/core/` + `lib/features/{auth,rooms,setup}/`) with the full Design.md dark token system, Supabase email/password auth behind a repository interface, routing guards (unconfigured → setup screen, unauthenticated → auth screen), a 20-test suite, GitHub Actions CI (format/analyze/test/web-build), and a draft `profiles` migration (Sprint 2 preview). All gates green locally: format clean, `flutter analyze` zero issues, 20/20 tests, web release build. **Not yet done:** git repo init + Supabase dev project provisioning (Phase 0 exit checklist items P2–P3 in ExecutionPlan.md §1) — the app boots to the setup screen until `.env`/dart-defines provide credentials. Next: Sprint 2 (full schema + pgTAP harness) once Supabase is provisioned.
+**Sprint 2 COMPLETE and applied to cloud** (branch `feature/sprint-2-schema`, HEAD caf6919): all 14 tables live in the dev project (`hxrztoakimebjcibvkaa`), migrations 0001–0006 recorded in remote history, Legal (6 roles) + Academic (5 roles) seeded with permission grids, RLS policies active on every table via `user_room_role()`/`user_room_permission()`, audit_log immutability triggers armed (UPDATE/DELETE rejected), rate-limiting functions ready for Sprint 3. Cloud verification done via `db query` + PostgREST: unauthenticated reads return empty (default-deny working), seeds + all 5 helper functions + 2 immutability triggers confirmed live. One bug found & fixed during cloud apply: Postgres UNIQUE constraints can't hold expressions (`lower(name)`) — replaced with a unique index on `entities`. Dart side: typed models + CaseTypeRepository + profile fetch wired; 29/29 tests, analyze 0. **Outstanding:** CI `rls-tests` result needs eyeballing in the (private) repo Actions tab — it's the first Postgres execution of the pgTAP suite; authenticated E2E via curl deferred (auth-email rate limit), covered by pgTAP. Next: SME sign-off on permission matrix + Sprint 3 (rooms, access codes, join/approval UI) — schema and contracts are ready for it.
 
 ---
 
@@ -22,6 +22,7 @@ Sprint 0 + Sprint 1 (auth) are code-complete as of 2026-09-10: the Flutter app i
 | 2026-09-10 | ExecutionPlan.md drafted | Operational companion to Phases.md: Phase 0 exit checklist, 2-week sprint process (both-platform DoD rule), Sprint 0–7 detail for Phase 1, sprint-level Phase 2–3, gate summary, risk register |
 | 2026-09-10 | Sprint 0 scaffold built | Feature-based `lib/` structure, Design.md tokens (`lib/core/theme/`), typed errors (`lib/core/errors/`), env config (`lib/core/config/`), fonts (Inter + JetBrains Mono, OFL bundled), CI (`.github/workflows/ci.yml`), pinned deps in pubspec |
 | 2026-09-10 | Sprint 1 auth built | `features/auth/` domain/data/presentation, Supabase sign-up/in/out, setup screen for unconfigured state, rooms placeholder, router guards; 20 tests green |
+| 2026-09-11 | Sprint 2 schema + harness built | Migrations 0002–0006 (core tables, audit immutability, Legal+Academic seeds, RLS policies, rate limiting), pgTAP suite in `supabase/tests/db/`, CI `rls-tests` gate, typed Dart models + CaseTypeRepository, profile fetch wiring; 29 tests green; branch `feature/sprint-2-schema` pushed (bb8ae90) |
 
 ---
 
@@ -29,11 +30,13 @@ Sprint 0 + Sprint 1 (auth) are code-complete as of 2026-09-10: the Flutter app i
 
 | File/Feature | Owner | Status |
 |---|---|---|
-| `lib/features/auth/` (domain/data/presentation + providers) | Flutter eng | Sprint 1 complete, tested |
-| `lib/core/theme/` (tokens, theme builder) | Flutter eng | Sprint 0 complete, token contract tests in `test/core/theme/` |
-| `lib/core/routing/app_router.dart` | Flutter eng | Sprint 0 complete (auth redirect + refreshListenable) |
-| `supabase/migrations/0001_profiles.sql` | Backend eng | DRAFT — apply once Supabase dev project exists (Phase 0 item P3) |
-| `.github/workflows/ci.yml` | Eng lead | Sprint 0 complete — push repo to GitHub to activate (Phase 0 item P2) |
+| `supabase/migrations/0002–0006` | Backend eng | Written + committed; **cloud apply pending** (needs `supabase login`+`link`+`db push` or `--db-url`) |
+| `supabase/tests/db/` pgTAP suite (5 files) | Backend eng | Written; first CI run in progress on `feature/sprint-2-schema` |
+| `.github/workflows/ci.yml` `rls-tests` job | Eng lead | First run triggered by the sprint-2 push |
+| `lib/core/api/` (models, CaseTypeRepository) + `lib/features/profiles/` | Flutter eng | Complete, 9 model-contract tests |
+| `docs/permission-matrix-draft.md` | Product Lead + SME | DRAFT — SME review is the merge gate before Phase 1 exit |
+| `lib/features/auth/` | Flutter eng | Sprint 1 complete, stable |
+| `lib/core/theme/`, routing, setup screen | Flutter eng | Sprint 0 complete, stable |
 
 ---
 
@@ -41,10 +44,11 @@ Sprint 0 + Sprint 1 (auth) are code-complete as of 2026-09-10: the Flutter app i
 
 | Issue | Severity | Link |
 |---|---|---|
-| No Supabase dev project provisioned yet — app boots to setup screen; Sprint 2 schema work blocked until provisioned | High (blocks Sprint 2) | ExecutionPlan.md §1 P3 |
-| Not a git repo yet — CI and Vercel deploys inactive | High (blocks Phase 0 exit) | ExecutionPlan.md §1 P2 |
-| Windows Developer Mode off — `flutter pub get` warns about symlink support; plugin/Android builds need it enabled | Low (analyze/test unaffected) | memory.md §8 |
-| Permission matrix (Phase 0 item P1) still draft | Medium (blocks RLS merge gate, not draft work) | ExecutionPlan.md §1 |
+| CI `rls-tests` result unconfirmed — repo is private, no `gh` CLI locally; user must check the Actions tab (pushes: bb8ae90, 1a176c9, caf6919) | Medium (verify before merge) | github.com/abdullahhshafique/case_thread/actions |
+| Auth email rate limit hit while testing signups (429 over_email_send_rate_limit) — the E2E authenticated-RLS curl test is deferred; local pgTAP suite covers it | Low | memory.md §8 |
+| Permission matrix (Phase 0 item P1) still draft — SME review required before Phase 1 exit | Medium | docs/permission-matrix-draft.md |
+| Windows Developer Mode off — needed before Android device builds | Low | memory.md §8 |
+| No Docker locally — pgTAP suite runs via CI (or `npx supabase test db --linked` after careful review, it mutates shared state — avoid) | Info | memory.md §7 |
 
 ---
 
@@ -73,9 +77,10 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 
 ## 7. Environment State
 
-- **Repo:** local only — NOT yet a git repository (Phase 0 item P2 pending: init on `main` with branch protection + squash-merge, push to GitHub to activate CI).
-- **Local setup:** Flutter 3.47.2 at `D:\5th Semester\MAD\flutter` (export PATH per shell); `flutter pub get`; config via `.env` (copy `.env.example`) for Android/desktop or `--dart-define` for web; `supabase/migrations/0001_profiles.sql` is a draft — apply once the dev project exists (P3 pending).
-- **Commands:** `dart format .` → `flutter analyze` → `flutter test` (all green 2026-09-10) → `flutter build web --release` (2.6 MB main.dart.js).
+- **Repo:** GitHub `abdullahhshafique/case_thread`, default branch `main`, current work branch `feature/sprint-2-schema` (bb8ae90). Conventional Commits + squash-merge per Rules.md §2.
+- **Local setup:** Flutter 3.47.2 at `D:\5th Semester\MAD\flutter` (export PATH per shell); `flutter pub get` + `npm install` (supabase CLI 2.117.0 via `npx supabase`); config via `.env` (never commit) or `--dart-define` on web.
+- **Cloud:** Supabase project ref `hxrztoakimebjcibvkaa` (live, GoTrue v2.196.0); **CLI not linked** — `npx supabase login` (token: supabase.com/dashboard/account/tokens) then `npx supabase link --project-ref hxrztoakimebjcibvkaa` then `npx supabase db push`.
+- **Commands (gates):** `dart format .` → `flutter analyze` → `flutter test` (29 green) → CI runs `flutter build web --release` + `supabase db reset` + `supabase test db` on GitHub runners (no local Docker needed).
 - **App behavior when unconfigured:** boots to the setup screen with instructions — by design, not a crash.
 
 ---
@@ -85,9 +90,12 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 - Flutter SDK lives at `D:\5th Semester\MAD\flutter` (not on PATH — export it per shell). Mirror `flutter-io.cn` is configured; pub.dev access works.
 - `flutter pub get` prints a "symlink support / Developer Mode" warning on this Windows machine — it only blocks plugin builds, not analyze/test. Enable Developer Mode before building Android.
 - **supabase_flutter 2.17.2 API names:** no `Supabase.instanceOrNull` (asserts instead — use `Supabase.isInitialized` on the singleton or guard before touching `.instance`); `Supabase.instance.client` for the client; `publishableKey:` (not deprecated `anonKey:`) in `initialize`; no `clearSession` on GoTrueClient; gotrue exports `AuthException`/`AuthState` which collide with our domain names — prefix supabase imports (`as supabase`).
-- **Riverpod 3.4.3:** `AsyncValue.valueOrNull` is gone — use `.value`. `NotifierProvider(Class.new)` constructor-tearoff style works.
+- **Riverpod 3.4.3:** `AsyncValue.valueOrNull` is gone — use `.value`. `NotifierProvider(Class.new)` constructor-tearoff style works. Sealed classes can't be extended outside their library — feature exceptions live in `core/errors/app_exceptions.dart`.
 - **go_router 18:** `GoRouter.notifyListeners` removed — use `refreshListenable` (we bridge the session stream via a small ChangeNotifier).
 - **Flutter 3.47 theme:** `ElevatedButton.styleFrom` lost `hoverColor`/`disabledBackgroundColor` — build `ButtonStyle` with `WidgetStateProperty.resolveWith`; `withOpacity` is deprecated for `withValues(alpha:)`; `ThemeData.fontFamily` is not a getter — assert via `textTheme.bodyLarge!.fontFamily`.
+- **Postgres:** UNIQUE table constraints reject function expressions (`SQLSTATE 42601`) — use `create unique index ... (col, lower(name))` instead. Cloud `db push` runs migrations transactionally: a failure rolls the whole file back cleanly (only previously-applied versions stay in `supabase_migrations.schema_migrations`).
+- **Supabase cloud testing:** `npx supabase db query --linked "..."` works great for live verification (list tables, check triggers, query seeds). PostgREST SELECT under RLS returns `200` with `[]` for denied rows — not 403 — so "empty array" IS the deny proof.
+- **Supabase Auth:** dev project rejects `example.com` etc. as invalid emails at signup, and sends a rate-limited confirmation email (429 `over_email_send_rate_limit`) — for dev, disable email confirmation in Dashboard → Authentication → Providers, or wait out the limit.
 
 ---
 
@@ -100,7 +108,7 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 
 ## 10. Testing Status
 
-**2026-09-10 (main, local):** All 20 tests pass — token contract tests (`test/core/theme/`), app smoke/routing tests (`test/app_test.dart`), auth form widget tests with a fake repository (`test/features/auth/`). `flutter analyze` zero issues; `dart format` clean; web release build green. CI not yet active (repo not pushed). No RLS/permission tests yet — they arrive with the Sprint 2 schema + pgTAP harness.
+**2026-09-11 (`feature/sprint-2-schema`, local):** All 29 Dart tests pass — token contracts, app smoke/routing, auth widgets (fake repo), model parse contracts. `flutter analyze` zero issues; `dart format` clean. **pgTAP RLS suite written but not yet executed** — first run is the CI `rls-tests` job triggered by the sprint-2 push (no local Docker). Cloud schema untested (migrations not pushed). Watch: if CI `rls-tests` fails, fix SQL/tests on the same branch before merging.
 
 ---
 
@@ -108,4 +116,6 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 
 | Timestamp | Environment | Version | Notes |
 |---|---|---|---|
-| *(none yet)* | — | — | First deploy will be a Vercel staging preview once Phase 1 scaffolding lands |
+| 2026-09-10 | GitHub (private repo) | bb8ae90 base | Sprint 0–1 pushed by user; CI active |
+| 2026-09-11 | GitHub `feature/sprint-2-schema` | bb8ae90 → caf6919 | Sprint 2 commits + 0002 fix; CI `rls-tests` first run (result unconfirmed — check Actions) |
+| 2026-09-11 | Supabase dev cloud `hxrztoakimebjcibvkaa` | migrations 0001–0006 | Applied via `npx supabase db push --include-all` after expression-index fix; 14 tables, RLS armed, seeds present; GoTrue v2.196.0 |

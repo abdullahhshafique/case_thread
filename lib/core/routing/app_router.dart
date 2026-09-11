@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/auth_providers.dart';
 import '../../features/auth/presentation/auth_screen.dart';
+import '../../features/rooms/join_screen.dart';
+import '../../features/rooms/room_detail_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
 import '../../features/setup/setup_screen.dart';
 
@@ -48,6 +50,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/setup', builder: (context, state) => const SetupScreen()),
       GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
       GoRoute(path: '/', builder: (context, state) => const RoomsScreen()),
+      GoRoute(path: '/join', builder: (context, state) => const JoinScreen()),
+      GoRoute(
+        path: '/rooms/:id',
+        builder: (context, state) =>
+            RoomDetailScreen(roomId: state.pathParameters['id']!),
+      ),
     ],
   );
 

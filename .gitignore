@@ -54,3 +54,11 @@ app.*.map.json
 
 # Supabase local dev artifacts
 supabase/.temp/
+
+# ZCode session artifacts
+.zcode/
+
+# Node (supabase CLI devDependency)
+node_modules/
+# Flutter DevTools
+/devtools_options.yaml

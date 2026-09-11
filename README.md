@@ -64,6 +64,21 @@ flutter analyze   # zero warnings required
 flutter test
 ```
 
+### Database tests (RLS contract suite)
+
+The pgTAP suite in `supabase/tests/db/` is the non-negotiable security gate (Rules.md §7). It runs in CI on every push, and locally with Docker:
+
+```bash
+# One-time: install Docker Desktop, then from the project root
+npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api
+npx supabase db reset   # applies all migrations in order to local Postgres
+npx supabase test db    # runs the pgTAP suite with full pg_prove output
+```
+
+Local Postgres listens on port **65432** (not the CLI default 54322 — this machine's Hyper-V reserves 54262–54361). `supabase stop` shuts the stack down when done.
+
+> History: this suite was developed against a blind 4-minute CI loop, which caught nothing until Docker enabled the exact same `db reset + test db` loop locally. Prefer the local loop for RLS work; CI is the confirmation gate, not the debugger.
+
 ## Documentation
 
 - [PRD.md](./PRD.md) — problem, personas, KPIs, requirements

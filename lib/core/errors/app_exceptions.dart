@@ -78,6 +78,41 @@ class RoomNotFoundException extends AppException {
 /// Unexpected failure that none of the above types describe. The UI shows
 /// the generic message; `cause` is logged, never displayed (Rules.md §5).
 class UnexpectedException extends AppException {
-  const UnexpectedException({super.cause})
-    : super(message: 'Something went wrong on our side. Please try again.');
+  const UnexpectedException({
+    super.message = 'Something went wrong on our side. Please try again.',
+    super.cause,
+  });
+}
+
+/// Requested case type or role definition is unknown (config data).
+class UnknownCaseTypeException extends AppException {
+  const UnknownCaseTypeException(this.caseTypeId)
+    : super(message: 'Case type "$caseTypeId" is not available.');
+  final String caseTypeId;
+}
+
+/// Too many join attempts in the rate-limit window (0006).
+class JoinRateLimitedException extends AppException {
+  const JoinRateLimitedException()
+    : super(
+        message: 'Too many join attempts. Wait a few minutes and try again.',
+      );
+}
+
+/// The requested role is not defined for the room's case type.
+class RoleNotAllowedException extends AppException {
+  const RoleNotAllowedException()
+    : super(message: 'That role isn\'t available for this room.');
+}
+
+/// Member's access was revoked by the room owner.
+class AccessRevokedException extends AppException {
+  const AccessRevokedException()
+    : super(message: 'Your access to this room was revoked by the owner.');
+}
+
+/// Attempted a member-management action without owning the room.
+class NotRoomOwnerException extends AppException {
+  const NotRoomOwnerException()
+    : super(message: 'Only the room owner can do that.');
 }
