@@ -1,15 +1,23 @@
 -- Shared pgTAP helpers for CaseThread RLS contract tests.
 --
--- Loaded before each test file by supabase test db (files run
--- alphabetically; the underscore prefix keeps this first). Everything
--- runs inside the runner's transaction and rolls back, so tests can
--- freely create fixtures.
+-- supabase test db runs EVERY .sql file in this directory as its own
+-- psql session (alphabetically — the underscore keeps this first).
+-- This file is therefore NOT wrapped in begin/rollback: its schema,
+-- fixtures table, and helper functions COMMIT here so later test
+-- files can use them. It declares itself as a zero-test TAP file
+-- (plan(0) + finish) so pg_prove treats it as passing.
 --
--- NOTE: no psql client metacommands (\gset etc.) — the Supabase CLI test
--- runner is not psql; values pass between statements via tables/DO
--- blocks instead.
+-- Test files after this one use the standard pgTAP pattern:
+--   begin; select plan(n); ... select * from finish(); rollback;
+-- so their fixtures roll back and never leak between files.
+--
+-- No psql client metacommands (\gset etc.) — values pass between
+-- statements via the tests.fixtures table instead.
 
--- Fixture store: test-owned users/rooms/members addressable by email.
+select plan(0); -- this file runs no assertions itself
+
+create schema if not exists tests;
+
 create table if not exists tests.fixtures (
   key text primary key,
   user_id uuid,
@@ -44,7 +52,7 @@ begin
 end;
 $$;
 
--- Impersonate a user for subsequent statements in the test transaction:
+-- Impersonate a user for subsequent statements in this session:
 -- sets the JWT claim PostgREST would send, so auth.uid() resolves.
 create or replace function tests.impersonate(user_email text)
 returns void
@@ -61,7 +69,8 @@ begin
       'role', 'authenticated',
       'aud', 'authenticated'
     )::text,
-    true -- transaction-scoped: resets on rollback
+    true -- transaction-local: test files wrap everything in
+         -- begin; ... rollback; so this resets with the rollback.
   );
   perform set_config('role', 'authenticated', true);
 end;
@@ -97,3 +106,5 @@ begin
   return row_id;
 end;
 $$;
+
+select * from finish();
