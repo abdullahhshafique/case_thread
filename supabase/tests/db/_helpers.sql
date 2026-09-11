@@ -4,8 +4,8 @@
 -- psql session (alphabetically — the underscore keeps this first).
 -- This file is therefore NOT wrapped in begin/rollback: its schema,
 -- fixtures table, and helper functions COMMIT here so later test
--- files can use them. It declares itself as a zero-test TAP file
--- (plan(0) + finish) so pg_prove treats it as passing.
+-- files can use them. It declares a 1-test plan (helpers installed)
+-- so pg_prove counts it as passing.
 --
 -- Test files after this one use the standard pgTAP pattern:
 --   begin; select plan(n); ... select * from finish(); rollback;
@@ -14,9 +14,16 @@
 -- No psql client metacommands (\gset etc.) — values pass between
 -- statements via the tests.fixtures table instead.
 
-select plan(0); -- this file runs no assertions itself
+begin;
+select plan(1);
 
 create schema if not exists tests;
+
+-- pgTAP assertion helpers execute with SET ROLE from the caller's
+-- context; grant the runner everything on the tests schema.
+grant usage, create on schema tests to public;
+grant all on all tables in schema tests to public;
+grant all on all functions in schema tests to public;
 
 create table if not exists tests.fixtures (
   key text primary key,
@@ -107,4 +114,17 @@ begin
 end;
 $$;
 
+-- The one assertion: every helper the test files depend on exists.
+select is(
+  (select count(*) = 4 from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'tests'
+     and p.proname in (
+       'create_test_user', 'impersonate', 'unimpersonate', 'add_approved_member'
+     )),
+  true,
+  'test helpers installed'
+);
+
 select * from finish();
+commit; -- keep schema + helpers for subsequent test files
