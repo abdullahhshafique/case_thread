@@ -196,7 +196,7 @@ MVP uses **Supabase's auto-generated REST/RPC layer** (PostgREST) for straightfo
 | Widget/component | Flutter UI components in isolation | `flutter_test` |
 | Integration | Client ↔ Supabase interactions against a local/staging Supabase instance | `flutter test` (integration profile) + Supabase local dev stack |
 | E2E | Full user flows: create room → join → upload → AI suggestion → export | Patrol or `integration_test` package across a real device/emulator |
-| RLS/contract tests | Every RLS policy has an explicit "this role can" / "this role cannot" test | SQL test suite (pgTAP or equivalent) run in CI against Supabase local |
+| RLS/contract tests | Every RLS policy has an explicit "this role can" / "this role cannot" test | SQL test suite (pgTAP or equivalent) run in CI against Supabase local — and locally via Docker Desktop (`npx supabase db reset` + `npx supabase test db`) before any push |
 | AI adapter tests | Contract tests per provider (request/response shape), mocked provider responses | Unit tests with fixture responses, no live API calls in CI |
 
 RLS/contract tests are treated as **non-negotiable** given the product's confidentiality promise — see Rules.md §Testing Rules for required coverage.

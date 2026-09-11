@@ -40,7 +40,7 @@ These apply to every sprint in every phase.
 
 1. `dart format --set-exit-if-changed` + `flutter analyze` (zero warnings — Rules.md §1)
 2. Unit + widget tests (`flutter test`)
-3. RLS contract test suite (pgTAP) against Supabase local — **non-negotiable per Rules.md §7**
+3. RLS contract test suite (pgTAP) against Supabase local — **non-negotiable per Rules.md §7**. Run it LOCALLY first (Docker Desktop + `npx supabase db reset && npx supabase test db`, ~seconds per iteration); CI is the confirmation gate, never the debugging loop. Hard-won lesson from Sprint 3: blind CI-driven debugging cost a day; the local Docker loop found every remaining issue in minutes.
 4. Supabase migration dry-run
 5. Web build succeeds (bundle-size budget check per Rules.md §9 — flag >10% growth without justification)
 
