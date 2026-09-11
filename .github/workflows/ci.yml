@@ -1,12 +1,11 @@
 name: CI
 
 # Sprint 0 CI pipeline (ExecutionPlan.md §2.2): format → analyze → test →
-# web build on every PR and push to main. RLS contract tests (pgTAP) and
-# migration dry-run join these gates in Sprint 2 once the schema lands.
+# web build on every PR. Feature branches also run the full pipeline on
+# push (fail fast before PR review); main additionally gates deploy.
 on:
   pull_request:
   push:
-    branches: [main]
 
 jobs:
   flutter:
