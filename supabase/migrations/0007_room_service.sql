@@ -165,7 +165,7 @@ begin
   select * into found_room
   from public.case_rooms
   where access_code_hash = public.hash_access_code(code)
-    and status = 'active'
+    and case_rooms.status = 'active'
   limit 1;
 
   perform public.record_join_attempt(found_room.id is not null);
@@ -190,7 +190,9 @@ create or replace function public.request_room_join(
   code text,
   requested_role text
 )
-returns table (member_id uuid, status text)
+-- OUT param named member_status (not "status") to avoid column-name
+-- ambiguity with room_members.status throughout the body (SQLSTATE 42702).
+returns table (member_id uuid, member_status text)
 language plpgsql
 security definer set search_path = public
 as $$
@@ -199,6 +201,7 @@ declare
   found_room public.case_rooms%rowtype;
   role_ok boolean;
   existing_membership public.room_members%rowtype;
+  new_status text; -- avoids OUT-param/column name collision
 begin
   if caller_id is null then
     raise exception 'Not authenticated';
@@ -211,7 +214,7 @@ begin
   select * into found_room
   from public.case_rooms
   where access_code_hash = public.hash_access_code(code)
-    and status = 'active'
+    and case_rooms.status = 'active'
   limit 1;
 
   perform public.record_join_attempt(found_room.id is not null);
@@ -247,14 +250,16 @@ begin
 
   insert into public.room_members (room_id, user_id, role_id, status)
   values (found_room.id, caller_id, requested_role, 'pending')
-  returning id, status into member_id, status;
+  -- INTO targets renamed: the OUT parameter "status" would be ambiguous
+  -- against the column name here (SQLSTATE 42702).
+  returning id, room_members.status into member_id, new_status;
 
   perform public.append_audit(
     found_room.id, caller_id, 'join_requested', 'room_member', member_id::text,
     jsonb_build_object('requested_role', requested_role)
   );
 
-  return query select member_id, status;
+  return query select member_id, new_status;
 end;
 $$;
 
@@ -305,7 +310,8 @@ begin
   set status = decision,
       joined_at = case when decision = 'approved' then now() else joined_at end
   where id = target_member
-  returning status into decision;
+  -- Qualified: avoids column/parameter ambiguity in RETURNING.
+  returning room_members.status into decision;
 
   perform public.append_audit(
     target_room, caller_id,
