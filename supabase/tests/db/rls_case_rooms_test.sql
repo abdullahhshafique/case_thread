@@ -46,7 +46,7 @@ from public.case_rooms cr, tests.fixtures f
 where cr.name = 'Fraud Case 2026' and f.key = 'elena@example.com';
 
 select is(
-  status,
+  rm.status,
   'pending',
   'join request lands as pending'
 ) from public.room_members rm

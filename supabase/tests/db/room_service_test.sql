@@ -3,7 +3,7 @@
 -- edge cases those functions encode. No psql metacommands.
 
 begin;
-select plan(11);
+select plan(14);
 
 select tests.unimpersonate();
 select tests.create_test_user('svc-owner@example.com');
@@ -52,7 +52,7 @@ select tests.unimpersonate();
 -- 5. Joiner previews by code: name + case type revealed (PRD §6.2).
 select tests.impersonate('svc-joiner@example.com');
 select is(
-  (room_name, case_type_id),
+  (room_name::text, case_type_id::text),
   ('Service Test Room', 'legal')::record,
   'preview_room_by_code reveals name and case type'
 ) from public.preview_room_by_code(
@@ -60,8 +60,9 @@ select is(
 );
 
 -- 6. Joiner requests analyst role; lands pending; audit logged.
+-- (RPC output column is member_status after the OUT-param rename.)
 insert into tests.fixtures (key, member_id, text_value)
-select 'svc-join-result', member_id, status
+select 'svc-join-result', member_id, member_status
 from public.request_room_join(
   (select text_value from tests.fixtures where key = 'svc-room'),
   'analyst'

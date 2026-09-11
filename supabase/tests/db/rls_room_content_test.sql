@@ -2,7 +2,7 @@
 -- Permission-key gating exercised per role. No psql metacommands.
 
 begin;
-select plan(9);
+select plan(14);
 
 select tests.unimpersonate();
 select tests.create_test_user('lead@example.com');
@@ -65,13 +65,18 @@ select is(
 ) from public.evidence_items
 where storage_path = 'rooms/evidence-test/contract.pdf';
 
--- 2. Observer CANNOT upload (upload_evidence = false).
-insert into public.evidence_items (
-  room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes
-)
-select cr.id, f.user_id, 'sneak.pdf', 'rooms/evidence-test/sneak.pdf', 'x', 1
-from public.case_rooms cr, tests.fixtures f
-where cr.name = 'Evidence Test Room' and f.key = 'observer@example.com';
+-- 2. Observer CANNOT upload (upload_evidence = false). RLS raises on
+-- a denied INSERT — assert the rejection itself.
+select throws_ok(
+  'insert into public.evidence_items ( '
+    || 'room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes '
+    || ') select cr.id, f.user_id, ''sneak.pdf'', '
+    || '''rooms/evidence-test/sneak.pdf'', ''x'', 1 '
+    || 'from public.case_rooms cr, tests.fixtures f '
+    || 'where cr.name = ''Evidence Test Room'' and f.key = ''observer@example.com''',
+  '42501',
+  'observer upload rejected by RLS (upload_evidence false)'
+);
 
 select is(
   count(*),
@@ -118,32 +123,36 @@ where room_id in (select id from public.case_rooms where name = 'Evidence Test R
 
 -- 5. Observer cannot comment (comment = false).
 select tests.impersonate('observer@example.com');
-insert into public.discussion_messages (room_id, author_id, body)
-select cr.id, f.user_id, 'Observer tries to comment.'
-from public.case_rooms cr, tests.fixtures f
-where cr.name = 'Evidence Test Room' and f.key = 'observer@example.com';
-
-select is(
-  count(*),
-  0::bigint,
-  'observer comment rejected (comment false)'
-) from public.discussion_messages rm
-join tests.fixtures f on f.user_id = rm.author_id
-  and f.key = 'observer@example.com';
+select throws_ok(
+  'insert into public.discussion_messages (room_id, author_id, body) '
+    || 'select cr.id, f.user_id, ''Observer tries to comment.'' '
+    || 'from public.case_rooms cr, tests.fixtures f '
+    || 'where cr.name = ''Evidence Test Room'' '
+    || 'and f.key = ''observer@example.com''',
+  '42501',
+  'observer comment rejected by RLS (comment false)'
+);
 
 -- 6. Observer cannot create tasks or timeline events (edit_case false).
-insert into public.tasks (room_id, title, created_by)
-select cr.id, 'Sneak task', f.user_id
-from public.case_rooms cr, tests.fixtures f
-where cr.name = 'Evidence Test Room' and f.key = 'observer@example.com';
+select throws_ok(
+  'insert into public.tasks (room_id, title, created_by) '
+    || 'select cr.id, ''Sneak task'', f.user_id '
+    || 'from public.case_rooms cr, tests.fixtures f '
+    || 'where cr.name = ''Evidence Test Room'' '
+    || 'and f.key = ''observer@example.com''',
+  '42501',
+  'observer task creation rejected by RLS (edit_case false)'
+);
 
-select is(
-  count(*),
-  0::bigint,
-  'observer task creation rejected (edit_case false)'
-) from public.tasks t
-join tests.fixtures f on f.user_id = t.created_by
-  and f.key = 'observer@example.com';
+select throws_ok(
+  'insert into public.timeline_events (room_id, event_type, actor_id, payload) '
+    || 'select cr.id, ''manual'', f.user_id, ''{"summary":"sneak"}'' '
+    || 'from public.case_rooms cr, tests.fixtures f '
+    || 'where cr.name = ''Evidence Test Room'' '
+    || 'and f.key = ''observer@example.com''',
+  '42501',
+  'observer manual timeline event rejected by RLS'
+);
 
 -- 7. Analyst can create tasks + manual timeline events (edit_case true).
 select tests.impersonate('analyst@example.com');
