@@ -6,6 +6,8 @@ import '../../../core/theme/app_spacing.dart';
 import 'rooms_providers.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
+import '../../../core/api/models.dart' show Permission;
+import 'room_permissions.dart';
 
 /// Discussion pane (Sprint 5): realtime thread with @mentions
 /// (PRD §6.6). Posting is permission-gated by RLS; denied roles see a
@@ -32,6 +34,9 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
   @override
   Widget build(BuildContext context) {
     final messages = ref.watch(_discussionStreamProvider(widget.roomId));
+    final canComment = ref
+        .watch(myRoomPermissionsProvider(widget.roomId))
+        .maybeWhen(data: (p) => p.can(Permission.comment), orElse: () => false);
     // Members resolve lazily via membersNameMap() when sending.
     final text = Theme.of(context).textTheme;
 
@@ -56,39 +61,44 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
                   ),
           ),
         ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const Key('discussion-input'),
-                    controller: _controller,
-                    enabled: !_sending,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _send(),
-                    decoration: const InputDecoration(
-                      hintText: 'Message the team (@ to mention)',
+        if (canComment)
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const Key('discussion-input'),
+                      controller: _controller,
+                      enabled: !_sending,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: const InputDecoration(
+                        labelText: 'Message', // persistent label (a11y)
+                        hintText: 'Message the team (@ to mention)',
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                IconButton.filled(
-                  key: const Key('discussion-send'),
-                  icon: _sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                  onPressed: _sending ? null : _send,
-                ),
-              ],
+                  const SizedBox(width: AppSpacing.xs),
+                  Semantics(
+                    label: 'Send message',
+                    child: IconButton.filled(
+                      key: const Key('discussion-send'),
+                      icon: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send),
+                      onPressed: _sending ? null : _send,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }

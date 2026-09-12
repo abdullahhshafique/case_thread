@@ -5,6 +5,8 @@ import '../../../core/errors/app_exceptions.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
+import '../../../core/api/models.dart' show Permission;
+import 'room_permissions.dart';
 import 'rooms_providers.dart';
 
 /// Tasks pane (Sprint 5): create, assign, tick done — realtime.
@@ -32,17 +34,25 @@ class _TasksPaneState extends ConsumerState<TasksPane> {
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(_tasksStreamProvider(widget.roomId));
+    final canCreate = ref
+        .watch(myRoomPermissionsProvider(widget.roomId))
+        .maybeWhen(
+          data: (p) => p.can(Permission.editCase),
+          orElse: () => false,
+        );
     final members = ref.watch(roomMembersProvider(widget.roomId));
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('tasks-new'),
-        onPressed: () => _showCreateSheet(context, members.value ?? []),
-        icon: const Icon(Icons.add_task),
-        label: const Text('New task'),
-      ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton.extended(
+              key: const Key('tasks-new'),
+              onPressed: () => _showCreateSheet(context, members.value ?? []),
+              icon: const Icon(Icons.add_task),
+              label: const Text('New task'),
+            )
+          : null,
       body: tasks.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
