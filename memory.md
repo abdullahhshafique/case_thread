@@ -55,11 +55,12 @@
 
 ## 5. Next Immediate Steps
 
-1. Complete the Phase 0 exit checklist in [ExecutionPlan.md](./ExecutionPlan.md) §1 — especially the starter permission matrix per role/case type (blocks RLS policy work).
-2. Provision the Supabase project (dev environment) per Architecture.md §10.
-3. Scaffold the Flutter project structure (feature-based folders per Rules.md §1).
-4. Set up GitHub Actions CI (lint + test) and connect Vercel for web preview deploys.
-5. Write the first RLS policies + their contract tests for Case Room creation and join flow (Phase 1 P0 epics in Phases.md §2).
+**Sprint 4 (in flight) — Evidence Vault** per ExecutionPlan.md §3:
+
+1. Migration 0009: evidence storage bucket (private, 50MB limit, mime whitelist per PRD §6.4), `storage.objects` RLS policies (upload scoped by `upload_evidence` permission), `register_evidence()` RPC (audit-logged, duplicate-name versioning, sha256 file hash).
+2. pgTAP tests for the storage policies + RPC (`rls_evidence_storage_test.sql`).
+3. Dart: `crypto` + `file_picker` deps, EvidenceItem model, EvidenceRepository domain/data, upload validation (size/mime), vault UI in room detail (tabs: Vault / Members).
+4. Local Docker loop → CI green → cloud push → live vault verification.
 
 Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) — follow it for order of work; Phases.md remains the strategic source of truth.
 

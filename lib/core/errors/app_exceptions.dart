@@ -116,3 +116,25 @@ class NotRoomOwnerException extends AppException {
   const NotRoomOwnerException()
     : super(message: 'Only the room owner can do that.');
 }
+
+/// Evidence upload validation failure (client-side, pre-network —
+/// the server re-validates everything; this is UX feedback only).
+class EvidenceValidationException extends AppException {
+  const EvidenceValidationException({required super.message});
+}
+
+/// The room's permission matrix denies this caller uploads (server).
+class UploadNotAllowedException extends AppException {
+  const UploadNotAllowedException()
+    : super(message: 'Your role can\'t upload evidence in this room.');
+}
+
+/// Evidence rejected by register_evidence server checks (0009).
+class EvidenceRejectedServerException extends AppException {
+  const EvidenceRejectedServerException._(String message)
+    : super(message: message);
+
+  static EvidenceRejectedServerException fromMessage(String message) {
+    return EvidenceRejectedServerException._(message);
+  }
+}
