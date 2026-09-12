@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/error_mapper.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
@@ -23,7 +24,7 @@ class TimelinePane extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Text(
-            error.toString(),
+            toAppException(error).message,
             style: text.bodyMedium,
             textAlign: TextAlign.center,
           ),

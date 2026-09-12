@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/errors/error_mapper.dart';
+
 import 'data/supabase_evidence_repository.dart';
 import 'domain/evidence_repository.dart';
 
@@ -39,7 +41,7 @@ final vaultProvider = FutureProvider.family<VaultState, String>((
         .listForRoom(roomId);
     return VaultLoaded(entries);
   } catch (error) {
-    return VaultError(error.toString());
+    return VaultError(toAppException(error).message);
   }
 });
 
