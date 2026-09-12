@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/app_exceptions.dart';
+import '../../../core/errors/error_mapper.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'rooms_providers.dart';
 import 'data/supabase_room_content_repository.dart';
@@ -45,7 +46,8 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
         Expanded(
           child: messages.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Center(child: Text(error.toString())),
+            error: (error, _) =>
+                Center(child: Text(toAppException(error).message)),
             data: (list) => list.isEmpty
                 ? Center(
                     child: Text(

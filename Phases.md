@@ -147,7 +147,7 @@
 | Phase | What went well | What went poorly | Changes for next phase |
 |---|---|---|---|
 | Phase 0 | — | — | — |
-| Phase 1 | *(pending)* | | |
+| Phase 1 | Full feature set shipped ahead of plan: auth, rooms/join, vault, timeline/discussion/tasks, UI gating — all live-verified against cloud; RLS-first design caught a real policy hole via contract tests; pgTAP suite grew 0→75 | Debugging RLS via blind CI loops cost ~a day before Docker arrived; supabase_flutter API drift (instanceOrNull/publishableKey) and pgTAP 3.36 semantics (throws_ok exact-match, empty-set is()) were repeated time sinks | Local-Docker-loop-first is now standing policy for any DB work (CI is the gate, not the debugger); pin exact library versions + read actual package sources instead of assuming APIs |
 | Phase 2 | *(pending)* | | |
 | Phase 3 | *(pending)* | | |
 | Phase 4 | *(pending)* | | |
