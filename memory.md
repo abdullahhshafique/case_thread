@@ -7,7 +7,7 @@
 
 ## 1. Current Project State Summary
 
-**Sprints 0–3 complete and merged to `main` (e2a3649, CI green on both jobs).** The full Phase 1 core now works end-to-end: auth → create room (server-generated code) → join by code (rate-limited, no info leak) → owner approval → member access → immutable audit trail. 47/47 pgTAP RLS contract tests pass in CI *and* locally (Docker loop); 29/29 Dart tests; analyze 0. Live E2E verified against the cloud dev project. A real RLS policy hole was found and fixed by the contract tests (owner authority now independent of membership rows). **Standing infrastructure:** Docker Desktop installed; local stack runs with DB on port **65432** (Hyper-V reserves 54262–54361 on this machine — never use 543xx defaults); start with `npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api`, then `db reset` + `test db`. **Next:** Sprint 4 (evidence vault: Storage bucket, upload, hashing, duplicate-name versioning per ExecutionPlan.md §3).
+**Sprints 0–4 complete and merged to `main` (3699093).** The full Phase 1 core now works end-to-end: auth → create room (server-generated code) → join by code (rate-limited, no info leak) → owner approval → member access → immutable audit trail. 47/47 pgTAP RLS contract tests pass in CI *and* locally (Docker loop); 29/29 Dart tests; analyze 0. Live E2E verified against the cloud dev project. A real RLS policy hole was found and fixed by the contract tests (owner authority now independent of membership rows). **Standing infrastructure:** Docker Desktop installed; local stack runs with DB on port **65432** (Hyper-V reserves 54262–54361 on this machine — never use 543xx defaults); start with `npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api`, then `db reset` + `test db`. **Sprint 4 (evidence vault) is live-verified:** migration 0009 (private `evidence` bucket, 50MB + mime whitelist, storage RLS, `register_evidence()` as sole write path, direct-INSERT policy removed), vault UI (room tabs Vault/Members, upload with progress, version display). E2E on cloud: upload → register v1 → observer denied at BOTH RPC and storage → duplicate auto-v2 → audit entries. **Next:** Sprint 5 (timeline, realtime discussion with @mentions, tasks per ExecutionPlan.md §3).
 
 ---
 
@@ -25,6 +25,7 @@
 | 2026-09-11 | Sprint 2 schema + harness built | Migrations 0002–0006 (core tables, audit immutability, Legal+Academic seeds, RLS policies, rate limiting), pgTAP suite in `supabase/tests/db/`, CI `rls-tests` gate, typed Dart models + CaseTypeRepository, profile fetch wiring; 29 tests green; branch `feature/sprint-2-schema` pushed (bb8ae90) |
 | 2026-09-11 | Sprint 3 rooms + join flow complete, merged to main | Migrations 0007–0008 (room-service RPCs, append_audit, owner-default roles, co-member profiles policy, member FK), rooms UI (list/create/join/detail), router routes; live E2E verified; 3 SQL runtime bugs fixed via E2E (pgcrypto schema-qual, OUT-param name collision, missing FK) |
 | 2026-09-11 | RLS suite green: 47/47 | Docker Desktop installed → local `db reset`+`test db` loop (2s iterations) unblocked everything after ~7 blind CI attempts. Real policy hole found+fixed (owner vs membership). pgTAP 3.36 semantics documented in §8. Squash-merged to main e2a3649, CI green |
+| 2026-09-12 | Sprint 4 evidence vault complete, merged to main | Migration 0009 (bucket + storage RLS + register_evidence RPC; direct INSERT removed), vault UI with tabs/upload/progress; 58/58 pgTAP + 42/42 Dart, analyze 0, CI green; live cloud E2E verified (upload, dual-layer denial, auto-versioning, audit) |
 
 ---
 
@@ -112,7 +113,7 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 
 ## 10. Testing Status
 
-**2026-09-11 (`main`, e2a3649):** ALL GREEN. 47/47 pgTAP RLS contract tests pass (CI `rls-tests` job + local Docker loop); 29/29 Dart tests; `flutter analyze` zero issues; web release build green. Cloud dev has migrations 0001–0008 applied and live-verified end-to-end (create → preview → join → approve → audit). The rls suite now covers: profiles, audit immutability + visibility, room visibility/creation/join-approval lifecycle, permission-gated evidence/tasks/discussion/timeline writes, all 0007 RPCs including rotation + rate-limit behaviour.
+**2026-09-12 (`main`, 3699093):** ALL GREEN. 47/47 pgTAP RLS contract tests pass (CI `rls-tests` job + local Docker loop); 29/29 Dart tests; `flutter analyze` zero issues; web release build green. Cloud dev has migrations 0001–0008 applied and live-verified end-to-end (create → preview → join → approve → audit). 58/58 pgTAP (10 new: evidence storage policies + register_evidence RPC incl. denials, versioning, cross-room/oversize/bad-hash); 42/42 Dart (13 new: validator contracts with real sha256 vectors, VaultEntry parsing). The rls suite covers: profiles, audit immutability, room/join lifecycle, permission-gated writes across all content tables, all 0007 RPCs, and the vault.
 
 ---
 
@@ -126,3 +127,5 @@ Full sprint-by-sprint breakdown lives in [ExecutionPlan.md](./ExecutionPlan.md) 
 | 2026-09-11 | Supabase dev cloud | 0007 + 0008 + policy hotfixes | Room-service RPCs applied; request_room_join recreated (OUT-param rename); owner-visibility policy on room_members + case_rooms patched directly (recorded-migration hotfixes — fresh envs get them via the migration files) |
 | 2026-09-11 | GitHub `main` | e2a3649 | Sprint 2+3 squash-merged; CI green on both jobs (flutter + rls-tests) |
 | 2026-09-11 | Local (Docker) | stack running | DB port 65432; 47/47 pgTAP locally; standing infra for future sprints |
+| 2026-09-12 | Supabase dev cloud | 0009 applied | Evidence bucket + storage RLS + register_evidence live; vault E2E verified |
+| 2026-09-12 | GitHub `main` | 3699093 | Sprint 4 squash-merged; CI green on both jobs |
