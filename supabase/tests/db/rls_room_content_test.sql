@@ -2,7 +2,7 @@
 -- Permission-key gating exercised per role. No psql metacommands.
 
 begin;
-select plan(14);
+select plan(15);
 
 select tests.unimpersonate();
 select tests.create_test_user('lead@example.com');
@@ -27,12 +27,14 @@ select tests.add_approved_member(
   'observer@example.com', 'observer'
 );
 
--- Fixtures inserted as postgres (direct table access).
+-- Fixtures inserted as postgres (direct table access; RLS bypassed as
+-- superuser — legitimate for seeding).
 insert into public.evidence_items (
   room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes
 )
-select cr.id, f.user_id, 'contract.pdf', 'rooms/evidence-test/contract.pdf',
-       'abc123', 1024
+select cr.id, f.user_id, 'contract.pdf',
+       'rooms/' || cr.id::text || '/contract.pdf',
+       repeat('1', 64), 1024
 from public.case_rooms cr, tests.fixtures f
 where cr.name = 'Evidence Test Room' and f.key = 'lead@example.com';
 
@@ -63,18 +65,18 @@ select is(
   1::bigint,
   'observer (member) can read evidence'
 ) from public.evidence_items
-where storage_path = 'rooms/evidence-test/contract.pdf';
+where filename = 'contract.pdf';
 
--- 2. Observer CANNOT upload (upload_evidence = false). RLS raises on
--- a denied INSERT — assert the rejection itself.
+-- 2. Observer CANNOT upload — via the sanctioned RPC (0009 removed the
+-- direct INSERT policy; the RPC enforces the upload_evidence key).
 select throws_ok(
-  'insert into public.evidence_items ( '
-    || 'room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes '
-    || ') select cr.id, f.user_id, ''sneak.pdf'', '
-    || '''rooms/evidence-test/sneak.pdf'', ''x'', 1 '
-    || 'from public.case_rooms cr, tests.fixtures f '
-    || 'where cr.name = ''Evidence Test Room'' and f.key = ''observer@example.com''',
-  'new row violates row-level security policy for table "evidence_items"'
+  'select * from public.register_evidence('
+    || '(select cr.id::text from public.case_rooms cr where cr.name = ''Evidence Test Room'')::uuid, '
+    || '''sneak.pdf'', '
+    || '''rooms/'' || (select cr.id::text from public.case_rooms cr '
+    || 'where cr.name = ''Evidence Test Room'') || ''/sneak.pdf'', '
+    || '''application/pdf'', 1, repeat(''x'', 64))',
+  'Your role cannot upload evidence in this room.'
 );
 
 select is(
@@ -83,15 +85,20 @@ select is(
   'observer upload is rejected (upload_evidence false)'
 ) from public.evidence_items where storage_path like '%sneak%';
 
--- 3. Analyst CAN upload.
+-- 3. Analyst CAN upload — via the RPC (permitted role).
 select tests.impersonate('analyst@example.com');
-insert into public.evidence_items (
-  room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes
+select is(
+  (r).version_no,
+  1,
+  'analyst upload succeeds via RPC (upload_evidence true)'
 )
-select cr.id, f.user_id, 'bank_records.csv', 'rooms/evidence-test/bank_records.csv',
-       'def456', 2048
-from public.case_rooms cr, tests.fixtures f
-where cr.name = 'Evidence Test Room' and f.key = 'analyst@example.com';
+from public.register_evidence(
+  (select id from public.case_rooms where name = 'Evidence Test Room'),
+  'bank_records.csv',
+  'rooms/' || (select id::text from public.case_rooms where name = 'Evidence Test Room') || '/bank_records.csv',
+  'text/plain', 2048,
+  repeat('0', 64)
+) as r;
 
 select is(
   count(*),

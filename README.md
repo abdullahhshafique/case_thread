@@ -34,7 +34,7 @@ CaseThread's answer: **Case Rooms** with code-based access, role-based permissio
 
 ## Status
 
-**Sprint 0–1 complete (Phase 1 in progress).** Feature-based app scaffold with the full Design.md token system (dark navy/slate/teal), Supabase auth (sign-in/sign-up), routing guards, setup flow for unconfigured environments, and a 20-test suite running in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
+**Sprints 0–3 complete (Phase 1 in progress).** The core Case Room loop works end-to-end against the live backend: sign up → create room (server-generated, rotatable access code) → join by code (rate-limited, owner-approved) → role-scoped access → immutable audit trail. Full schema with Row-Level Security on every table (enforced in Postgres, not the UI), Legal/Investigative + Academic case types as config data, rooms UI (list/create/join/detail), 47 RLS contract tests (pgTAP) + 29 Dart tests green in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
 
 ## Local Development
 

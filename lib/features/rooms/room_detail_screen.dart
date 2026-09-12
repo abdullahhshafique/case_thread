@@ -6,14 +6,66 @@ import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import 'vault_pane.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'rooms_providers.dart';
 
-/// Room detail (Sprint 3 scope): member list with owner controls —
-/// approve/deny join requests, revoke members, rotate the code.
-/// Room content tabs (timeline/vault/discussion) arrive Sprint 4–5.
-class RoomDetailScreen extends ConsumerWidget {
+/// Room detail (Sprint 3–4): Vault tab (evidence) + Members tab
+/// (owner controls: approve/deny, revoke). Timeline/discussion/tasks
+/// arrive Sprint 5.
+class RoomDetailScreen extends ConsumerStatefulWidget {
   const RoomDetailScreen({super.key, required this.roomId});
+
+  final String roomId;
+
+  @override
+  ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
+}
+
+class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Case room'),
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [
+            Tab(
+              key: Key('room-tab-vault'),
+              icon: Icon(Icons.folder_outlined),
+              text: 'Vault',
+            ),
+            Tab(
+              key: Key('room-tab-members'),
+              icon: Icon(Icons.people_outline),
+              text: 'Members',
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          VaultPane(roomId: widget.roomId),
+          _MembersPane(roomId: widget.roomId),
+        ],
+      ),
+    );
+  }
+}
+
+class _MembersPane extends ConsumerWidget {
+  const _MembersPane({required this.roomId});
 
   final String roomId;
 
@@ -23,36 +75,32 @@ class RoomDetailScreen extends ConsumerWidget {
     final me = ref.watch(sessionProvider).value;
     final text = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Room members')),
-      body: switch (members) {
-        AsyncData(:final value) => RefreshIndicator(
-          onRefresh: () async {
-            // Invalidate rather than await inner future — refreshes list.
-            ref.invalidate(roomMembersProvider(roomId));
-            await Future<void>.delayed(const Duration(milliseconds: 300));
-          },
-          child: ListView.builder(
-            itemCount: value.length,
-            itemBuilder: (context, index) => _MemberTile(
-              member: value[index],
-              isMe: value[index].userId == me?.id,
-            ),
+    return switch (members) {
+      AsyncData(:final value) => RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(roomMembersProvider(roomId));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        },
+        child: ListView.builder(
+          itemCount: value.length,
+          itemBuilder: (context, index) => _MemberTile(
+            member: value[index],
+            isMe: value[index].userId == me?.id,
           ),
         ),
-        AsyncError(:final error) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Text(
-              toAppException(error).message,
-              style: text.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
+      ),
+      AsyncError(:final error) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Text(
+            toAppException(error).message,
+            style: text.bodyMedium,
+            textAlign: TextAlign.center,
           ),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
-    );
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
   }
 }
 
@@ -99,9 +147,7 @@ class _MemberTile extends ConsumerWidget {
                   Text(
                     '${member.roleId} · ${status.name}',
                     style: text.bodyMedium?.copyWith(
-                      color: status == MemberStatus.pending
-                          ? Theme.of(context).colorScheme.tertiary
-                          : text.bodyMedium?.color?.withValues(alpha: 0.7),
+                      color: text.bodyMedium?.color?.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
