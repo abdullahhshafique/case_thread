@@ -6,6 +6,9 @@ import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import 'discussion_pane.dart';
+import 'tasks_pane.dart';
+import 'timeline_pane.dart';
 import 'vault_pane.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'rooms_providers.dart';
@@ -24,7 +27,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(length: 5, vsync: this);
 
   @override
   void dispose() {
@@ -39,11 +42,27 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
         title: const Text('Case room'),
         bottom: TabBar(
           controller: _tabs,
+          isScrollable: true, // five tabs need scroll room on mobile
           tabs: const [
             Tab(
               key: Key('room-tab-vault'),
               icon: Icon(Icons.folder_outlined),
               text: 'Vault',
+            ),
+            Tab(
+              key: Key('room-tab-timeline'),
+              icon: Icon(Icons.timeline),
+              text: 'Timeline',
+            ),
+            Tab(
+              key: Key('room-tab-discussion'),
+              icon: Icon(Icons.forum_outlined),
+              text: 'Discussion',
+            ),
+            Tab(
+              key: Key('room-tab-tasks'),
+              icon: Icon(Icons.checklist),
+              text: 'Tasks',
             ),
             Tab(
               key: Key('room-tab-members'),
@@ -57,6 +76,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
         controller: _tabs,
         children: [
           VaultPane(roomId: widget.roomId),
+          TimelinePane(roomId: widget.roomId),
+          DiscussionPane(roomId: widget.roomId),
+          TasksPane(roomId: widget.roomId),
           _MembersPane(roomId: widget.roomId),
         ],
       ),
