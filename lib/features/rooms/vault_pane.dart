@@ -7,6 +7,8 @@ import '../../../core/theme/app_spacing.dart';
 import 'data/supabase_evidence_repository.dart' show evidenceRepositoryProvider;
 import 'domain/evidence_repository.dart';
 import 'domain/evidence_upload.dart';
+import '../../../core/api/models.dart' show Permission;
+import 'room_permissions.dart';
 import 'vault_providers.dart';
 
 /// Evidence vault pane (Sprint 4): list + upload, permission-aware
@@ -20,15 +22,27 @@ class VaultPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(vaultProvider(roomId));
     final progress = ref.watch(uploadProgressProvider(roomId));
+    final canUpload = ref
+        .watch(myRoomPermissionsProvider(roomId))
+        .maybeWhen(
+          data: (p) => p.can(Permission.uploadEvidence),
+          orElse: () => false,
+        );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('vault-upload'),
-        onPressed: progress == null ? () => _pickAndUpload(context, ref) : null,
-        icon: const Icon(Icons.upload_file),
-        label: const Text('Upload evidence'),
-      ),
+      // UI hides what RLS would refuse (Architecture.md §2). The DB
+      // still denies if this gate is somehow wrong.
+      floatingActionButton: canUpload
+          ? FloatingActionButton.extended(
+              key: const Key('vault-upload'),
+              onPressed: progress == null
+                  ? () => _pickAndUpload(context, ref)
+                  : null,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload evidence'),
+            )
+          : null,
       body: Stack(
         children: [
           state.when(
