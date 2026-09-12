@@ -34,7 +34,7 @@ CaseThread's answer: **Case Rooms** with code-based access, role-based permissio
 
 ## Status
 
-**Sprints 0–4 complete (Phase 1 in progress).** The core Case Room loop + evidence vault work end-to-end against the live backend: sign up → create room (server-generated, rotatable access code) → join by code (rate-limited, owner-approved) → role-scoped access → evidence upload (sha256 chain-of-custody, duplicate-name auto-versioning, permission-gated at both RPC and storage layers) → immutable audit trail. Full schema with Row-Level Security on every table (enforced in Postgres, not the UI), Legal/Investigative + Academic case types as config data, rooms UI with Vault/Members tabs, 58 RLS contract tests (pgTAP) + 42 Dart tests green in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
+**Sprints 0–5 complete (Phase 1 in progress).** The core Case Room loop + evidence vault work end-to-end against the live backend: sign up → create room (server-generated, rotatable access code) → join by code (rate-limited, owner-approved) → role-scoped access → evidence upload (sha256 chain-of-custody, duplicate-name auto-versioning, permission-gated at both RPC and storage layers) → immutable audit trail. Full schema with Row-Level Security on every table (enforced in Postgres, not the UI), Legal/Investigative + Academic case types as config data, rooms UI with Vault/Timeline/Discussion/Tasks/Members tabs (realtime updates, @mentions), auto-generated case timeline from system events, 65 RLS contract tests (pgTAP) + 55 Dart tests green in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
 
 ## Local Development
 
