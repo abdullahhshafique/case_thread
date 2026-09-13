@@ -63,11 +63,12 @@ select
 from public.audit_log al
 join public.room_last_seen ls
   on ls.room_id = al.room_id
+ and ls.user_id = auth.uid()   -- ONLY the caller's watermark
 where al.created_at > ls.last_seen_at;
 
--- Views can't carry RLS; security_invoker makes base-table policies
--- (audit_log member scoping, room_last_seen own-row) apply through the
--- join. The join itself constrains to the caller's watermark rows.
+-- security_invoker: base-table policies (audit member scoping,
+-- watermark own-row) apply through the join; the definition above
+-- additionally scopes to the caller's own watermark.
 alter view public.v_activity_feed set (security_invoker = true);
 
 grant select on public.v_activity_feed to authenticated;
