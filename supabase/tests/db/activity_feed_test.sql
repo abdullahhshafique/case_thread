@@ -74,6 +74,8 @@ select is(
 
 -- 5. Non-member with a rogue watermark row cannot read the feed
 --    (membership double-check in the view policy).
+-- Fixture writes need superuser context (direct inserts).
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select room_id from tests.fixtures where key = 'nf-room'),
   'nf-outsider@example.com', 'observer'

@@ -63,31 +63,34 @@ where room_id = (select room_id from tests.fixtures where key = 'rd-room')
   and payload ->> 'summary' = 'Witness statement collected';
 
 -- 3. The non-privileged part is still visible to the analyst.
+-- is() over an empty set silently skips — scalar form (Phase-1 lesson).
 select is(
-  (payload ->> 'summary'),
+  (select payload ->> 'summary' from public.v_timeline
+   where room_id = (select room_id from tests.fixtures where key = 'rd-room')
+     and not (payload ? 'privileged')
+   limit 1),
   'Witness statement collected',
   'analyst still sees the non-privileged summary'
-) from public.v_timeline
-where room_id = (select room_id from tests.fixtures where key = 'rd-room');
+);
 
 -- 4. Observer too: event visible, privileged gone.
 select tests.impersonate('rd-observer@example.com');
 select is(
-  count(*),
+  (select count(*) from public.v_timeline
+   where room_id = (select room_id from tests.fixtures where key = 'rd-room')
+     and not (payload ? 'privileged')),
   1::bigint,
   'observer sees the redacted event via the view'
-) from public.v_timeline
-where room_id = (select room_id from tests.fixtures where key = 'rd-room')
-  and not (payload ? 'privileged');
+);
 
 -- 5. Outsider (non-member) sees nothing (view RLS holds).
 select tests.impersonate('rd-outsider@example.com');
 select is(
-  count(*),
+  (select count(*) from public.v_timeline
+   where room_id = (select room_id from tests.fixtures where key = 'rd-room')),
   0::bigint,
   'non-member sees no timeline rows via the view'
-) from public.v_timeline
-where room_id = (select room_id from tests.fixtures where key = 'rd-room');
+);
 
 -- 6. Direct base-table reads are NOT the client path, but verify the
 --    redaction is in the VIEW (not trusting the app): the base table

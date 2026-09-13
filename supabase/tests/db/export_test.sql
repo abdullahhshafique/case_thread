@@ -68,8 +68,9 @@ select throws_ok(
   'analyst (export_reports false) denied'
 );
 
--- 4. Export is audited (state-changing action per PRD §6.5).
-select tests.unimpersonate();
+-- 4. Export is audited (state-changing action per PRD §6.5). Audit
+--    reads are member-scoped; check as the lead (who exported).
+select tests.impersonate('ex-lead@example.com');
 select is(
   count(*),
   1::bigint,
