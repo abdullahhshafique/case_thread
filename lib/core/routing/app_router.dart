@@ -53,8 +53,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/join', builder: (context, state) => const JoinScreen()),
       GoRoute(
         path: '/rooms/:id',
-        builder: (context, state) =>
-            RoomDetailScreen(roomId: state.pathParameters['id']!),
+        builder: (context, state) => RoomDetailScreen(
+          roomId: state.pathParameters['id']!,
+          caseType: state.uri.queryParameters['type'] ?? '',
+        ),
       ),
     ],
   );
