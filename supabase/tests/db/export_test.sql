@@ -43,16 +43,17 @@ select is(
 ) as doc;
 
 -- 2. The lead's document retains the privileged field (they hold
---    view_privileged).
+--    view_privileged). CTE form: set-returning functions need a FROM.
+with d as (
+  select (public.export_case_report(
+    (select room_id from tests.fixtures where key = 'ex-room')
+  )) as doc
+), tl as (
+  select e.value as entry
+  from d, jsonb_array_elements(d.doc -> 'timeline') e
+)
 select is(
-  exists (
-    select 1 from jsonb_array_elements(
-      (select doc -> 'timeline' from public.export_case_report(
-        (select room_id from tests.fixtures where key = 'ex-room'))
-      )
-    ) te
-    where te -> 'payload' ? 'privileged'
-  ),
+  exists (select 1 from tl where entry -> 'payload' ? 'privileged'),
   true,
   'privileged field present for the privileged exporter'
 );

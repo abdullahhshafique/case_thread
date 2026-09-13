@@ -116,15 +116,19 @@ select (select room_id from tests.fixtures where key = 'em-room'),
        (select text_value::uuid from tests.fixtures where key = 'em-evidence'),
        'has';
 
+with m as (
+  select (get_entity_map(
+    (select room_id from tests.fixtures where key = 'em-room')
+  )) as map
+), t_edges as (
+  select e.value as edge
+  from m, jsonb_array_elements(m.map -> 'transitive') e
+)
 select is(
   exists (
-    select 1 from jsonb_array_elements(
-      (select map -> 'transitive' from public.get_entity_map(
-        (select room_id from tests.fixtures where key = 'em-room'))
-      )
-    ) t
-    where t ->> 'from' = (select text_value from tests.fixtures where key = 'em-person')
-      and t ->> 'to' = (select text_value from tests.fixtures where key = 'em-evidence')
+    select 1 from t_edges
+    where edge ->> 'from' = (select text_value from tests.fixtures where key = 'em-person')
+      and edge ->> 'to' = (select text_value from tests.fixtures where key = 'em-evidence')
   ),
   true,
   'recursive CTE finds transitive person->evidence connection'
