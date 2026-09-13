@@ -24,8 +24,10 @@ create policy "entity relationships writable by permitted members"
     -- Both endpoints must exist in the SAME room (no cross-room edges).
     and exists (
       select 1 from public.entities e1, public.entities e2
-      where e1.id = from_entity_id and e2.id = to_entity_id
-        and e1.room_id = room_id and e2.room_id = room_id
+      where e1.id = entity_relationships.from_entity_id
+        and e2.id = entity_relationships.to_entity_id
+        and e1.room_id = entity_relationships.room_id
+        and e2.room_id = entity_relationships.room_id
     )
   );
 
