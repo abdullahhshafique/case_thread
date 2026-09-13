@@ -27,7 +27,9 @@ select tests.add_approved_member(
 
 -- The Edge Function (service role) inserts suggestions; emulate that
 -- as postgres — no client path exists by design (0005: no insert policy).
+-- (unimpersonate: the prior block left us impersonated as ai-lead.)
 select tests.unimpersonate();
+select set_config('role', 'postgres', true);
 insert into public.ai_suggestions (id, room_id, agent_type, input_ref, output)
 values (
   'd1000000-0000-4000-8000-000000000001',
@@ -92,7 +94,9 @@ select throws_ok(
   'double review rejected'
 );
 
--- Second suggestion: lead EDITS then accepts.
+-- Second suggestion: lead EDITS then accepts. (service-role insert —
+-- back to postgres first)
+select tests.unimpersonate();
 insert into public.ai_suggestions (id, room_id, agent_type, input_ref, output)
 values (
   'd1000000-0000-4000-8000-000000000002',
@@ -119,7 +123,8 @@ select is(
   'edited review promotes the HUMAN version to the timeline'
 );
 
--- Third suggestion: dismissed.
+-- Third suggestion: dismissed. (service-role insert)
+select tests.unimpersonate();
 insert into public.ai_suggestions (id, room_id, agent_type, input_ref, output)
 values (
   'd1000000-0000-4000-8000-000000000003',
