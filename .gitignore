@@ -62,3 +62,4 @@ supabase/.temp/
 node_modules/
 # Flutter DevTools
 /devtools_options.yaml
+p2*.txt

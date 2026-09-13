@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart';
-import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
+import '../../core/errors/app_exceptions.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import 'activity_feed.dart';
+import 'export_report.dart';
 import 'discussion_pane.dart';
 import 'tasks_pane.dart';
 import 'timeline_pane.dart';
@@ -30,6 +33,44 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
   late final TabController _tabs = TabController(length: 5, vsync: this);
 
   @override
+  void initState() {
+    super.initState();
+    // Opening the room marks it seen (clears its feed items — 0014).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(activityFeedRepositoryProvider)
+          .markRoomSeen(widget.roomId)
+          .catchError((_) {}); // best-effort; the feed refetches anyway
+    });
+  }
+
+  Future<void> _export(BuildContext context, WidgetRef ref) async {
+    try {
+      final report = await ref
+          .read(exportRepositoryProvider)
+          .exportRoom(widget.roomId);
+      if (!context.mounted) return;
+      final md = report.toMarkdown();
+      // Copy-to-clipboard is the universal "save it somewhere" on all
+      // our platforms for now (Phase 4 adds platform file dialogs).
+      await Clipboard.setData(ClipboardData(text: md));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report copied — paste it anywhere to save.'),
+          ),
+        );
+      }
+    } on Exception catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(toAppException(error).message)));
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _tabs.dispose();
     super.dispose();
@@ -37,9 +78,21 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final canExport = ref
+        .watch(canExportProvider(widget.roomId))
+        .maybeWhen(data: (v) => v, orElse: () => false);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Case room'),
+        actions: [
+          if (canExport)
+            IconButton(
+              tooltip: 'Export case report', // a11y: labeled icon button
+              icon: const Icon(Icons.ios_share),
+              onPressed: () => _export(context, ref),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true, // five tabs need scroll room on mobile
