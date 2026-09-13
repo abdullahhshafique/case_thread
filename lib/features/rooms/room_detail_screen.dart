@@ -6,6 +6,7 @@ import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import 'activity_feed.dart';
 import 'discussion_pane.dart';
 import 'tasks_pane.dart';
 import 'timeline_pane.dart';
@@ -28,6 +29,18 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(length: 5, vsync: this);
+
+  @override
+  void initState() {
+    super.initState();
+    // Opening the room marks it seen (clears its feed items — 0014).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(activityFeedRepositoryProvider)
+          .markRoomSeen(widget.roomId)
+          .catchError((_) {}); // best-effort; the feed refetches anyway
+    });
+  }
 
   @override
   void dispose() {
