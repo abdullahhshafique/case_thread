@@ -50,7 +50,7 @@ insert into public.roles (id, case_type, display_name, is_lead_tier, permissions
     "approve_ai_findings": false, "manage_members": false,
     "export_reports": false,  "view_privileged": false
   }'),
-  ('observer', 'corporate', 'Observer', false, '{
+  ('corporate_observer', 'corporate', 'Observer', false, '{
     "view_case": true,        "edit_case": false,
     "upload_evidence": false, "comment": false,
     "approve_ai_findings": false, "manage_members": false,
