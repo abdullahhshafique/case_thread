@@ -27,13 +27,14 @@ insert into public.room_last_seen (user_id, room_id, last_seen_at)
 values (auth.uid(), (select room_id from tests.fixtures where key = 'nf-room'),
         now() - interval '1 hour'); -- now() is transaction-stable: force past
 
--- 1. Feed is empty right after marking seen (room creation predates
---    the watermark... actually creation is audit row #1 — it happened
---    BEFORE the watermark, so it's correctly NOT in the feed).
+-- 1. Watermark 1h in the past: the room's setup activity (created,
+--    join requested, join approved) all falls AFTER it — the feed
+--    shows that backlog. (All test statements share one transaction,
+--    so now() is constant; the interval forces a strict boundary.)
 select is(
   count(*),
-  0::bigint,
-  'no feed items before new activity (watermark works)'
+  3::bigint,
+  'feed shows pre-watermark setup activity (3 items)'
 ) from public.v_activity_feed;
 
 -- New activity: lead uploads evidence (fixture via RPC).
@@ -47,20 +48,21 @@ select public.register_evidence(
   repeat('3', 64)
 );
 
--- 2. Analyst now has exactly the post-watermark activity (1 item).
+-- 2. Feed grew by exactly the new upload.
 select tests.impersonate('nf-analyst@example.com');
 select is(
   count(*),
-  1::bigint,
+  4::bigint,
   'feed shows activity since the watermark'
 ) from public.v_activity_feed;
 
--- 3. The item is the evidence upload with redacted payload shape.
+-- 3. The newest feed item is the evidence upload.
 select is(
-  action_type,
+  (select action_type from public.v_activity_feed
+   order by created_at desc limit 1),
   'evidence_uploaded',
-  'feed item identifies the action'
-) from public.v_activity_feed;
+  'feed item identifies the newest action'
+);
 
 -- 4. Marking seen again empties the feed.
 insert into public.room_last_seen (user_id, room_id, last_seen_at)
