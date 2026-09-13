@@ -27,14 +27,14 @@ insert into public.room_last_seen (user_id, room_id, last_seen_at)
 values (auth.uid(), (select room_id from tests.fixtures where key = 'nf-room'),
         now() - interval '1 hour'); -- now() is transaction-stable: force past
 
--- 1. Watermark 1h in the past: the room's setup activity (created,
---    join requested, join approved) all falls AFTER it — the feed
---    shows that backlog. (All test statements share one transaction,
---    so now() is constant; the interval forces a strict boundary.)
+-- 1. Watermark 1h in the past. The analyst was added via a DIRECT
+--    fixture insert (no join_requested/join_approved audit rows — the
+--    RPC flow covers those elsewhere). Only room_created is audited,
+--    so the backlog is exactly 1 item.
 select is(
   count(*),
-  3::bigint,
-  'feed shows pre-watermark setup activity (3 items)'
+  1::bigint,
+  'feed shows the audited setup activity (room_created)'
 ) from public.v_activity_feed;
 
 -- New activity: lead uploads evidence (fixture via RPC).
@@ -48,11 +48,11 @@ select public.register_evidence(
   repeat('3', 64)
 );
 
--- 2. Feed grew by exactly the new upload.
+-- 2. Feed grew by exactly the new upload (1 + 1).
 select tests.impersonate('nf-analyst@example.com');
 select is(
   count(*),
-  4::bigint,
+  2::bigint,
   'feed shows activity since the watermark'
 ) from public.v_activity_feed;
 
