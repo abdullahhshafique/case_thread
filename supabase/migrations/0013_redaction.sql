@@ -48,14 +48,12 @@ select
   public.redact_payload(room_id, payload) as payload
 from public.timeline_events;
 
+-- Views can't carry RLS; security_invoker (PG15+) makes the view
+-- execute with the CALLER's rights, so the base table's member policy
+-- applies to every read through the view. The view adds no exposure
+-- of its own beyond the base policies + redaction.
 alter view public.v_timeline
-  enable row level security;
-
-drop policy if exists "v_timeline visible to room members" on public.v_timeline;
-create policy "v_timeline visible to room members"
-  on public.v_timeline for select
-  to authenticated
-  using (public.user_room_role(auth.uid(), room_id) is not null);
+  set (security_invoker = true);
 
 -- Redacted discussion view: mentions carry user ids (contact-adjacent);
 -- bodies may embed privileged sub-objects. Body masking matches the
@@ -75,13 +73,7 @@ select
 from public.discussion_messages;
 
 alter view public.v_discussion
-  enable row level security;
-
-drop policy if exists "v_discussion visible to room members" on public.v_discussion;
-create policy "v_discussion visible to room members"
-  on public.v_discussion for select
-  to authenticated
-  using (public.user_room_role(auth.uid(), room_id) is not null);
+  set (security_invoker = true);
 
 -- Note: discussion BODY redaction stays textual (the @mention + body
 -- conventions live in the payload-based flow); v_discussion exists so a

@@ -65,17 +65,9 @@ join public.room_last_seen ls
   on ls.room_id = al.room_id
 where al.created_at > ls.last_seen_at;
 
-alter view public.v_activity_feed enable row level security;
-
-drop policy if exists "feed visible to its user" on public.v_activity_feed;
-create policy "feed visible to its user"
-  on public.v_activity_feed for select
-  to authenticated
-  using (
-    for_user_id = auth.uid()
-    -- Double-check membership (the audit policy already scopes rows,
-    -- but views with joins need their own predicate).
-    and public.user_room_role(auth.uid(), room_id) is not null
-  );
+-- Views can't carry RLS; security_invoker makes base-table policies
+-- (audit_log member scoping, room_last_seen own-row) apply through the
+-- join. The join itself constrains to the caller's watermark rows.
+alter view public.v_activity_feed set (security_invoker = true);
 
 grant select on public.v_activity_feed to authenticated;
