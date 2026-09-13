@@ -73,8 +73,8 @@ select throws_ok(
 select tests.impersonate('ex-lead@example.com');
 select is(
   count(*),
-  1::bigint,
-  'export itself recorded in the audit trail'
+  2::bigint, -- both exports (tests 1+2) are audited
+  'exports recorded in the audit trail'
 ) from public.audit_log
 where room_id = (select room_id from tests.fixtures where key = 'ex-room')
   and action_type = 'report_exported';

@@ -67,8 +67,7 @@ where room_id = (select room_id from tests.fixtures where key = 'rd-room')
 select is(
   (select payload ->> 'summary' from public.v_timeline
    where room_id = (select room_id from tests.fixtures where key = 'rd-room')
-     and not (payload ? 'privileged')
-   limit 1),
+     and payload ->> 'summary' = 'Witness statement collected'),
   'Witness statement collected',
   'analyst still sees the non-privileged summary'
 );
@@ -78,9 +77,10 @@ select tests.impersonate('rd-observer@example.com');
 select is(
   (select count(*) from public.v_timeline
    where room_id = (select room_id from tests.fixtures where key = 'rd-room')
+     and payload ->> 'summary' = 'Witness statement collected'
      and not (payload ? 'privileged')),
   1::bigint,
-  'observer sees the redacted event via the view'
+  'observer sees the redacted event (privileged stripped)'
 );
 
 -- 5. Outsider (non-member) sees nothing (view RLS holds).

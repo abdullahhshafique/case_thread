@@ -24,7 +24,8 @@ select tests.add_approved_member(
 -- Analyst marks the room seen BEFORE the new activity happens.
 select tests.impersonate('nf-analyst@example.com');
 insert into public.room_last_seen (user_id, room_id, last_seen_at)
-values (auth.uid(), (select room_id from tests.fixtures where key = 'nf-room'), now());
+values (auth.uid(), (select room_id from tests.fixtures where key = 'nf-room'),
+        now() - interval '1 hour'); -- now() is transaction-stable: force past
 
 -- 1. Feed is empty right after marking seen (room creation predates
 --    the watermark... actually creation is audit row #1 — it happened
