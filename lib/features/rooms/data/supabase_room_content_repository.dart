@@ -65,8 +65,10 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
 
   @override
   Future<List<TimelineEventModel>> getTimeline(String roomId) async {
+    // 0013: reads go through the redacted view — privileged payload
+    // fields never reach clients lacking view_privileged.
     final rows = await _client
-        .from('timeline_events')
+        .from('v_timeline')
         .select(_timelineSelect)
         .eq('room_id', roomId)
         .order('occurred_at', ascending: false)
@@ -77,7 +79,7 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
   @override
   Stream<List<TimelineEventModel>> watchTimeline(String roomId) {
     return _client
-        .from('timeline_events')
+        .from('v_timeline')
         .stream(primaryKey: ['id'])
         .eq('room_id', roomId)
         .order('occurred_at')
