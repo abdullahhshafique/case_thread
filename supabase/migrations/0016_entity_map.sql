@@ -81,9 +81,10 @@ as $$
         where c.depth < 4
           and not (er.to_entity_id = any (c.path))  -- cycle guard
       )
-      select coalesce(jsonb_agg(distinct
-        jsonb_build_object('from', from_id, 'to', to_id)
-      )), '[]'::jsonb)
+      select coalesce(
+        jsonb_agg(distinct jsonb_build_object('from', from_id, 'to', to_id)),
+        '[]'::jsonb
+      )
       from (
         select distinct from_id, to_id
         from chain
