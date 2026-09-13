@@ -79,7 +79,7 @@
 |---|---|---|
 | Full permission matrix per role, per case type | Needed before any RLS policy can be written correctly | PRD.md §10 |
 | Data retention policy for closed case rooms | Needed before storage/deletion logic is built | PRD.md §10 |
-| Default LLM provider at demo day vs. fully user-configurable | Needed before Phase 3 AI Adapter Layer defaults are set | PRD.md §10 / Architecture.md §14 |
+| ~~Default LLM provider~~ **RESOLVED 2026-09-13: GROK** (mock for keyless CI/dev; swap = AI_PROVIDER env per Architecture.md §14) | Done — recorded in Edge Function + Phases tracking | PRD.md §10 |
 | API key rotation cadence | Needed before Phase 1 goes to any real (non-dev) environment | Rules.md §10 |
 
 ---

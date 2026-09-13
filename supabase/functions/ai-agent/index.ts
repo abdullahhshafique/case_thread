@@ -13,6 +13,10 @@
 //   (service role, status=pending) → realtime pushes the pending
 //   suggestion to the room (amber, per Design.md §1).
 //
+// PROVIDER DECISION (PRD §10, resolved 2026-09-13): GROK is the
+// production default. The mock provider remains for CI/dev runs
+// without keys. Swapping to Claude/GPT/Gemini stays a config flip.
+//
 // Agents never write to timeline/audit — only review_suggestion()
 // (called by a Lead-tier human) can promote a finding. (Rules.md §11.)
 
@@ -228,6 +232,9 @@ Deno.serve(async (req) => {
   ].join("\n");
 
   // 4. Call the configured provider (default: mock — swap = env var).
+  // AI_PROVIDER: grok (production default) | mock | openai | anthropic | gemini.
+  // Deploy-time env decides; unset falls back to mock so dev/CI never
+  // needs a vendor key.
   const provider = Deno.env.get("AI_PROVIDER") ?? "mock";
   let result: ProviderResult;
   try {

@@ -3,7 +3,7 @@
 -- agents never touch the case record; only Lead-tier humans promote.
 
 begin;
-select plan(9);
+select plan(10);
 
 select tests.unimpersonate();
 select tests.create_test_user('ai-lead@example.com');
