@@ -56,10 +56,12 @@ select is(
   'feed shows activity since the watermark'
 ) from public.v_activity_feed;
 
--- 3. The newest feed item is the evidence upload.
+-- 3. The newest feed item is the evidence upload. created_at is
+--    transaction-stable here (same now()); order by the identity
+--    column — insertion order is the true chronology within the txn.
 select is(
   (select action_type from public.v_activity_feed
-   order by created_at desc limit 1),
+   order by id desc limit 1),
   'evidence_uploaded',
   'feed item identifies the newest action'
 );
