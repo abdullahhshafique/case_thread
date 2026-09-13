@@ -7,7 +7,7 @@
 
 ## 1. Current Project State Summary
 
-**PHASE 1 COMPLETE — Sprints 0–7 merged to `main`.** The full MVP works end-to-end against the cloud dev backend: auth → create room (server-generated rotatable code) → join by code (rate-limited, owner-approved) → role-scoped access → evidence vault (sha256 chain-of-custody, auto-versioning, dual-layer permission denials) → timeline/discussion/tasks with realtime + @mentions → immutable audit trail auto-mirrored to a human-readable timeline. 75/75 pgTAP RLS contract tests + 59/59 Dart tests, analyze 0, CI green. Demo-day flow (Phases.md §7) rehearsed LIVE on cloud dev with zero manual DB intervention. Architecture proof: the Academic case type runs on pure config — new domains (Phase 2) need seed rows, not code. **Standing infra:** Docker Desktop; local DB port 65432 (Hyper-V reserves 543xx); start LEAN (`npx supabase start --exclude studio,imgproxy,inbucket,edge-runtime,logflare,analytics,vector` — the full 12-service start crashed the engine here); `db reset` seeds demo data automatically. **Process change (user decision, 2026-09-12):** test at PHASE boundaries, not per sprint — CI gates every push regardless; the dedicated test/verification pass happens once per phase. **Next:** Phase 2 (Corporate/Technical/Medical case types, redaction, notifications, PDF export, entity map) per Phases.md §3 — Go/No-Go: GO.
+**PHASE 2 COMPLETE — merged to `main` (dd99aaf).** All five original-concept case types are live (Legal, Academic, Corporate, Technical, Medical [medical domain fields behind the SME gate]) as pure config data — the one-core-many-configs architecture now carries 5 domains. Field-level redaction is ENFORCED server-side (security-barrier + security-invoker views; `view_privileged` strips payload.privileged per-role — proven live: owner sees the privileged field, analyst sees it stripped from the same event). Activity feed: per-room watermarks + v_activity_feed ('what changed since you opened this room'). Export: server-compiled, permission-gated, audited (report_exported). Entity map v1: edit_case-gated writes, recursive-CTE transitive chains, redaction-aware. 98/98 pgTAP (23 new contracts), 59/59 Dart, analyze 0, CI green; 9 real bugs found by the phase-boundary CI pass (FK ordering, role-pk collision, view-RLS → security_invoker, ambiguous refs, SRF-in-EXISTS, paren nesting, txn-stable now()). **Next:** Phase 3 (AI agent workflows per Phases.md §4) — LLM provider decision from PRD §10 needed first.
 
 ---
 
@@ -29,6 +29,7 @@
 | 2026-09-12 | Sprint 5 timeline/discussion/tasks complete, merged to main | 0010 (audit→timeline mirror, edit-audit, task triggers) + 0011 (embed FKs); 5-tab room detail with realtime + @mentions; 65/65 pgTAP + 55/55 Dart; CI green |
 | 2026-09-12 | Sprint 6 config validation + UI gating complete, merged to main | Academic flow on pure config — ZERO migrations (architecture gate green); RoomPermissions provider; vault/discussion/tasks gated; 75/75 pgTAP + 59/59 Dart; CI green |
 | 2026-09-12 | **Sprint 7 + PHASE 1 COMPLETE**, merged to main (9e31315) | Error audit (typed messages everywhere), demo seed via db reset, Phase-1 retro in Phases.md §6; demo-day flow rehearsed LIVE on cloud dev (room → join → approve → upload → 4-entry audit trail + mirrored timeline); CI green |
+| 2026-09-13 | **PHASE 2 COMPLETE**, merged to main (dd99aaf) | 0012–0016: 3 new case types (corporate fraud_lead owner verified live), redaction live-proven (owner sees/analyst stripped), watermark feed live, export+audit live, entity map v1; 98/98 pgTAP + 59/59 Dart; 9 bugs fixed via phase-boundary CI pass |
 
 ---
 
@@ -118,7 +119,7 @@
 
 ## 10. Testing Status
 
-**2026-09-12 (PHASE 1 EXIT, `main` 9e31315):** ALL GREEN — 75/75 pgTAP RLS contract tests (CI +
+**2026-09-13 (PHASE 2 EXIT, `main` dd99aaf):** ALL GREEN — 98/98 pgTAP (23 new: redaction, feed, export, entity map, academic+config flows), 59/59 Dart, analyze 0. Live cloud E2E across every Phase-2 feature. Prior: **2026-09-12 (PHASE 1 EXIT, `main` 9e31315):** ALL GREEN — 75/75 pgTAP RLS contract tests (CI +
 local Docker loop, with demo seed present), 59/59 Dart tests, analyze 0, web release build 3.1MB.
 Live cloud E2E covers: create → join → approve → upload → audit. Coverage spans profiles, audit
 immutability, room/join lifecycle, permission-gated writes across all content tables, every 0007
