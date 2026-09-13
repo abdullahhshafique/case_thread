@@ -15,15 +15,6 @@ insert into public.case_types (id, display_name, description) values
    'Incident response, post-mortems, outage investigations, and bug case reviews.')
 on conflict (id) do nothing;
 
--- Owner-default roles per case type.
-update public.case_types
-  set owner_role_id = 'fraud_lead'
-  where id = 'corporate' and owner_role_id is null;
-
-update public.case_types
-  set owner_role_id = 'incident_commander'
-  where id = 'technical' and owner_role_id is null;
-
 -- ---------------------------------------------------------------------------
 -- Corporate & Business roles (from the original concept's fraud-unit
 -- persona; PRD leaves exact names open — DRAFT pending SME review).
@@ -97,6 +88,16 @@ insert into public.roles (id, case_type, display_name, is_lead_tier, permissions
   }')
 on conflict (case_type, id) do nothing;
 
+-- Owner-default roles (AFTER the role rows exist — the FK requires
+-- the referenced role to be present; ordering bug caught by CI).
+update public.case_types
+  set owner_role_id = 'fraud_lead'
+  where id = 'corporate' and owner_role_id is null;
+
+update public.case_types
+  set owner_role_id = 'incident_commander'
+  where id = 'technical' and owner_role_id is null;
+
 -- ---------------------------------------------------------------------------
 -- Medical & Healthcare — SEED ONLY, with the SME gate honored:
 -- Phases.md §3 requires the HIPAA-adjacent consult BEFORE any
@@ -110,10 +111,6 @@ insert into public.case_types (id, display_name, description) values
    'Medical & Healthcare',
    'Clinical case reviews, patient-safety investigations, and quality reviews.')
 on conflict (id) do nothing;
-
-update public.case_types
-  set owner_role_id = 'case_review_lead'
-  where id = 'medical' and owner_role_id is null;
 
 insert into public.roles (id, case_type, display_name, is_lead_tier, permissions) values
   ('case_review_lead', 'medical', 'Case Review Lead', true, '{
@@ -141,3 +138,7 @@ insert into public.roles (id, case_type, display_name, is_lead_tier, permissions
     "export_reports": false,  "view_privileged": false
   }')
 on conflict (case_type, id) do nothing;
+
+update public.case_types
+  set owner_role_id = 'case_review_lead'
+  where id = 'medical' and owner_role_id is null;
