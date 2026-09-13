@@ -70,6 +70,57 @@ PRD leaves the exact Academic role names open (PRD.md §10). This is a proposed 
 - **Witness** can submit evidence but not see discussion (deliberation privacy).
 - **Advisor** is faculty support with Lead-tier AI-approval rights but no privileged visibility.
 
+## 3a. Corporate & Business — role grid (PROPOSED, Phase 2 seed 0012)
+
+| Permission | Fraud Lead | Internal Auditor | Compliance Officer | Finance Analyst | Subject Manager | Observer |
+|---|---|---|---|---|---|---|
+| `view_case` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `edit_case` | ✅ | ✅ | ✅ | ✅ | — | — |
+| `upload_evidence` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `comment` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `approve_ai_findings` | ✅ | — | ✅ | — | — | — |
+| `manage_members` | ✅ | — | — | — | — | — |
+| `export_reports` | ✅ | — | ✅ | — | — | — |
+| `view_privileged` | ✅ | — | ✅ | — | — | — |
+
+**Notes:** Subject Manager = the manager of the area under audit (submits docs, can't steer the case). Observer
+role mirrors Legal's. Compliance Officer is Lead-tier for AI findings but not member management.
+
+## 3b. Technical & Engineering — role grid (PROPOSED, Phase 2 seed 0012)
+
+| Permission | Incident Commander | SRE Responder | Engineering Lead | Reporter |
+|---|---|---|---|---|
+| `view_case` | ✅ | ✅ | ✅ | ✅ |
+| `edit_case` | ✅ | ✅ | ✅ | — |
+| `upload_evidence` | ✅ | ✅ | ✅ | ✅ |
+| `comment` | ✅ | ✅ | ✅ | ✅ |
+| `approve_ai_findings` | ✅ | — | ✅ | — |
+| `manage_members` | ✅ | — | — | — |
+| `export_reports` | ✅ | — | ✅ | — |
+| `view_privileged` | ✅ | — | — | — |
+
+**Notes:** Engineering Lead gets no `view_privileged` in the draft — technical cases rarely have privileged
+material; SME to confirm. Reporter = whoever filed the incident (participates, doesn't edit).
+
+## 3c. Medical & Healthcare — role grid (PROPOSED, seed-only; SME GATE ACTIVE)
+
+Per Phases.md §3, **medical-specific fields are deferred until the HIPAA-adjacent consult** (PRD.md §10).
+Generic roles only; the grid below is provisional.
+
+| Permission | Case Review Lead | Clinician | Quality Reviewer | Patient Representative |
+|---|---|---|---|---|
+| `view_case` | ✅ | ✅ | ✅ | ✅ |
+| `edit_case` | ✅ | ✅ | — | — |
+| `upload_evidence` | ✅ | ✅ | — | ✅ |
+| `comment` | ✅ | ✅ | ✅ | ✅ |
+| `approve_ai_findings` | ✅ | — | — | — |
+| `manage_members` | ✅ | — | — | — |
+| `export_reports` | ✅ | — | — | — |
+| `view_privileged` | ✅ | — | — | — |
+
+**⚠️ SME gate:** do NOT build medical-specific fields/exports until the Product + Legal consult resolves
+file-type limits and privileged-field handling for clinical data.
+
 ## 4. Open questions for SME review
 
 | # | Question | Current draft answer |
@@ -85,3 +136,4 @@ PRD leaves the exact Academic role names open (PRD.md §10). This is a proposed 
 | Date | Change | Author |
 |---|---|---|
 | 2026-09-10 | Initial draft, both case types, seeded as migration 0004 | ZCode (AI-assisted), per ExecutionPlan.md Sprint 2 |
+| 2026-09-12 | Phase 2 seeds: Corporate, Technical, Medical (medical = generic roles only, SME gate active) | Migration 0012; ZCode (AI-assisted) |
