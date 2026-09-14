@@ -26,6 +26,12 @@ class RoomsScreen extends ConsumerWidget {
         title: const Text('Your case rooms'),
         actions: [
           IconButton(
+            key: const Key('rooms-templates'),
+            tooltip: 'Template marketplace',
+            icon: const Icon(Icons.inventory_2_outlined),
+            onPressed: () => context.push('/templates'),
+          ),
+          IconButton(
             key: const Key('rooms-join'),
             tooltip: 'Join with a code', // a11y: labeled icon button.
             icon: const Icon(Icons.key_outlined),
