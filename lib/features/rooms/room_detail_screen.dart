@@ -8,6 +8,7 @@ import '../../core/errors/app_exceptions.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
 import 'activity_feed.dart';
+import 'ai_pane.dart';
 import 'export_report.dart';
 import 'discussion_pane.dart';
 import 'tasks_pane.dart';
@@ -20,9 +21,14 @@ import 'rooms_providers.dart';
 /// (owner controls: approve/deny, revoke). Timeline/discussion/tasks
 /// arrive Sprint 5.
 class RoomDetailScreen extends ConsumerStatefulWidget {
-  const RoomDetailScreen({super.key, required this.roomId});
+  const RoomDetailScreen({
+    super.key,
+    required this.roomId,
+    required this.caseType,
+  });
 
   final String roomId;
+  final String caseType;
 
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -30,7 +36,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 5, vsync: this);
+  late final TabController _tabs = TabController(length: 6, vsync: this);
 
   @override
   void initState() {
@@ -118,6 +124,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
               text: 'Tasks',
             ),
             Tab(
+              key: Key('room-tab-ai'),
+              icon: Icon(Icons.auto_awesome_outlined),
+              text: 'AI',
+            ),
+            Tab(
               key: Key('room-tab-members'),
               icon: Icon(Icons.people_outline),
               text: 'Members',
@@ -132,6 +143,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           TimelinePane(roomId: widget.roomId),
           DiscussionPane(roomId: widget.roomId),
           TasksPane(roomId: widget.roomId),
+          AiPane(roomId: widget.roomId, caseType: widget.caseType),
           _MembersPane(roomId: widget.roomId),
         ],
       ),

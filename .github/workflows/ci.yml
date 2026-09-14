@@ -66,3 +66,22 @@ jobs:
 
       - name: Run pgTAP RLS contract tests
         run: supabase test db --debug
+
+  # AI Adapter Layer contract tests (Phase 3, Architecture.md §12):
+  # provider request/response shapes with stubbed fetch — no live
+  # vendor calls, no keys needed (Rules.md §7). Proves the DoD claim
+  # "provider swap = config only" on every push.
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run Deno contract tests
+        # --no-check matches the function's @ts-nocheck policy: the
+        # function source and tests are checked by review, not tsc
+        # (esm.sh supabase-js has no vendored @types/node).
+        run: deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts
