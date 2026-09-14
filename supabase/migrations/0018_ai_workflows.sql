@@ -26,7 +26,10 @@ create table if not exists public.ai_workflows (
       else false
     end
   ),
-  created_by uuid not null references auth.users (id) on delete cascade,
+  -- auth.uid() default: client inserts (the builder sheet) never
+  -- send created_by; RLS insert policy already requires edit_case,
+  -- so the default can't be spoofed by a non-member.
+  created_by uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz not null default now()
 );
 

@@ -32,19 +32,20 @@ select tests.add_approved_member(
 
 -- 1. Analyst (edit_case=true) CAN create a workflow.
 select tests.impersonate('wf-analyst@example.com');
-insert into public.ai_workflows (room_id, name, steps, created_by)
+-- (client inserts never send created_by — 0020's auth.uid() default
+-- fills it; found live 2026-09-14, kept as a regression contract.)
+insert into public.ai_workflows (room_id, name, steps)
 values (
   (select room_id from tests.fixtures where key = 'wf-room'),
   'Contradictions then themes',
-  '["contradiction_checker"]'::jsonb,
-  (select user_id from tests.fixtures where key = 'wf-analyst@example.com')
+  '["contradiction_checker"]'::jsonb
 );
 select is(
   (select count(*) from public.ai_workflows
    where room_id = (select room_id from tests.fixtures where key = 'wf-room')
      and name = 'Contradictions then themes'),
   1::bigint,
-  'analyst (edit_case) can create a workflow'
+  'analyst (edit_case) can create a workflow without created_by (0020 default)'
 );
 insert into tests.fixtures (key, text_value)
 select 'wf-row', id::text from public.ai_workflows

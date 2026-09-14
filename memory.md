@@ -62,12 +62,13 @@
 
 ## 5. Next Immediate Steps
 
-**Phase 3 exit (in flight):**
-1. ~~Cloud db push 0017~~ done 2026-09-13; **push 0018 + 0019** (`npx supabase db push`)
-2. **Deploy Edge Function:** `npx supabase functions deploy ai-agent`
-3. **Set secrets:** `npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=<from user — NOT YET PROVIDED>` (currently unset — function runs mock mode)
-4. Live E2E: single-agent run (each of 3 P0 agents) + 2-step workflow → pending suggestions → review_suggestion accept/edit/dismiss → timeline + audit rows verified
-5. PR → CI green (flutter + rls-tests + edge-functions) → squash-merge to `main`
+**Phase 3 exit — LIVE E2E COMPLETE 2026-09-14** (all against deployed function, mock provider — deterministic):
+single-agent runs for ALL 3 P0 agents verified (contradiction_checker/legal, financial_anomaly_detector/corporate, root_cause_suggester/technical — each → pending suggestion), accept/edited/dismiss all verified (timeline + audit rows confirmed atomically written; edited promotes the HUMAN version), workflow chain verified (2-step run → completed run row + 2 SEPARATE pending suggestions with per-step `input_ref` provenance). One live bug found+fixed: client workflow insert failed (`created_by` NOT NULL, no default) → **0020** pushed (auth.uid() default; regression contract added to ai_workflow_test).
+
+**Remaining before merge:**
+1. `npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=<x.ai key — ASK USER>` (function currently mock mode; pipeline identical, only provider call differs)
+2. PR → CI green (flutter + rls-tests + edge-functions) → squash-merge to `main`
+3. Optional: web smoke run of the builder UI against cloud
 
 **Then Phase 4 (Phases.md §5):** template marketplace, cross-case search, offline-first mobile (conflict-resolution design doc FIRST), version history, store submission, paid-tier groundwork.
 
@@ -148,4 +149,4 @@ Live cloud E2E covers: create → join → approve → upload → audit (Phase 1
 | 2026-09-12 | GitHub `main` | 3699093 | Sprint 4 squash-merged; CI green on both jobs |
 | 2026-09-13 | Supabase dev cloud | 0017 applied | Agent registry + review_suggestion live (Phase-3 core) |
 | 2026-09-14 | Local (Docker) | 0018 + 0019 verified | Full reset + 121/121 pgTAP; ai_workflows/runs + realtime publication + P1 agents |
-| 2026-09-14 | Supabase dev cloud | 0018 + 0019 push + function deploy + secrets | **PENDING** — run at merge: db push, functions deploy ai-agent, secrets set AI_PROVIDER=grok GROK_API_KEY=…, live E2E |
+| 2026-09-14 | Supabase dev cloud | 0018 + 0019 + 0020 applied; ai-agent deployed | Live E2E COMPLETE: 3 agents, accept/edit/dismiss, workflow chain (2 steps → 2 pending suggestions, run completed 2/2); 0020 hotfix = created_by default. GROK key still unset (mock mode) |
