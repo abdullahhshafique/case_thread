@@ -185,16 +185,16 @@ Sprint-level plan (~5 sprints):
 
 **Goal (from Phases.md §5):** Marketplace, cross-case search, offline-first mobile, store release, paid-tier groundwork.
 
-This phase is planned at quarterly checkpoints rather than sprint-level now — re-plan at the Phase 3 gate when pilot data exists.
+**Phase-4 kickoff re-plan (2026-09-14, per the "re-plan at the Phase 3 gate" note):** Phase 3 closed ahead of the pilot-data assumption — no live acceptance-rate data exists yet (metric tracking lands with pilot usage; Phase-3 DoD was satisfied by the complete review pipeline + contract tests). Workstream order below sequenced by dependency + DoD criticality.
 
-| Workstream | Sequencing note |
-|---|---|
-| Template marketplace | After Phase 3 (templates interact with agent configs). |
-| Cross-case search | Independent — can start at Phase 4 entry; watch Postgres search performance. |
-| Offline-first mobile sync | **Conflict-resolution policy scoped BEFORE building** (Phases.md risk: e.g., last-write-wins with visible conflict flag) — a design doc is the gate, not an afterthought. |
-| Version history on documents/notes | Pairs with offline sync work. |
-| Mobile app store submission | **Developer accounts provisioned early** (external dependency: Apple/Google review timelines). Submit builds as soon as Phase 3 stabilizes; treat review time as a hard external dependency per Phases.md §5. |
-| Paid tier groundwork (billing, SSO, compliance export) | Last; business model is directional per PRD §5 — no billing before the Phases.md §5 Go/No-Go product decision. |
+| Sprint | Epic | Key notes |
+|---|---|---|
+| P4-S1 | **Template marketplace** | 0021 `case_type_templates` + `publish_template()` RPC (materializes case_types + roles; server-side grid validation — unknown keys, view_case invariant, lead-tier requirement). Conflict-policy design doc ships here too (offline gate). |
+| P4-S2 | **Cross-case search** | Postgres full-text across the caller's rooms (RLS-scoped); watch search performance per §6 note. |
+| P4-S3 | **Offline-first mobile v1** | Per `docs/offline-sync-conflict-policy.md` (approved gate): queued writes replay through existing RPC/RLS paths; LWW + visible conflict flag; security-sensitive writes never queue. |
+| P4-S4 | **Version history on documents/notes** | Pairs with offline sync work. |
+| P4-S5 | **Store submission + hardening** | Developer accounts provisioned EARLY (hard external dependency); offline field-test DoD scenario runs here. |
+| P4-S6 | **Paid-tier groundwork** | Billing integration, SSO, compliance export — LAST; only after the Phases.md §5 monetization Go/No-Go. |
 
 **Phase 4 DoD (from Phases.md §5):** Offline mode verified on ≥1 field-test scenario (connectivity loss mid-session, successful resync); marketplace supports template creation + sharing within a workspace; mobile builds pass store review.
 
