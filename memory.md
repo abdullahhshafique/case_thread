@@ -1,13 +1,13 @@
 # CaseThread — Project Memory
 
-**Last updated:** 2026-09-14 (Phase 3 complete — AI agent workflows, merged pending)
+**Last updated:** 2026-09-14 (PHASE 3 COMPLETE, merged to `main` 4ed09b4)
 **Update this file at the end of every work session — it's the fastest way for anyone (including a resuming AI assistant) to get back up to speed.**
 
 ---
 
 ## 1. Current Project State Summary
 
-**PHASE 3 COMPLETE on `feature/phase-3`.** AI agent workflows shipped end-to-end per Phases.md §4: AI adapter layer (Edge Function, 5 providers — mock/grok/openai/anthropic/gemini — behind one `callProvider` interface; swap = `AI_PROVIDER` env), agent registry as versioned config data (0017: contradiction_checker/legal, financial_anomaly_detector/corporate, root_cause_suggester/technical; 0019 P1: literature_summarizer/academic, diagnostic_differential_assistant/medical), human-in-the-loop review RPC (0017 `review_suggestion` — Lead-tier only, atomic status+timeline+audit), workflow builder (0018 `ai_workflows` + `ai_workflow_runs` — chains up to 5 agents, every step lands its OWN pending suggestion, later steps see prior findings only as `[ai-suggestion: untrusted]` context), realtime push for suggestions/runs (0018 added both tables to `supabase_realtime` publication — closed the Architecture §7 gap; Sprint-5 `.stream()` panes had silently no-oped), edit-review dialog in the AI pane (the 'edited' decision path now reachable from UI), timeline renders promoted `ai_suggestion` events with amber AI badge (visibly distinct, DoD). Gates: 121/121 pgTAP (13 new contracts in ai_workflow_test.sql), 73/73 Dart (9 new), 9/9 Deno provider contract tests (index.test.ts, stubbed fetch — no live calls; CI `edge-functions` job added), analyze 0, web build ✓. **Next:** cloud db push 0018–0019 + function deploy + GROK key → live E2E → merge to main → Phase 4 (SaaS polish per Phases.md §5).
+**PHASE 3 COMPLETE — merged to `main` (4ed09b4, PR #1 squash).** AI agent workflows shipped end-to-end per Phases.md §4: AI adapter layer (Edge Function, 5 providers — mock/grok/openai/anthropic/gemini — behind one `callProvider` interface; swap = `AI_PROVIDER` env), agent registry as versioned config data (0017: contradiction_checker/legal, financial_anomaly_detector/corporate, root_cause_suggester/technical; 0019 P1: literature_summarizer/academic, diagnostic_differential_assistant/medical), human-in-the-loop review RPC (0017 `review_suggestion` — Lead-tier only, atomic status+timeline+audit), workflow builder (0018 `ai_workflows` + `ai_workflow_runs` — chains up to 5 agents, every step lands its OWN pending suggestion, later steps see prior findings only as `[ai-suggestion: untrusted]` context; 0020 created_by=auth.uid() default), realtime push for suggestions/runs (0018 added both to `supabase_realtime` — closed the Architecture §7 gap), edit-review dialog in the AI pane, timeline `ai_suggestion` events amber-badged (visibly distinct, DoD). LIVE CLOUD E2E PASSED 2026-09-14: all 3 P0 agents ran (each → pending suggestion), accept/edited/dismiss each wrote timeline+audit atomically (edited promoted the human version), 2-step workflow completed 2/2 with two separate pending suggestions (per-step input_ref provenance). Gates: 121/121 pgTAP, 73/73 Dart, 9/9 Deno provider contract tests, analyze 0, web build ✓ — CI green on all three jobs (flutter, rls-tests, edge-functions — the new job). **GROK key not yet set** (`npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=…` — function runs mock until then; only the provider HTTP call differs). **Next:** Phase 4 (SaaS polish per Phases.md §5) — re-plan at the phase gate.
 
 ---
 
@@ -62,15 +62,16 @@
 
 ## 5. Next Immediate Steps
 
-**Phase 3 exit — LIVE E2E COMPLETE 2026-09-14** (all against deployed function, mock provider — deterministic):
-single-agent runs for ALL 3 P0 agents verified (contradiction_checker/legal, financial_anomaly_detector/corporate, root_cause_suggester/technical — each → pending suggestion), accept/edited/dismiss all verified (timeline + audit rows confirmed atomically written; edited promotes the HUMAN version), workflow chain verified (2-step run → completed run row + 2 SEPARATE pending suggestions with per-step `input_ref` provenance). One live bug found+fixed: client workflow insert failed (`created_by` NOT NULL, no default) → **0020** pushed (auth.uid() default; regression contract added to ai_workflow_test).
+**Phase 3 CLOSED 2026-09-14 (merged, 4ed09b4).** One open follow-up: set the production provider key when available —
+`npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=<x.ai key>` (function runs mock mode until then; pipeline identical, contract-tested).
 
-**Remaining before merge:**
-1. `npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=<x.ai key — ASK USER>` (function currently mock mode; pipeline identical, only provider call differs)
-2. PR → CI green (flutter + rls-tests + edge-functions) → squash-merge to `main`
-3. Optional: web smoke run of the builder UI against cloud
-
-**Then Phase 4 (Phases.md §5):** template marketplace, cross-case search, offline-first mobile (conflict-resolution design doc FIRST), version history, store submission, paid-tier groundwork.
+**Phase 4 kickoff (Phases.md §5) — re-plan at the phase gate:**
+1. Template marketplace (design/share custom case-type templates)
+2. Cross-case search
+3. Offline-first mobile sync — CONFLICT-RESOLUTION DESIGN DOC FIRST (Phases.md §5 risk note)
+4. Version history on documents/notes
+5. Mobile store submission (developer accounts early — external review timelines)
+6. Paid-tier groundwork (billing/SSO/compliance export — after the Go/No-Go product decision)
 
 **Testing cadence (user decision 2026-09-12):** full verification pass at each PHASE boundary
 (local gates + pgTAP + cloud E2E + CI), not after every sprint. CI still gates every push.
@@ -150,3 +151,4 @@ Live cloud E2E covers: create → join → approve → upload → audit (Phase 1
 | 2026-09-13 | Supabase dev cloud | 0017 applied | Agent registry + review_suggestion live (Phase-3 core) |
 | 2026-09-14 | Local (Docker) | 0018 + 0019 verified | Full reset + 121/121 pgTAP; ai_workflows/runs + realtime publication + P1 agents |
 | 2026-09-14 | Supabase dev cloud | 0018 + 0019 + 0020 applied; ai-agent deployed | Live E2E COMPLETE: 3 agents, accept/edit/dismiss, workflow chain (2 steps → 2 pending suggestions, run completed 2/2); 0020 hotfix = created_by default. GROK key still unset (mock mode) |
+| 2026-09-14 | GitHub `main` | 4ed09b4 | **PHASE 3 COMPLETE** — PR #1 squash-merged; CI green on all 3 jobs (flutter, rls-tests, edge-functions) |
