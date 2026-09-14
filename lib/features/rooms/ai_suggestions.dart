@@ -88,8 +88,13 @@ abstract class AiAgentRepository {
   /// Agents available for the room's case type (plus case-type-agnostic).
   Future<List<AgentDefinition>> listAgents(String caseTypeId);
 
-  /// Room suggestions, newest first (realtime-able table).
+  /// Room suggestions, newest first.
   Future<List<AiSuggestion>> listSuggestions(String roomId);
+
+  /// Realtime suggestion stream (0018 added ai_suggestions to the
+  /// supabase_realtime publication — pending findings push live,
+  /// Architecture.md §7).
+  Stream<List<AiSuggestion>> watchSuggestions(String roomId);
 
   /// Runs an agent via the Edge Function. Returns the new suggestion id,
   /// or null when the provider found nothing worth flagging.
@@ -134,6 +139,24 @@ class SupabaseAiAgentRepository implements AiAgentRepository {
     return (rows as List)
         .map((r) => AiSuggestion.fromMap(Map<String, dynamic>.from(r)))
         .toList();
+  }
+
+  @override
+  Stream<List<AiSuggestion>> watchSuggestions(String roomId) {
+    // Same .stream() pattern as discussion/tasks: RLS-scoped channel,
+    // rows mapped to models. Status flips (review decisions) also push.
+    return _client
+        .from('ai_suggestions')
+        .stream(primaryKey: ['id'])
+        .eq('room_id', roomId)
+        .order('created_at')
+        .map(
+          (rows) => rows
+              .map((r) => AiSuggestion.fromMap(Map<String, dynamic>.from(r)))
+              .toList()
+              .reversed
+              .toList(), // newest first in UI
+        );
   }
 
   @override
@@ -195,12 +218,13 @@ final agentsProvider = FutureProvider.family<List<AgentDefinition>, String>((
   return ref.watch(aiAgentRepositoryProvider).listAgents(caseTypeId);
 });
 
-/// Suggestions per room.
-final suggestionsProvider = FutureProvider.family<List<AiSuggestion>, String>((
+/// Suggestions per room — realtime (pending findings push live the
+/// moment the Edge Function inserts them; review flips stream too).
+final suggestionsProvider = StreamProvider.family<List<AiSuggestion>, String>((
   ref,
   roomId,
 ) {
-  return ref.watch(aiAgentRepositoryProvider).listSuggestions(roomId);
+  return ref.watch(aiAgentRepositoryProvider).watchSuggestions(roomId);
 });
 
 /// Lead-tier gating for review actions (UI hides; DB enforces).

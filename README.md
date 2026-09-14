@@ -15,8 +15,8 @@ CaseThread's answer: **Case Rooms** with code-based access, role-based permissio
 | Time to start | Instant | Days–weeks (IT provisioning) | **Minutes (join code)** |
 | Role-based access | Manual folder permissions | Yes, admin-managed | **Yes, enforced via Postgres RLS** |
 | Immutable audit trail | No | Yes | **Yes, append-only at the DB layer** |
-| Case timeline & entity map | No | Partial | **Yes (timeline now, entity map Phase 2)** |
-| AI assistance | No | No | **Human-in-the-loop agents (Phase 3)** |
+| Case timeline & entity map | No | Partial | **Yes (timeline + recursive-CTE entity map)** |
+| AI assistance | No | No | **Yes — human-in-the-loop agents (live)** |
 | Cost/complexity | Low | High | **Low (Supabase-backed, single Flutter codebase)** |
 
 ## Tech Stack
@@ -29,12 +29,18 @@ CaseThread's answer: **Case Rooms** with code-based access, role-based permissio
 - **Flutter** — one codebase → Web, Android, iOS
 - **Supabase** — Postgres with Row-Level Security as the real permission boundary, Auth, Storage, Realtime
 - **Riverpod** — testable, compile-safe state management
-- **Provider-agnostic AI adapter layer** (Phase 3) — Claude, GPT, Gemini, or Grok behind one interface, always human-in-the-loop
+- **AI adapter layer** (Edge Function) — Claude, GPT, Gemini, or Grok behind one interface; swapping providers is a config flip (`AI_PROVIDER`), never a core-logic change
 - **GitHub Actions + Vercel** — CI on every PR, preview deploys
+
+## AI Agent Workflows (Phase 3, live)
+
+![Human-in-the-loop AI workflow](./docs/assets/workflow-pipeline.svg)
+
+Agents analyze a room's timeline and evidence, then flag findings as **pending suggestions** — visually distinct (amber) from confirmed case data. Nothing an agent produces can touch the case record: only a Lead-tier human can **accept**, **edit**, or **dismiss** a finding, and every decision lands in the immutable audit trail atomically with the resulting timeline event. Domain agents ship as versioned config data (not code): Contradiction Checker (legal), Financial Anomaly Detector (corporate), Root-Cause Suggester (technical), Literature Summarizer (academic), Diagnostic Differential Assistant (medical). The workflow builder chains agents into saved pipelines — every step still produces its own pending suggestion for individual review.
 
 ## Status
 
-**Phases 1–2 COMPLETE.** All five case-type domains (Legal, Academic, Corporate, Technical, Medical) run on one config-driven core; field-level redaction enforced in the database; watermark-based activity feed; permission-gated case export; entity-relationship map with transitive chains. The full MVP works end-to-end against the live backend: sign up → create room → join by code → owner approval → role-scoped access → evidence vault → realtime timeline/discussion/tasks → immutable audit trail. Demo-day flow rehearsed live. The core Case Room loop + evidence vault work end-to-end against the live backend: sign up → create room (server-generated, rotatable access code) → join by code (rate-limited, owner-approved) → role-scoped access → evidence upload (sha256 chain-of-custody, duplicate-name auto-versioning, permission-gated at both RPC and storage layers) → immutable audit trail. Full schema with Row-Level Security on every table (enforced in Postgres, not the UI), Legal/Investigative + Academic case types as config data, rooms UI with Vault/Timeline/Discussion/Tasks/Members tabs (realtime updates, @mentions), auto-generated case timeline from system events, role-scoped UI that hides what the database would refuse. 98 RLS contract tests (pgTAP) + 59 Dart tests green in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
+**Phases 1–3 COMPLETE.** All five case-type domains (Legal, Academic, Corporate, Technical, Medical) run on one config-driven core; field-level redaction enforced in the database; watermark-based activity feed; permission-gated case export; entity-relationship map with transitive chains. The full MVP works end-to-end against the live backend: sign up → create room → join by code → owner approval → role-scoped access → evidence vault (sha256 chain-of-custody, auto-versioning) → realtime timeline/discussion/tasks → immutable audit trail → **AI agent runs with human-in-the-loop review** (accept/edit/dismiss, each audited) and a **workflow builder** that chains agents into saved pipelines. Five domain agents live as versioned config rows; the AI adapter normalizes Claude/GPT/Gemini/Grok behind one interface (provider swap = env var, no core changes). Full schema with Row-Level Security on every table, enforced in Postgres. 121 RLS contract tests (pgTAP) + 73 Dart tests + 9 Deno provider contract tests green in CI. See [Phases.md](./Phases.md) for the roadmap and [ExecutionPlan.md](./ExecutionPlan.md) for the sprint-by-sprint plan.
 
 ## Local Development
 
@@ -78,6 +84,14 @@ npx supabase test db    # runs the pgTAP suite with full pg_prove output
 Local Postgres listens on port **65432** (not the CLI default 54322 — this machine's Hyper-V reserves 54262–54361). `supabase stop` shuts the stack down when done.
 
 > History: this suite was developed against a blind 4-minute CI loop, which caught nothing until Docker enabled the exact same `db reset + test db` loop locally. Prefer the local loop for RLS work; CI is the confirmation gate, not the debugger.
+
+### AI adapter contract tests (Edge Function)
+
+The provider adapter (mock / grok / openai / anthropic / gemini) is contract-tested with stubbed `fetch` — no live vendor calls, no keys:
+
+```bash
+deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts
+```
 
 ## Documentation
 

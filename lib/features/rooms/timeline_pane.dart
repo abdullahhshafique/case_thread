@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/error_mapper.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
@@ -82,11 +83,20 @@ class _TimelineTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final isSystem = event.eventType == 'system';
+    // Promoted AI findings (review_suggestion 0017) — rendered with
+    // the amber AI badge so they stay distinct from confirmed data.
+    final isAi = event.eventType == 'ai_suggestion';
 
     return Card(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isAi
+            ? const BorderSide(color: AppColors.statePending, width: 1.5)
+            : BorderSide.none,
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -104,10 +114,14 @@ class _TimelineTile extends StatelessWidget {
                       'task_created' || 'task_updated' => Icons.checklist,
                       _ => Icons.autorenew,
                     }
+                  : isAi
+                  ? Icons.auto_awesome
                   : Icons.event_note,
               color: isSystem
                   ? Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.5)
+                  : isAi
+                  ? AppColors.statePending
                   : Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: AppSpacing.md),
@@ -115,7 +129,37 @@ class _TimelineTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(event.displaySummary, style: text.bodyLarge),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.displaySummary,
+                          style: text.bodyLarge,
+                        ),
+                      ),
+                      if (isAi)
+                        // AI badge (Design.md §1: amber = AI suggestion,
+                        // exclusively; label pairs with color — never
+                        // color alone).
+                        Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.sm),
+                          child: Text(
+                            'AI · reviewed',
+                            style: text.labelMedium?.copyWith(
+                              color: AppColors.statePending,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  if (isAi && event.details?['finding'] is String)
+                    Text(
+                      event.details!['finding'] as String,
+                      style: text.bodyMedium?.copyWith(
+                        color: text.bodyMedium?.color?.withValues(alpha: 0.8),
+                      ),
+                    ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     '${event.actorName ?? 'System'} · '

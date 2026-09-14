@@ -1,0 +1,16 @@
+{
+  // Deno config for the AI Adapter Layer contract tests
+  // (supabase/functions/ai-agent/index.test.ts). The function source
+  // is deliberately @ts-nocheck (Deno runtime, no vendored types for
+  // esm.sh supabase-js) — tests run without type-checking to match.
+  // CI: deno test --allow-env supabase/functions/ai-agent/index.test.ts
+  "compilerOptions": {
+    "checkJs": false
+  },
+  "unstable": [],
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
