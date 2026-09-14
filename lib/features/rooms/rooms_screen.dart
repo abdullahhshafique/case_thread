@@ -109,7 +109,7 @@ class _RoomCard extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       child: InkWell(
-        onTap: () => context.push('/rooms/${room.id}'),
+        onTap: () => context.push('/rooms/${room.id}?type=${room.caseType}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
