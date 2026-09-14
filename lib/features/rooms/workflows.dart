@@ -27,9 +27,7 @@ class AiWorkflow {
 
   /// Chain label for cards, e.g. "A → B → C" (agent display names).
   String chainLabel(List<AgentDefinition> agents) {
-    final byId = {
-      for (final a in agents) a.id: a.displayName,
-    };
+    final byId = {for (final a in agents) a.id: a.displayName};
     return steps.map((s) => byId[s] ?? s).join(' → ');
   }
 
@@ -194,7 +192,8 @@ class SupabaseAiWorkflowRepository implements AiWorkflowRepository {
           data['status'] == 'workflow_failed') {
         return (
           runId: data['run_id'] as String,
-          suggestionsCreated: (data['suggestions_created'] as num?)?.toInt() ?? 0,
+          suggestionsCreated:
+              (data['suggestions_created'] as num?)?.toInt() ?? 0,
         );
       }
       if (data['code'] == 'forbidden') {
@@ -212,13 +211,16 @@ final aiWorkflowRepositoryProvider = Provider<AiWorkflowRepository>((ref) {
 });
 
 /// Saved workflows per room.
-final workflowsProvider =
-    FutureProvider.family<List<AiWorkflow>, String>((ref, roomId) {
-      return ref.watch(aiWorkflowRepositoryProvider).listWorkflows(roomId);
-    });
+final workflowsProvider = FutureProvider.family<List<AiWorkflow>, String>((
+  ref,
+  roomId,
+) {
+  return ref.watch(aiWorkflowRepositoryProvider).listWorkflows(roomId);
+});
 
 /// Realtime run stream per room (progress: steps_done / status).
-final workflowRunsProvider =
-    StreamProvider.family<List<AiWorkflowRun>, String>((ref, roomId) {
-      return ref.watch(aiWorkflowRepositoryProvider).watchRuns(roomId);
-    });
+final workflowRunsProvider = StreamProvider.family<List<AiWorkflowRun>, String>(
+  (ref, roomId) {
+    return ref.watch(aiWorkflowRepositoryProvider).watchRuns(roomId);
+  },
+);
