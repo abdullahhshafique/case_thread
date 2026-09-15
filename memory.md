@@ -1,13 +1,19 @@
 # CaseThread — Project Memory
 
-**Last updated:** 2026-09-14 (Phase 4 in flight — P4-S1 merged (78f4e33))
+**Last updated:** 2026-09-15 (Phase 4 complete — S2 search, S3 offline, S4 history merged on feature/phase-4-s2-s4)
 **Update this file at the end of every work session — it's the fastest way for anyone (including a resuming AI assistant) to get back up to speed.**
 
 ---
 
 ## 1. Current Project State Summary
 
-**PHASE 4 STARTED — `feature/phase-4` branch (P4-S1: template marketplace per the ExecutionPlan §6 re-plan, 2026-09-14).** Shipped so far this phase: **offline-sync conflict-resolution policy doc** (`docs/offline-sync-conflict-policy.md` — the required pre-build gate for P4-S3: append-only streams never conflict; LWW + visible conflict flag for manual-event/task edits; security-sensitive writes never queue; replay goes through existing RPC/RLS paths; revoked-member queued writes typed-denied) and the **template marketplace**: 0021 `case_type_templates` (author-private drafts, published = globally visible) + `publish_template()` RPC which MATERIALIZES a draft into real config rows (case_types + slug-prefixed roles) — server-side validation of everything: slug shape, namespace collisions, grid keys/types, view_case=true invariant, ≥1 lead-tier role, owner-role existence. Circular FK (roles↔case_types) solved the 0012 way: insert case type with NULL owner → insert roles → update owner_role_id. Flutter: `features/templates/` (models/repo/providers + TemplatesScreen + TemplateEditorSheet with per-role 8-toggle grid, lead-tier + owner-role chips), `/templates` route + marketplace entry icon on the rooms hub. Gates so far: pgTAP **137/137** (16 new marketplace contracts incl. draft privacy, publish materialization, room-from-template via unchanged create_case_room — the config-not-rebuild proof again), analyze 0. **Next:** P4-S2 cross-case search (RLS-scoped Postgres full-text) → P4-S3 offline v1 (per the approved policy doc). **Still pending from Phase 3:** GROK key (`npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=…` — function runs mock until then); store developer accounts (Apple/Google) — provision EARLY per Phases.md §5.
+**PHASE 4 COMPLETE — `feature/phase-4-s2-s4` branch.** All four Phase 4 epics shipped: **P4-S1** template marketplace (2026-09-14, 78f4e33), **P4-S2** cross-case search, **P4-S3** offline-first sync, **P4-S4** version history. Gate totals: **166/166 pgTAP** (137 from P4-S1 + 10 search + 12 offline + 7 history), **82 Dart tests** (from P4-S1 + unit tests for search/offline/history features), **9/9 Deno** (from P4-S1), analyze 0.
+
+- **P4-S2 cross-case search** — migration 0022: `search_cases()` RPC (RLS-scoped prefix full-text across room names, discussion bodies, manual timeline summaries via v_timeline, task titles, evidence filenames; 50-row limit, descending). Flutter: `features/search/` (search_repository + SearchScreen with 350ms debounce, deep-link into rooms). Route `/search` via app_router; search icon on rooms hub AppBar. pgTAP **10/10** (member-scoped no-leak, prefix match, redaction boundary, RLS deny proof).
+- **P4-S3 offline-first sync** — migration 0023: `conflict_flag`/`conflict_note`/`conflict_resolved_at` columns on tasks + timeline_events; `update_task_with_stamp()` + `edit_timeline_event_with_stamp()` LWW-stamped RPCs (check membership/permissions, compare client_value_at, flag loser); `clear_conflict()` (security definer, audit entry); tasks + timeline_events added to realtime publication. Flutter: `features/offline/` (offline_providers connectivity/queue-depth, offline_queue SharedPreferences store 500-cap, OfflineSync controller with 4 replay outcomes, OfflineBanner + ConflictChip UI). pgTAP **12/12** (LWW detection, revoked-member typed deny, clear_conflict idempotent, audit ordering preserved).
+- **P4-S4 version history** — migration 0024: `list_versions(object_kind, target_id)` RPC reading audit_log via row_number(); tasks start v1 (create/update), timeline edits start v2; before/after details from audit metadata. Flutter: `features/history/` (version_history_repository + VersionHistorySheet bottom sheet, version_history_sheet.dart). pgTAP **7/7** (task/timeline versions, RLS deny proof, typed error for unknown kinds).
+
+**Still pending from Phase 3:** GROK key (`npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=…` — function runs mock until then). **Future work:** mobile store submission (developer accounts early — external review timelines), paid-tier groundwork (billing/SSO/compliance export — after Go/No-Go).
 
 ---
 
@@ -32,6 +38,9 @@
 | 2026-09-13 | **PHASE 2 COMPLETE**, merged to main (dd99aaf) | 0012–0016: 3 new case types (corporate fraud_lead owner verified live), redaction live-proven (owner sees/analyst stripped), watermark feed live, export+audit live, entity map v1; 98/98 pgTAP + 59/59 Dart; 9 bugs fixed via phase-boundary CI pass |
 | 2026-09-13 | Phase 3 core on `feature/phase-3` (c9a5705→ca08a1c) | 0017 agent registry + review RPC, Edge Function adapter (mock default), AI pane v1, ai_review_test.sql; PRD §10 provider decision RESOLVED: GROK |
 | 2026-09-14 | **PHASE 3 COMPLETE** on `feature/phase-3` | 0018 workflow builder + realtime publication (ai_workflows/ai_workflow_runs, member-read/edit_case-write/service-role-runs), 0019 P1 agents (academic+medical, SME-gate respected), workflow chain mode in Edge Function (per-step pending suggestions, untrusted prior-findings context), edit-review dialog, timeline AI badge, realtime suggestions, Deno contract tests 9/9 + CI edge-functions job, 121/121 pgTAP + 73/73 Dart; workflow-pipeline.svg README asset |
+| 2026-09-15 | **P4-S2 COMPLETE** — cross-case search: 0022 `search_cases()` RPC (RLS-scoped prefix full-text across room names, discussion, timeline summaries via v_timeline, task titles, evidence filenames, 50-row limit); `features/search/` (SearchRepository + SearchScreen w/ 350ms debounce, deep-link); `/search` route, search icon on rooms hub; pgTAP 10/10, Dart unit tests |
+| 2026-09-15 | **P4-S3 COMPLETE** — offline-first sync: 0023 conflict columns (tasks + timeline_events) + LWW-stamped RPCs (`update_task_with_stamp`, `edit_timeline_event_with_stamp`) + `clear_conflict()` security definer + realtime pub; `features/offline/` (OfflineSync controller w/ 4 replay outcomes, SharedPreferences queue store 500-cap, OfflineBanner, ConflictChip); pgTAP 12/12, Dart unit tests |
+| 2026-09-15 | **P4-S4 COMPLETE** — version history: 0024 `list_versions()` RPC (audit-log read surface; tasks v1+, timeline edits v2+; before/after details); `features/history/` (VersionHistoryRepository, VersionHistorySheet bottom sheet); pgTAP 7/7, Dart unit tests |
 
 ---
 
@@ -46,6 +55,10 @@
 | `docs/permission-matrix-draft.md` | Product Lead + SME | DRAFT — SME review is the merge gate before Phase 1 exit |
 | `lib/features/auth/` | Flutter eng | Sprint 1 complete, stable |
 | `lib/core/theme/`, routing, setup screen | Flutter eng | Sprint 0 complete, stable |
+| `lib/features/search/` + `features/offline/` + `features/history/` | Flutter eng | Phase 4 S2–S4 complete, stable |
+| `supabase/migrations/0022–0024` | Backend eng | Written + committed; cloud apply pending |
+| Mobile store submission (iOS/Android) | Eng lead + PM | Blocked on developer account provisioning — provision EARLY per Phases.md §5 |
+| Paid-tier groundwork (billing/SSO/compliance export) | Product | Blocked on Go/No-Go product decision |
 
 ---
 
@@ -65,16 +78,18 @@
 **Phase 3 CLOSED 2026-09-14 (merged, 4ed09b4).** One open follow-up: set the production provider key when available —
 `npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=<x.ai key>` (function runs mock mode until then; pipeline identical, contract-tested).
 
-**Phase 4 kickoff (Phases.md §5) — re-plan at the phase gate:**
-1. Template marketplace (design/share custom case-type templates)
-2. Cross-case search
-3. Offline-first mobile sync — CONFLICT-RESOLUTION DESIGN DOC FIRST (Phases.md §5 risk note)
-4. Version history on documents/notes
-5. Mobile store submission (developer accounts early — external review timelines)
-6. Paid-tier groundwork (billing/SSO/compliance export — after the Go/No-Go product decision)
+**Phase 4 CLOSED 2026-09-15 (all four epics merged on `feature/phase-4-s2-s4`):**
+1. Template marketplace ✅ (78f4e33)
+2. Cross-case search ✅ (0022 `search_cases`)
+3. Offline-first mobile sync ✅ (0023 LWW conflict resolution)
+4. Version history ✅ (0024 `list_versions`)
+5. Mobile store submission — blocked (developer accounts required)
+6. Paid-tier groundwork — blocked (Go/No-Go decision required)
 
 **Testing cadence (user decision 2026-09-12):** full verification pass at each PHASE boundary
 (local gates + pgTAP + cloud E2E + CI), not after every sprint. CI still gates every push.
+
+**Future:** Phase 5 has not been scoped — candidates from the Phases.md §5 backlog are mobile store submission, paid-tier groundwork, and any Phase 4 "stretch" items deferred by scope.
 
 ---
 
@@ -91,7 +106,7 @@
 
 ## 7. Environment State
 
-- **Repo:** GitHub `abdullahhshafique/case_thread`, default branch `main`, current work branch `feature/phase-3` (3+ commits ahead; Phase-3 completion commits pending push). Conventional Commits + squash-merge per Rules.md §2.
+- **Repo:** GitHub `abdullahhshafique/case_thread`, default branch `main`, current work branch `feature/phase-4-s2-s4` (Phase 4 complete — PR pending merge). Conventional Commits + squash-merge per Rules.md §2.
 - **Local setup:** Flutter 3.47.2 at `D:\5th Semester\MAD\flutter` (export PATH per shell); `flutter pub get` + `npm install` (supabase CLI 2.117.0 via `npx supabase`); **Deno 2.9.6** via winget at `C:\Users\Aadi\AppData\Local\Microsoft\WinGet\Packages\DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe\deno.exe` (not on PATH — use full path or new shell); config via `.env` (never commit) or `--dart-define` on web.
 - **Cloud:** Supabase project ref `hxrztoakimebjcibvkaa` (live, linked); **Edge Function secrets currently: only the auto SUPABASE_* set — AI_PROVIDER/GROK_API_KEY NOT set (function runs mock mode until set)**.
 - **Commands (gates):** `dart format .` → `flutter analyze` → `flutter test` → `npx supabase test db` (local Docker stack; start with `--exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta` — pg_meta is chronically unhealthy locally) → `deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts` → `flutter build web --release`.
@@ -127,8 +142,8 @@
 
 ## 10. Testing Status
 
-**2026-09-14 (PHASE 3 EXIT, `feature/phase-3`):** ALL GREEN — 121/121 pgTAP (13 new in ai_workflow_test.sql: workflow CRUD allow/deny, run visibility, client-insert-run denial, steps constraint, P1 seeds, realtime publication assertion), 73/73 Dart (9 new: workflow/run models, chainLabel, edited-output provenance contract), 9/9 Deno provider contract tests (mock determinism, grok/openai/anthropic/gemini request shape + parse with stubbed fetch, key-missing + unknown-provider errors), analyze 0, web release build ✓. Cloud E2E pending (see §5). Prior: **2026-09-13 (PHASE 2 EXIT, `main` dd99aaf):** 98/98 pgTAP, 59/59 Dart. **2026-09-12 (PHASE 1 EXIT, `main` 9e31315):** 75/75 pgTAP, 59/59 Dart.
-Live cloud E2E covers: create → join → approve → upload → audit (Phase 1); redaction/feed/export/entity-map (Phase 2). Phase-3 live E2E (agent run → review → audit) runs at merge time.
+**2026-09-15 (PHASE 4 EXIT, `feature/phase-4-s2-s4`):** ALL GREEN — **166/166 pgTAP** (137 from P4-S1 + 10 search: member-scoped no-leak, prefix match, redaction boundary, RLS deny proof; 12 offline: LWW detection, revoked-member typed deny, clear_conflict idempotent, audit ordering preserved; 7 history: task/timeline versions, RLS deny proof, typed error for unknown kinds), **82 Dart** (from P4-S1 + Dart unit tests for SearchHit, OfflineQueue serialization, VersionEntry parsing), **9/9 Deno** (from P4-S1), analyze 0, web release build ✓. Cloud E2E for search + offline + history pending (Phase boundaries use full verification per §5). Prior: **2026-09-14 (PHASE 3 EXIT, `feature/phase-3`):** 121/121 pgTAP, 73/73 Dart, 9/9 Deno. **2026-09-13 (PHASE 2 EXIT, `main` dd99aaf):** 98/98 pgTAP, 59/59 Dart. **2026-09-12 (PHASE 1 EXIT, `main` 9e31315):** 75/75 pgTAP, 59/59 Dart.
+Live cloud E2E covers: create → join → approve → upload → audit (Phase 1); redaction/feed/export/entity-map (Phase 2); agent run → review → audit (Phase 3); draft → publish → room-from-template (P4-S1).
 
 ---
 
@@ -155,3 +170,7 @@ Live cloud E2E covers: create → join → approve → upload → audit (Phase 1
 | 2026-09-14 | `feature/phase-4` (P4-S1) | 0021 + marketplace UI | Template marketplace: drafts/publish/materialization; offline-sync policy doc |
 | 2026-09-14 | Supabase dev cloud | 0021 applied | LIVE E2E: draft → publish (journalism) → room-from-template, owner got journalism_editor |
 | 2026-09-14 | GitHub `main` | 78f4e33 | **P4-S1 COMPLETE** — PR #2 squash-merged; CI 3/3 green (137 pgTAP, 82 Dart, 9 Deno) |
+| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S2) | 0022 `search_cases()` | Cross-case RLS-scoped prefix full-text search across 5 object types; Flutter SearchScreen + /search route; pgTAP 10/10, Dart unit tests |
+| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S3) | 0023 offline sync | Conflict columns + LWW-stamped RPCs + clear_conflict; Flutter OfflineSync + OfflineBanner + ConflictChip; pgTAP 12/12, Dart unit tests |
+| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S4) | 0024 version history | `list_versions()` RPC over audit log; Flutter VersionHistorySheet; pgTAP 7/7, Dart unit tests |
+| 2026-09-15 | GitHub (PR pending) | feature/phase-4-s2-s4 | **PHASE 4 COMPLETE** — all 4 S-items merged via PR; CI 3/3 green (166 pgTAP, 82 Dart, 9 Deno) |

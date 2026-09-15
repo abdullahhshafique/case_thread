@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/app_exceptions.dart';
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../offline/offline_providers.dart';
 import 'rooms_providers.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
@@ -115,15 +116,25 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
 
     setState(() => _sending = true);
     try {
-      await ref
-          .read(roomContentRepositoryProvider)
-          .postMessage(
-            roomId: widget.roomId,
-            body: body,
-            mentionUserIds: mentionedNames
-                .map((name) => memberNames[name]!)
-                .toList(),
-          );
+      final mentionIds = mentionedNames
+          .map((name) => memberNames[name]!)
+          .toList();
+      // Offline path: live insert; network failure queues the message
+      // and the banner shows the queued count (policy §2 append-only
+      // streams never conflict — replay is a plain insert).
+      await runQueuedWrite(
+        ref,
+        widget.roomId,
+        'post_message',
+        {'body': body, 'mentions': mentionIds},
+        () => ref
+            .read(roomContentRepositoryProvider)
+            .postMessage(
+              roomId: widget.roomId,
+              body: body,
+              mentionUserIds: mentionIds,
+            ),
+      );
       _controller.clear();
     } on AppException catch (error) {
       if (mounted) {
