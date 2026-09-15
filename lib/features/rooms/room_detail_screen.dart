@@ -7,6 +7,7 @@ import '../../core/errors/error_mapper.dart';
 import '../../core/errors/app_exceptions.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
+import '../offline/offline_banner.dart';
 import 'activity_feed.dart';
 import 'ai_pane.dart';
 import 'export_report.dart';
@@ -136,15 +137,24 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabs,
+      body: Column(
         children: [
-          VaultPane(roomId: widget.roomId),
-          TimelinePane(roomId: widget.roomId),
-          DiscussionPane(roomId: widget.roomId),
-          TasksPane(roomId: widget.roomId),
-          AiPane(roomId: widget.roomId, caseType: widget.caseType),
-          _MembersPane(roomId: widget.roomId),
+          // Offline banner (policy §2: stale-until-confirmed reads with
+          // a visible "as of" watermark; hidden when online).
+          const OfflineBanner(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabs,
+              children: [
+                VaultPane(roomId: widget.roomId),
+                TimelinePane(roomId: widget.roomId),
+                DiscussionPane(roomId: widget.roomId),
+                TasksPane(roomId: widget.roomId),
+                AiPane(roomId: widget.roomId, caseType: widget.caseType),
+                _MembersPane(roomId: widget.roomId),
+              ],
+            ),
+          ),
         ],
       ),
     );
