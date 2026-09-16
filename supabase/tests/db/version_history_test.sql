@@ -10,6 +10,7 @@ select tests.create_test_user('hist-lead@example.com');
 select tests.create_test_user('hist-analyst@example.com');
 select tests.create_test_user('hist-outsider@example.com');
 
+select tests.impersonate('hist-lead@example.com');
 insert into tests.fixtures (key, room_id)
 select 'hist-room', (result).room_id
 from public.create_case_room('History Room', 'legal') as result;
