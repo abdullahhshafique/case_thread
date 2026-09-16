@@ -24,10 +24,9 @@ select tests.add_approved_member(
 -- A task, created live by the lead (fires task_created audit).
 select tests.impersonate('hist-lead@example.com');
 insert into public.tasks (room_id, title, created_by)
-select f.room_id, 'Draft the motion to compel', f.user_id
+select f.room_id, 'Draft the motion to compel', (select user_id from tests.fixtures where key = 'hist-lead@example.com')
 from tests.fixtures f
-where f.key = 'hist-room'
-  and f.user_id = (select user_id from tests.fixtures where key = 'hist-lead@example.com');
+where f.key = 'hist-room';
 
 insert into tests.fixtures (key, member_id)
 select 'hist-task',

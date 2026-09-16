@@ -33,34 +33,30 @@ select tests.unimpersonate();
 -- Content in room A: discussion + timeline (incl. a privileged manual
 -- event) + task + evidence, all seeded as postgres.
 insert into public.discussion_messages (room_id, author_id, body)
-select f.room_id, f.user_id,
+select f.room_id, (select user_id from tests.fixtures where key = 'search-analyst@example.com'),
        'The witness memo mentions the shell company ledger.'
 from tests.fixtures f
-where f.key = 'room-a'
-  and f.user_id = (select user_id from tests.fixtures where key = 'search-analyst@example.com');
+where f.key = 'room-a';
 
 insert into public.timeline_events (room_id, event_type, actor_id, payload)
-select f.room_id, 'manual', f.user_id,
+select f.room_id, 'manual', (select user_id from tests.fixtures where key = 'search-analyst@example.com'),
   '{"summary": "Filed the quarterly report", "privileged": {"summary": "secret grand jury detail"}}'
 from tests.fixtures f
-where f.key = 'room-a'
-  and f.user_id = (select user_id from tests.fixtures where key = 'search-analyst@example.com');
+where f.key = 'room-a';
 
 insert into public.tasks (room_id, title, created_by)
-select f.room_id, 'Review the ledger entries', f.user_id
+select f.room_id, 'Review the ledger entries', (select user_id from tests.fixtures where key = 'search-analyst@example.com')
 from tests.fixtures f
-where f.key = 'room-a'
-  and f.user_id = (select user_id from tests.fixtures where key = 'search-analyst@example.com');
+where f.key = 'room-a';
 
 insert into public.evidence_items (
   room_id, uploader_id, filename, storage_path, file_hash, file_size_bytes
 )
-select f.room_id, f.user_id, 'ledger-scan.pdf',
+select f.room_id, (select user_id from tests.fixtures where key = 'search-analyst@example.com'), 'ledger-scan.pdf',
        'rooms/' || f.room_id::text || '/ledger-scan.pdf',
        repeat('a', 64), 2048
 from tests.fixtures f
-where f.key = 'room-a'
-  and f.user_id = (select user_id from tests.fixtures where key = 'search-analyst@example.com');
+where f.key = 'room-a';
 
 -- Content in room B (analyst NOT a member): the leak probe.
 insert into public.discussion_messages (room_id, author_id, body)
