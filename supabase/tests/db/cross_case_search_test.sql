@@ -13,11 +13,12 @@ select tests.create_test_user('search-analyst@example.com');
 select tests.create_test_user('search-outsider@example.com');
 
 -- Two rooms: lead owns both; analyst is a member of A only.
+select tests.impersonate('search-lead@example.com');
 insert into tests.fixtures (key, room_id)
 select 'room-a', (result).room_id
 from public.create_case_room('Alpha Fraud Matter', 'legal') as result;
 
-select tests.unimpersonate();
+select tests.impersonate('search-lead@example.com');
 insert into tests.fixtures (key, room_id)
 select 'room-b', (result).room_id
 from public.create_case_room('Beta Contract Dispute', 'legal') as result;
@@ -72,8 +73,9 @@ where f.key = 'room-b';
 -- 1. Member search hits discussion content in their room.
 select tests.impersonate('search-analyst@example.com');
 select is(
-  (select count(*) from public.search_cases('memo')
-   where object_type = 'discussion'),
+  (select count(*) from (
+    select * from public.search_cases('memo')
+  ) s where object_type = 'discussion'),
   1::bigint,
   'member finds discussion content in their room'
 );
@@ -86,7 +88,9 @@ select is(
   'prefix query matches discussion, task, and evidence hits'
 );
 select is(
-  (select count(*) from public.search_cases('ledg') where object_type = 'evidence'),
+  (select count(*) from (
+    select * from public.search_cases('ledg')
+  ) s where object_type = 'evidence'),
   1::bigint,
   'evidence filename hits carry the filename as snippet'
 );

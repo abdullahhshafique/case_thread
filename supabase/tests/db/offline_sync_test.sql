@@ -11,6 +11,7 @@ select tests.create_test_user('off-lead@example.com');
 select tests.create_test_user('off-analyst@example.com');
 select tests.create_test_user('off-outsider@example.com');
 
+select tests.impersonate('off-lead@example.com');
 insert into tests.fixtures (key, room_id)
 select 'off-room', (result).room_id
 from public.create_case_room('Offline Sync Room', 'legal') as result;
@@ -25,7 +26,7 @@ select tests.add_approved_member(
 insert into public.tasks (room_id, title, created_by, status)
 select f.room_id, 'Interview the witness', f.user_id, 'open'
 from tests.fixtures f
-where f.key = 'off-lead@example.com'
+where f.key = 'off-room'
   and f.user_id = (select user_id from tests.fixtures where key = 'off-lead@example.com');
 
 insert into tests.fixtures (key, member_id, text_value)
@@ -40,7 +41,7 @@ from tests.fixtures where key = 'off-room';
 insert into public.timeline_events (room_id, event_type, actor_id, payload)
 select f.room_id, 'manual', f.user_id, '{"summary": "Site visit complete"}'
 from tests.fixtures f
-where f.key = 'off-lead@example.com'
+where f.key = 'off-room'
   and f.user_id = (select user_id from tests.fixtures where key = 'off-lead@example.com');
 
 -- 1. LIVE path still works: stamped update applies (no divergence yet).
