@@ -44,10 +44,9 @@ select public.update_task_with_stamp(
 
 -- A manual timeline event, then an edit (fires timeline_event_edited).
 insert into public.timeline_events (room_id, event_type, actor_id, payload)
-select f.room_id, 'manual', f.user_id, '{"summary": "Kickoff call held"}'
+select f.room_id, 'manual', (select user_id from tests.fixtures where key = 'hist-lead@example.com'), '{"summary": "Kickoff call held"}'
 from tests.fixtures f
-where f.key = 'hist-room'
-  and f.user_id = (select user_id from tests.fixtures where key = 'hist-lead@example.com');
+where f.key = 'hist-room';
 
 insert into tests.fixtures (key, text_value)
 select 'hist-event',
