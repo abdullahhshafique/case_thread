@@ -7,6 +7,7 @@ import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/rooms/join_screen.dart';
 import '../../features/rooms/room_detail_screen.dart';
 import '../../features/rooms/rooms_screen.dart';
+import '../../features/search/search_screen.dart';
 import '../../features/setup/setup_screen.dart';
 import '../../features/templates/templates_screen.dart';
 
@@ -52,6 +53,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
       GoRoute(path: '/', builder: (context, state) => const RoomsScreen()),
       GoRoute(path: '/join', builder: (context, state) => const JoinScreen()),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
       GoRoute(
         path: '/templates',
         builder: (context, state) => const TemplatesScreen(),
