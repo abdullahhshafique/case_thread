@@ -289,3 +289,18 @@ team actually trusted with sensitive case data? Would love to hear it.
 ```
 
 **Hashtag notes:** swap `#ProductDevelopment` for something more specific to the milestone if useful (`#LegalTech`, `#EdTech`, `#AIAgents`) — keep to 3–5 total per the original brief.
+
+## 6. Phase 6 — Spec Alignment (COMPLETE 2026-09-17)
+
+Closes the gaps against the instructor's "Complete Project Understanding" doc.
+
+| Epic | What shipped |
+|---|---|
+| Dashboard (doc §8–9) | Case-info header (name, investigation status, lead, team, opened), 8th stat tile (unverified alibis), evidence-by-type + events-over-time graphs (custom-drawn, no deps), mounted as the FIRST tab |
+| Fact/Claim/Finding/Unknown (doc §7) | Classification badges on Timeline + Vault tiles, filter chips on Timeline, classification picker in the Add-Event sheet, v_timeline exposes the 0027 column |
+| Connections map (doc §13) | New Map tab: circular entity graph (person/location/vehicle/evidence/org colors), tap node/edge for "Why connected?" sheets, add-relationship flow for edit_case holders |
+| Coherent mock case (doc §30) | Riverside Robbery #2291 seed: full cast, relationships, classified evidence, the doc's timeline sequence, alibi-in-conflict, contradiction, gaps — access code ROBBERY2 |
+| Tests | case_breakdown pgTAP suite (6), CaseBreakdown + EntityMapData Dart suites; flutter analyze clean, 115/115 pass |
+
+Key decisions: charts hand-drawn (no fl_chart — pinned-deps rule); Dashboard mounted as tab 0 (doc §32 main-nav); seed added alongside existing rooms (back-compat).
+Migrations: 0033_case_breakdown.sql (v_case_breakdown security-invoker fn + v_timeline gains classification).

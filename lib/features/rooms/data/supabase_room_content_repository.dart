@@ -54,6 +54,14 @@ abstract class RoomContentRepository {
     required String status,
   });
 
+  /// Creates a manual case event (edit_case holders, 0005 policy).
+  /// [classification] is the Fact/Claim/Finding/Unknown tag (0027).
+  Future<void> addManualEvent({
+    required String roomId,
+    required String summary,
+    String? classification,
+  });
+
   /// Edits a manual event's summary (author + edit_case, 0005/0023).
   Future<void> editManualEvent({
     required String roomId,
@@ -69,7 +77,7 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
 
   static const _timelineSelect =
       'id, room_id, event_type, actor_id, occurred_at, payload, '
-      'conflict_flag, profiles(actor_id)(display_name)';
+      'classification, conflict_flag, profiles(actor_id)(display_name)';
 
   @override
   Future<List<TimelineEventModel>> getTimeline(String roomId) async {
@@ -208,6 +216,25 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
           'client_value_at': DateTime.now().toIso8601String(),
         },
       );
+    } catch (error) {
+      throw toAppException(error);
+    }
+  }
+
+  @override
+  Future<void> addManualEvent({
+    required String roomId,
+    required String summary,
+    String? classification,
+  }) async {
+    try {
+      await _client.from('timeline_events').insert({
+        'room_id': roomId,
+        'actor_id': _client.auth.currentUser!.id,
+        'event_type': 'manual',
+        'payload': {'summary': summary},
+        'classification': ?classification,
+      });
     } catch (error) {
       throw toAppException(error);
     }

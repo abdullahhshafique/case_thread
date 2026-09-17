@@ -531,3 +531,30 @@ class CaseClosedSummary {
     );
   }
 }
+
+/// Per-room breakdown for the dashboard graphs (Phase 6, doc §9):
+/// evidence grouped by type + timeline events per day (14-day window).
+class CaseBreakdown {
+  const CaseBreakdown({
+    required this.evidenceByType,
+    required this.eventsPerDay,
+  });
+
+  /// e.g. {'pdf': 3, 'image': 1}
+  final Map<String, int> evidenceByType;
+
+  /// e.g. {'2026-09-15': 4, '2026-09-16': 2}
+  final Map<String, int> eventsPerDay;
+
+  factory CaseBreakdown.fromMap(Map<String, dynamic> map) {
+    Map<String, int> readInts(Object? raw) {
+      if (raw is! Map) return const {};
+      return raw.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0));
+    }
+
+    return CaseBreakdown(
+      evidenceByType: readInts(map['evidence_by_type']),
+      eventsPerDay: readInts(map['events_per_day']),
+    );
+  }
+}
