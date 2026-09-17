@@ -24,7 +24,7 @@ class SupabaseEvidenceRepository implements EvidenceRepository {
         .from('evidence_items')
         .select(
           'id, room_id, filename, storage_path, version, file_size_bytes, '
-          'mime_type, file_hash, uploaded_at, '
+          'mime_type, file_hash, uploaded_at, classification, '
           'profiles!evidence_items_uploader_id_fkey(display_name)',
         )
         .eq('room_id', roomId)

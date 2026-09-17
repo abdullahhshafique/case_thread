@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-import '../../../core/api/models.dart' show CaseClosedSummary, CaseStatistics;
+import '../../../core/api/models.dart' show CaseBreakdown, CaseClosedSummary, CaseStatistics;
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/errors/app_exceptions.dart';
 import '../domain/dashboard_repository.dart';
@@ -26,6 +26,19 @@ class SupabaseDashboardRepository implements DashboardRepository {
         throw const RoomNotFoundException();
       }
       return CaseStatistics.fromMap(match);
+    } catch (error) {
+      throw toAppException(error);
+    }
+  }
+
+  @override
+  Future<CaseBreakdown> breakdown(String roomId) async {
+    try {
+      final result = await _client.rpc(
+        'v_case_breakdown',
+        params: {'target_room': roomId},
+      );
+      return CaseBreakdown.fromMap(Map<String, dynamic>.from(result as Map));
     } catch (error) {
       throw toAppException(error);
     }

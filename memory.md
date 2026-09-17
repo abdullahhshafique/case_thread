@@ -188,3 +188,5 @@ Live cloud E2E covers: create → join → approve → upload → audit (Phase 1
 | 2026-09-15 | `feature/phase-4-s2-s4` (P4-S3) | 0023 offline sync | Conflict columns + LWW-stamped RPCs + clear_conflict; Flutter OfflineSync + OfflineBanner + ConflictChip; pgTAP 12/12, Dart unit tests |
 | 2026-09-15 | `feature/phase-4-s2-s4` (P4-S4) | 0024 version history | `list_versions()` RPC over audit log; Flutter VersionHistorySheet; pgTAP 7/7, Dart unit tests |
 | 2026-09-15 | GitHub (PR pending) | feature/phase-4-s2-s4 | **PHASE 4 COMPLETE** — all 4 S-items merged via PR; CI 3/3 green (166 pgTAP, 82 Dart, 9 Deno) |
+
+| 2026-09-17 | Phase 6 — Spec Alignment | Dashboard header+graphs, classification UI, Connections map tab, Riverside seed | COMPLETE |

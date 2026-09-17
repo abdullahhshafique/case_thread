@@ -34,6 +34,7 @@ class VaultEntry {
     required this.sha256,
     required this.uploadedAt,
     this.uploaderName,
+    this.classification,
   });
 
   final String id;
@@ -49,6 +50,9 @@ class VaultEntry {
   /// Resolved from profiles via FK embed when available.
   final String? uploaderName;
 
+  /// Fact / Claim / Finding / Unknown (0027, doc §7). Null = unset.
+  final String? classification;
+
   factory VaultEntry.fromMap(Map<String, dynamic> map) {
     return VaultEntry(
       id: map['id'] as String,
@@ -60,6 +64,7 @@ class VaultEntry {
       mimeType: (map['mime_type'] as String?) ?? 'application/octet-stream',
       sha256: (map['file_hash'] as String?) ?? '',
       uploadedAt: DateTime.parse(map['uploaded_at'] as String),
+      classification: map['classification'] as String?,
       uploaderName: map['profiles'] is Map<String, dynamic>
           ? (map['profiles'] as Map<String, dynamic>)['display_name'] as String?
           : null,

@@ -18,13 +18,22 @@ import 'room_permissions.dart';
 /// realtime stream (0010 mirrors audit actions automatically).
 /// Phase 4: manual events editable (long-press); LWW conflict chip
 /// on rows that lost an offline edit race (0023).
-class TimelinePane extends ConsumerWidget {
+class TimelinePane extends ConsumerStatefulWidget {
   const TimelinePane({super.key, required this.roomId});
 
   final String roomId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TimelinePane> createState() => _TimelinePaneState();
+}
+
+class _TimelinePaneState extends ConsumerState<TimelinePane> {
+  /// Client-side classification filter (doc §7): null = All.
+  String? _filter;
+
+  @override
+  Widget build(BuildContext context) {
+    final roomId = widget.roomId;
     final timeline = ref.watch(_timelineStreamProvider(roomId));
     final canEdit = ref
         .watch(myRoomPermissionsProvider(roomId))
@@ -34,28 +43,169 @@ class TimelinePane extends ConsumerWidget {
         );
     final text = Theme.of(context).textTheme;
 
-    return timeline.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Text(
-            toAppException(error).message,
-            style: text.bodyMedium,
-            textAlign: TextAlign.center,
+    return Column(
+      children: [
+        // Classification filter chips (doc §7 — Fact/Claim/Finding/
+        // Unknown made visible; 'All' clears the filter).
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            children: [
+              for (final f in const ['All', 'fact', 'claim', 'finding', 'unknown'])
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: ChoiceChip(
+                    key: Key('tl-filter-$f'),
+                    label: Text(f == 'All' ? f : _cap(f)),
+                    selected: (f == 'All') ? _filter == null : _filter == f,
+                    onSelected: (_) => setState(() {
+                      _filter = (f == 'All') ? null : f;
+                    }),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Stack(
+            children: [
+              _list(timeline, canEdit, text),
+              if (canEdit)
+                Positioned(
+                  right: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                  child: FloatingActionButton.small(
+                    key: const Key('timeline-add-event'),
+                    tooltip: 'Add case event',
+                    onPressed: () => _addEvent(context),
+                    child: const Icon(Icons.add),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Classification picker sheet (doc §7): summary + Fact/Claim/
+  /// Finding/Unknown choice, inserted via PostgREST under the 0005
+  /// manual-event insert policy (edit_case holders only).
+  Future<void> _addEvent(BuildContext context) async {
+    final controller = TextEditingController();
+    String? classification;
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            top: AppSpacing.lg,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add case event',
+                  style: Theme.of(sheetContext).textTheme.headlineSmall),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const Key('timeline-add-summary'),
+                controller: controller,
+                autofocus: true,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Summary',
+                  hintText: 'e.g. CCTV shows Vehicle V01 at Riverside Road 8:42 PM',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  for (final c in const ['fact', 'claim', 'finding', 'unknown'])
+                    ChoiceChip(
+                      label: Text(_cap(c)),
+                      selected: classification == c,
+                      onSelected: (_) =>
+                          setSheetState(() => classification = c),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  key: const Key('timeline-add-save'),
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                  child: const Text('Add event'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      data: (events) => events.isEmpty
-          ? _empty(context, text)
-          : ListView.builder(
-              // Rules.md §9: lazy list — timelines grow unbounded.
-              itemCount: events.length,
-              itemBuilder: (context, index) =>
-                  _TimelineTile(event: events[index], canEdit: canEdit),
-            ),
     );
+    controller.dispose();
+    if (saved != true) return;
+    final summary = controller.text.trim();
+    if (summary.isEmpty) return;
+    try {
+      await ref
+          .read(roomContentRepositoryProvider)
+          .addManualEvent(
+            roomId: widget.roomId,
+            summary: summary,
+            classification: classification,
+          );
+      ref.invalidate(_timelineStreamProvider(widget.roomId));
+    } on AppException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
+
+  Widget _list(AsyncValue<List<TimelineEventModel>> timeline, bool canEdit,
+      TextTheme text) {
+    return timeline.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Text(
+                  toAppException(error).message,
+                  style: text.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            data: (events) {
+              final filtered = (_filter == null)
+                  ? events
+                  : events.where((e) => e.classification == _filter).toList();
+              if (filtered.isEmpty) return _empty(context, text);
+              return ListView.builder(
+                // Rules.md §9: lazy list — timelines grow unbounded.
+                itemCount: filtered.length,
+                itemBuilder: (context, index) => _TimelineTile(
+                  event: filtered[index],
+                  canEdit: canEdit,
+                ),
+              );
+            },
+          );
+  }
+
+  static String _cap(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+}
 
   Widget _empty(BuildContext context, TextTheme text) {
     return Center(
@@ -80,7 +230,6 @@ class TimelinePane extends ConsumerWidget {
       ),
     );
   }
-}
 
 /// Realtime timeline stream (Architecture.md §8: Riverpod wraps
 /// Supabase Realtime; updates arrive without pull-to-refresh).
@@ -161,6 +310,10 @@ class _TimelineTile extends ConsumerWidget {
                             style: text.bodyLarge,
                           ),
                         ),
+                        if (event.classification != null)
+                          _ClassificationBadge(
+                            classification: event.classification!,
+                          ),
                         if (isAi)
                           // AI badge (Design.md §1: amber = AI suggestion,
                           // exclusively; label pairs with color — never
@@ -297,5 +450,39 @@ class _TimelineTile extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
+  }
+}
+
+/// Fact/Claim/Finding/Unknown badge (Phase 6, doc §7). Label paired
+/// with an outline color — never color alone (Design.md §1).
+class _ClassificationBadge extends StatelessWidget {
+  const _ClassificationBadge({required this.classification});
+
+  final String classification;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (classification) {
+      'fact' => (Colors.green, 'Fact'),
+      'claim' => (Colors.orange, 'Claim'),
+      'finding' => (Colors.blueGrey, 'Finding'),
+      'unknown' => (Colors.grey, 'Unknown'),
+      _ => (Colors.grey, classification),
+    };
+    return Container(
+      margin: const EdgeInsets.only(left: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }

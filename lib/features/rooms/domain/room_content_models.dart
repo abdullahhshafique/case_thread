@@ -15,6 +15,7 @@ class TimelineEventModel {
     this.actionType,
     this.details,
     this.conflictFlag = false,
+    this.classification,
   });
 
   final String id;
@@ -37,6 +38,9 @@ class TimelineEventModel {
 
   /// Raw payload details (JSONB) for expansion in the UI.
   final Map<String, dynamic>? details;
+
+  /// Fact / Claim / Finding / Unknown (0027, doc §7). Null = unset.
+  final String? classification;
 
   final DateTime occurredAt;
 
@@ -66,6 +70,7 @@ class TimelineEventModel {
       actionType: parsedPayload?['action_type'] as String?,
       details: parsedPayload,
       conflictFlag: map['conflict_flag'] == true,
+      classification: map['classification'] as String?,
       occurredAt: DateTime.parse(map['occurred_at'] as String),
     );
   }

@@ -2,7 +2,7 @@
 
 > **Purpose:** Walk a teammate through every step of setting up, logging in, and demonstrating CaseThread on Chrome (Windows + VS Code). Includes all accounts, room codes, case details, and the full demo flow.
 
-**Last updated:** 2026-09-17 · **Version:** 1.1 · **Covers:** All features through Phase 5 (investigation intelligence: alibis, contradictions, gaps, dashboard, case status, AI consent)
+**Last updated:** 2026-09-17 · **Version:** 1.2 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case)
 
 ---
 
@@ -252,8 +252,11 @@ These are created dynamically during `npx supabase test db` and destroyed after 
 
 | Room Name | Case Type | Access Code | Owner | UUID |
 |---|---|---|---|---|
+| **Riverside Robbery #2291** | Legal / Investigative | **`ROBBERY2`** | Priya Sharma | `b1000000-0000-4000-8000-000000000003` |
 | **Contract Dispute — Riverbend Ltd** | Legal / Investigative | **`RIVERBND`** | Priya Sharma | `b1000000-0000-4000-8000-000000000001` |
 | **CHEM-201 Integrity Hearing** | Academic | **`CHEM201`** | Marcus Reid | `b1000000-0000-4000-8000-000000000002` |
+
+> **Riverside Robbery #2291** is the flagship demo room (doc §30): one coherent fictional investigation — Suspect A, Witness B/C, Vehicle V01, four locations, CCTV/witness/phone evidence with Fact/Claim labels, an alibi in conflict, an open contradiction, two investigation gaps, and a connected relationship map. Every feature tells the same story.
 
 > Access codes are stored as SHA-256 hashes only — never plaintext. The alphabet uses 8 unambiguous uppercase chars: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O/1/I).
 

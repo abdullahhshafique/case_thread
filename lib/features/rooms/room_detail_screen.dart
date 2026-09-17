@@ -16,6 +16,8 @@ import 'tasks_pane.dart';
 import 'timeline_pane.dart';
 import 'vault_pane.dart';
 import 'analysis_pane.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../connections/connections_screen.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'rooms_providers.dart';
 
@@ -39,7 +41,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 7, vsync: this);
+  late final TabController _tabs = TabController(length: 9, vsync: this);
 
   @override
   void initState() {
@@ -105,52 +107,64 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
 
   List<_QuickActionDef> get _quickActionDefs => const [
     _QuickActionDef(
+      key: 'qa-dashboard',
+      icon: Icons.dashboard_outlined,
+      label: 'Dashboard',
+      tabIndex: 0,
+    ),
+    _QuickActionDef(
       key: 'qa-evidence',
       icon: Icons.cloud_upload,
       label: 'Evidence',
-      tabIndex: 0,
+      tabIndex: 1,
     ),
     _QuickActionDef(
       key: 'qa-event',
       icon: Icons.timeline,
       label: 'Event',
-      tabIndex: 1,
+      tabIndex: 2,
     ),
     _QuickActionDef(
       key: 'qa-statement',
       icon: Icons.note,
       label: 'Statement',
-      tabIndex: 2,
+      tabIndex: 3,
     ),
     _QuickActionDef(
       key: 'qa-task',
       icon: Icons.add_task,
       label: 'Task',
-      tabIndex: 3,
+      tabIndex: 4,
     ),
     _QuickActionDef(
       key: 'qa-person',
       icon: Icons.person_add,
       label: 'Person',
-      tabIndex: 5,
+      tabIndex: 6,
+    ),
+    _QuickActionDef(
+      key: 'qa-map',
+      icon: Icons.hub_outlined,
+      label: 'Map',
+      tabIndex: 7,
     ),
     _QuickActionDef(
       key: 'qa-alibi',
       icon: Icons.shield,
       label: 'Alibi',
-      tabIndex: 6,
+      tabIndex: 8,
     ),
     _QuickActionDef(
       key: 'qa-contradiction',
       icon: Icons.flag,
       label: 'Contradiction',
-      tabIndex: 6,
+      tabIndex: 8,
     ),
     _QuickActionDef(
       key: 'qa-gap',
       icon: Icons.report_problem_outlined,
       label: 'Gap',
-      tabIndex: 6,
+      tabIndex: 8,
     ),
   ];
 
@@ -182,6 +196,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           isScrollable: true, // five tabs need scroll room on mobile
           tabs: const [
             Tab(
+              key: Key('room-tab-dashboard'),
+              icon: Icon(Icons.dashboard_outlined),
+              text: 'Dashboard',
+            ),
+            Tab(
               key: Key('room-tab-vault'),
               icon: Icon(Icons.folder_outlined),
               text: 'Vault',
@@ -212,6 +231,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
               text: 'Members',
             ),
             Tab(
+              key: Key('room-tab-map'),
+              icon: Icon(Icons.hub_outlined),
+              text: 'Map',
+            ),
+            Tab(
               key: Key('room-tab-analysis'),
               icon: Icon(Icons.analytics),
               text: 'Analysis',
@@ -231,12 +255,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
             child: TabBarView(
               controller: _tabs,
               children: [
+                DashboardScreen(roomId: widget.roomId),
                 VaultPane(roomId: widget.roomId),
                 TimelinePane(roomId: widget.roomId),
                 DiscussionPane(roomId: widget.roomId),
                 TasksPane(roomId: widget.roomId),
                 AiPane(roomId: widget.roomId, caseType: widget.caseType),
                 _MembersPane(roomId: widget.roomId),
+                ConnectionsScreen(roomId: widget.roomId),
                 AnalysisPane(roomId: widget.roomId),
               ],
             ),
