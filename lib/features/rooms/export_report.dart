@@ -65,6 +65,42 @@ class CaseReport {
       final summary = payload?['summary'] as String? ?? em['type'] as String;
       buf.writeln('- ${em['when']} — ${em['actor'] ?? 'System'}: $summary');
     }
+
+    final status = document['investigation_status'] as String?;
+    if (status != null) {
+      buf.writeln();
+      buf.writeln('**Investigation status:** $status');
+    }
+
+    buf.writeln();
+    buf.writeln('## Contradictions');
+    for (final c in (document['contradictions'] as List? ?? [])) {
+      final cm = c as Map<String, dynamic>;
+      buf.writeln(
+        '- [${cm['status']}] ${cm['detail']} '
+        '(flagged: ${cm['flagged_reason']})',
+      );
+    }
+    buf.writeln();
+
+    buf.writeln('## Alibis');
+    for (final a in (document['alibis'] as List? ?? [])) {
+      final am = a as Map<String, dynamic>;
+      buf.writeln(
+        '- [${am['status']}] ${am['claim']} '
+        '(window: ${am['window_start']} – ${am['window_end']})',
+      );
+    }
+    buf.writeln();
+
+    buf.writeln('## Investigation Gaps');
+    for (final g in (document['gaps'] as List? ?? [])) {
+      final gm = g as Map<String, dynamic>;
+      buf.writeln(
+        '- [${gm['status']}] ${gm['description']} '
+        '(type: ${gm['gap_type']})',
+      );
+    }
     return buf.toString();
   }
 }

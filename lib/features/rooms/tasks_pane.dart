@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_spacing.dart';
 import '../offline/offline_banner.dart';
 import '../offline/offline_providers.dart';
 import '../history/version_history_sheet.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
-import '../../../core/api/models.dart' show Permission;
+import '../../core/api/models.dart' show Permission;
 import 'room_permissions.dart';
 import 'rooms_providers.dart';
 

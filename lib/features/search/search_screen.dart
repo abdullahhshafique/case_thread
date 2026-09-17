@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_spacing.dart';
+import '../../core/theme/app_spacing.dart';
 import 'search_repository.dart';
 
 /// Cross-case search (Phase 4): one field, every case the caller can

@@ -143,6 +143,44 @@
 
 ---
 
+## 5. Phase 5 — Investigation Intelligence Layer (COMPLETE 2026-09-17)
+
+**Goal:** Ship fact/claim/finding/unknown classification, investigation gaps, alibi verification, contradiction detection (elevated to first-class), case dashboard with statistics, AI case completeness review agent, case status/closed summary, Analysis nav section, Quick Actions bar, and AI consent disclosure. All additive, RLS-first, human-in-the-loop.
+
+**Epic breakdown:**
+
+| Epic | Priority | Status |
+|---|---|---|
+| Fact/Claim/Finding/Unknown classification | P1 | ✅ — 0027 migration (nullable CHECK columns on evidence_items + timeline_events; vehicle added to entities.type) |
+| Investigation gaps | P0 | ✅ — `investigation_gaps` table + `gap_create_task()` RPC; `features/investigation_gaps/` |
+| Alibi verification | P0 | ✅ — `alibis` + `alibi_evidence_links` tables + `verify_alibi()` RPC; `features/alibis/` |
+| Contradiction detection (elevated) | P0 | ✅ — `contradictions` + `contradiction_sources` tables (first-class); `features/contradictions/` |
+| Case dashboard with statistics | P1 | ✅ — `v_case_statistics` view + `CaseStatistics` model; `features/dashboard/` |
+| AI case completeness review agent | P1 | ✅ — `case_completeness_review` agent (6th, cross-domain); consent disclosure in Edge Function |
+| Case status + closed summary | P1 | ✅ — `case_rooms.investigation_status` + `case_closed_summaries` + `transition_investigation_status()` |
+| Analysis nav section + Quick Actions bar | P1 | ✅ — `AnalysisPane` with Alibis/Contradictions/Gaps sub-tabs; Quick Actions in RoomDetailScreen |
+| AI consent step | P0 | ✅ — Consent dialogs in AiPane (single-agent + workflow); consent data scope gathered server-side before provider call |
+| Export extension (contradictions/alibis/gaps/status) | P1 | ✅ — Migration 0031 extends `export_case_report()` v2; `export_report.dart` toMarkdown extended |
+
+**Definition of Done:**
+- All P0 epics demoable end-to-end.
+- New tables have RLS contract tests (pgTAP).
+- `v_case_statistics` verified no leak.
+- AI agent output only via `ai_suggestions` (never directly to case record).
+- No guilt-implying UI copy (Design.md §9).
+- Open Conflicts from PRD-Phase5.md §7 recorded as decisions in memory.md §6.
+
+**Key decisions:**
+- Investigation status is additive to room status (case_room.status = room lifecycle; investigation_status = investigation lifecycle — separate concepts, not a replacement).
+- `v_case_statistics` implemented as a function returning a table (live aggregate, not materialized view — per Architecture-Phase5.md §2.10).
+- Dashboard repository queries `v_case_statistics` via RPC and filters client-side (RLS on the function itself scopes results).
+
+**Migrations:** 0025 (investigation tables) → 0027 (classification + vehicle) → 0026 (status/summary/view) → 0028 (RLS) → 0029 (agent + audit) → 0030 (RPCs) → 0031 (export extension).
+
+**Tests:** 6 pgTAP (rls_alibis, rls_contradictions, rls_investigation_gaps, rls_cross_table_leak, statistics_view, investigation_status) + 4 Dart (alibi, contradiction, gap_task, dashboard).
+
+---
+
 ## 6. Phase Retrospective Log
 
 *(Updated after each phase closes. All phases through Phase 4 complete.)*

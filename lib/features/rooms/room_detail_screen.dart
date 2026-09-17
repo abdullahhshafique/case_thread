@@ -15,12 +15,14 @@ import 'discussion_pane.dart';
 import 'tasks_pane.dart';
 import 'timeline_pane.dart';
 import 'vault_pane.dart';
+import 'analysis_pane.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'rooms_providers.dart';
 
 /// Room detail (Sprint 3–4): Vault tab (evidence) + Members tab
 /// (owner controls: approve/deny, revoke). Timeline/discussion/tasks
-/// arrive Sprint 5.
+/// arrive Sprint 5. Analysis tab (alibis, contradictions, gaps) +
+/// Quick Actions bar added Phase 5.
 class RoomDetailScreen extends ConsumerStatefulWidget {
   const RoomDetailScreen({
     super.key,
@@ -37,7 +39,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 6, vsync: this);
+  late final TabController _tabs = TabController(length: 7, vsync: this);
 
   @override
   void initState() {
@@ -76,6 +78,81 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
       }
     }
   }
+
+  /// Quick Actions bar (Phase 5): one-swipe access to the most
+  /// common investigation tasks (PRD §2.1 / §2.3).
+  Widget _quickActions() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in _quickActionDefs)
+            _QuickAction(
+              key: Key(action.key),
+              icon: action.icon,
+              label: action.label,
+              onTap: () => _tabs.index = action.tabIndex,
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<_QuickActionDef> get _quickActionDefs => const [
+    _QuickActionDef(
+      key: 'qa-evidence',
+      icon: Icons.cloud_upload,
+      label: 'Evidence',
+      tabIndex: 0,
+    ),
+    _QuickActionDef(
+      key: 'qa-event',
+      icon: Icons.timeline,
+      label: 'Event',
+      tabIndex: 1,
+    ),
+    _QuickActionDef(
+      key: 'qa-statement',
+      icon: Icons.note,
+      label: 'Statement',
+      tabIndex: 2,
+    ),
+    _QuickActionDef(
+      key: 'qa-task',
+      icon: Icons.add_task,
+      label: 'Task',
+      tabIndex: 3,
+    ),
+    _QuickActionDef(
+      key: 'qa-person',
+      icon: Icons.person_add,
+      label: 'Person',
+      tabIndex: 5,
+    ),
+    _QuickActionDef(
+      key: 'qa-alibi',
+      icon: Icons.shield,
+      label: 'Alibi',
+      tabIndex: 6,
+    ),
+    _QuickActionDef(
+      key: 'qa-contradiction',
+      icon: Icons.flag,
+      label: 'Contradiction',
+      tabIndex: 6,
+    ),
+    _QuickActionDef(
+      key: 'qa-gap',
+      icon: Icons.report_problem_outlined,
+      label: 'Gap',
+      tabIndex: 6,
+    ),
+  ];
 
   @override
   void dispose() {
@@ -134,6 +211,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
               icon: Icon(Icons.people_outline),
               text: 'Members',
             ),
+            Tab(
+              key: Key('room-tab-analysis'),
+              icon: Icon(Icons.analytics),
+              text: 'Analysis',
+            ),
           ],
         ),
       ),
@@ -142,6 +224,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           // Offline banner (policy §2: stale-until-confirmed reads with
           // a visible "as of" watermark; hidden when online).
           const OfflineBanner(),
+          // Quick Actions bar (Phase 5: one-swipe access to the most
+          // common investigation tasks — PRD §2.1/§2.3).
+          _quickActions(),
           Expanded(
             child: TabBarView(
               controller: _tabs,
@@ -152,6 +237,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
                 TasksPane(roomId: widget.roomId),
                 AiPane(roomId: widget.roomId, caseType: widget.caseType),
                 _MembersPane(roomId: widget.roomId),
+                AnalysisPane(roomId: widget.roomId),
               ],
             ),
           ),
@@ -310,5 +396,50 @@ class _MemberTile extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
+  }
+}
+
+/// Descriptor for a single quick-action chip.
+class _QuickActionDef {
+  const _QuickActionDef({
+    required this.key,
+    required this.icon,
+    required this.label,
+    required this.tabIndex,
+  });
+
+  final String key;
+  final IconData icon;
+  final String label;
+  final int tabIndex;
+}
+
+/// One pill-shaped quick action chip (Design.md §1 — amber
+/// reserved for pending AI only; chips use primary).
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.xs),
+      child: ActionChip(
+        avatar: Icon(icon, size: 16, color: scheme.onPrimary),
+        label: Text(label),
+        onPressed: onTap,
+        backgroundColor: scheme.primary,
+        labelStyle: TextStyle(color: scheme.onPrimary),
+      ),
+    );
   }
 }

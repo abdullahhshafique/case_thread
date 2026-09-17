@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/models.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/api/models.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import 'ai_suggestions.dart';
 import 'room_permissions.dart';
 import 'workflows.dart';
@@ -178,6 +178,14 @@ class _AiPaneState extends ConsumerState<AiPane> {
   }
 
   Future<void> _runWorkflow(BuildContext context, AiWorkflow wf) async {
+    // AI consent step (PRD §19): confirm before running a
+    // workflow that chains multiple agents.
+    final consented = await showDialog<bool>(
+      context: context,
+      builder: (context) => _WorkflowConsentDialog(name: wf.name),
+    );
+    if (consented != true) return;
+
     setState(() => _running = true);
     try {
       final result = await ref
@@ -194,7 +202,7 @@ class _AiPaneState extends ConsumerState<AiPane> {
         ),
       );
     } catch (error) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.toString())));
       }
@@ -216,6 +224,14 @@ class _AiPaneState extends ConsumerState<AiPane> {
   }
 
   Future<void> _run(BuildContext context, AgentDefinition agent) async {
+    // AI consent step (PRD §19): before any agent runs, surface
+    // what data will be accessed and require explicit confirmation.
+    final consented = await showDialog<bool>(
+      context: context,
+      builder: (context) => _ConsentDialog(agent: agent),
+    );
+    if (consented != true) return;
+
     setState(() => _running = true);
     try {
       final id = await ref
@@ -233,7 +249,7 @@ class _AiPaneState extends ConsumerState<AiPane> {
         ),
       );
     } catch (error) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.toString())));
       }
@@ -737,5 +753,92 @@ class _EditSuggestionDialogState extends State<_EditSuggestionDialog> {
         'provider': widget.suggestion.provider,
       'human_edited': true,
     });
+  }
+}
+
+/// AI consent dialog (PRD §19): before ANY agent runs, this shows
+/// what data the server will access and asks for explicit
+/// confirmation. The Edge Function independently re-derives the
+/// scope from the caller's RLS scope (defense in depth).
+class _ConsentDialog extends StatelessWidget {
+  const _ConsentDialog({required this.agent});
+
+  final AgentDefinition agent;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return AlertDialog(
+      title: const Text('AI consent'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Run "${agent.displayName}"?', style: text.bodyLarge),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'This agent will access data in this room to produce its '
+            'finding. The server will only read data you can already '
+            'see (timeline events, evidence items, entities, members) '
+            'and will send exactly that to the AI provider.',
+            style: text.bodyMedium,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('ai-consent-confirm'),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Continue'),
+        ),
+      ],
+    );
+  }
+}
+
+/// AI consent for workflows (PRD §19): same scope
+/// disclosure, adapted for a multi-agent chain.
+class _WorkflowConsentDialog extends StatelessWidget {
+  const _WorkflowConsentDialog({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return AlertDialog(
+      title: const Text('AI consent'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Run workflow "$name"?', style: text.bodyLarge),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'This workflow will run multiple agents that each '
+            'access data in this room. The server will only read '
+            'data you can already see (timeline events, evidence '
+            'items, entities, members) and will send exactly '
+            'that to the AI provider for each step.',
+            style: text.bodyMedium,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('ai-workflow-consent-confirm'),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Continue'),
+        ),
+      ],
+    );
   }
 }
