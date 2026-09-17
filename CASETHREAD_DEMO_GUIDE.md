@@ -2,7 +2,7 @@
 
 > **Purpose:** Walk a teammate through every step of setting up, logging in, and demonstrating CaseThread on Chrome (Windows + VS Code). Includes all accounts, room codes, case details, and the full demo flow.
 
-**Last updated:** 2026-09-15 · **Version:** 1.0 · **Covers:** All features through Phase 4 (marketplace, search, offline sync, version history)
+**Last updated:** 2026-09-17 · **Version:** 1.1 · **Covers:** All features through Phase 5 (investigation intelligence: alibis, contradictions, gaps, dashboard, case status, AI consent)
 
 ---
 
@@ -38,6 +38,10 @@ CaseThread is a **case-room collaboration platform** where teams (legal, academi
 - **Search** across all cases (Phase 4)
 - **Work offline** with conflict resolution (Phase 4)
 - **View version history** of tasks and events (Phase 4)
+- **Track alibis, contradictions, and investigation gaps** in a dedicated Analysis tab (Phase 5)
+- **View case dashboard statistics** — live counts of evidence, people, events, contradictions, gaps, AI findings (Phase 5)
+- **Manage the investigation status lifecycle** — open → under investigation → review → closed, with auto-generated closed summary (Phase 5)
+- **AI consent step** — every agent run asks for explicit consent showing what data will be accessed (Phase 5)
 
 **Architecture:** Flutter (Web + Android + iOS) → Supabase (Postgres + RLS + Auth + Realtime + Storage) → Vercel (CI/CD)
 
@@ -159,10 +163,10 @@ This is the **primary local development path** — all migrations and tests run 
 # 1. Start Supabase local stack (exclude pg_meta — it's chronically unhealthy)
 npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta
 
-# 2. Reset database (applies all 24 migrations in order, seeds demo data)
+# 2. Reset database (applies all 31 migrations in order, seeds demo data)
 npx supabase db reset
 
-# 3. Run pgTAP test suite (should show 166/166 PASS)
+# 3. Run pgTAP test suite (should show 224/224 PASS — 166 through Phase 4 + 58 Phase 5)
 npx supabase test db
 ```
 
@@ -330,7 +334,7 @@ flutter build web --release
 
 1. **Setup screen** (if no Supabase config detected) — shows instructions
 2. **Rooms hub** (after sign-in) — your list of case rooms, search icon, marketplace icon
-3. **Room detail** (after selecting a room) — 6 tabs: Vault, Timeline, Discussion, Tasks, AI, Members
+3. **Room detail** (after selecting a room) — 7 tabs: Vault, Timeline, Discussion, Tasks, AI, Members, Analysis — plus a Quick Actions bar above the tabs
 
 ---
 
@@ -355,7 +359,8 @@ flutter build web --release
 #### Step 2: View the Room
 
 1. Click on **"Contract Dispute — Riverbend Ltd"**
-2. You see 6 tabs: **Vault**, **Timeline**, **Discussion**, **Tasks**, **AI**, **Members**
+2. You see 7 tabs: **Vault**, **Timeline**, **Discussion**, **Tasks**, **AI**, **Members**, **Analysis**
+3. Above the tabs is the **Quick Actions bar** — pill-shaped chips (Evidence, Event, Statement, Task, Person, Alibi, Contradiction, Gap) that jump straight to the matching tab
 
 #### Step 3: Explore Pre-Seeded Data
 
@@ -393,6 +398,31 @@ flutter build web --release
 1. Look at the top of the room detail screen
 2. If disconnected from Supabase, an amber **"Offline — as of HH:MM"** banner appears
 3. The banner is hidden when online
+
+#### Step 5b: Demonstrate Analysis Tab — Investigation Intelligence (Phase 5)
+
+1. Click the **Analysis** tab (7th tab, or tap the **Alibi / Contradiction / Gap** Quick Action chips)
+2. You see three nested sub-tabs: **Alibis**, **Contradictions**, **Gaps**
+3. **Alibis** — record a claimed alibi (person, time window, claim text); verify it against evidence with a status + required human-readable reason (verified / partially verified / conflict / insufficient data). Note: no guilt-implying copy anywhere
+4. **Contradictions** — flag a conflict between two sources manually, or review one raised by an AI agent; resolve or dismiss with a resolution note (Lead-tier)
+5. **Gaps** — log what the case does NOT yet establish; convert a gap into a task with one tap (gap → task links the two and moves the gap to in-progress)
+6. Each sub-tab has its own Quick Action chips that refresh the list and switch the sub-tab
+
+#### Step 5c: Demonstrate AI Consent Dialog (Phase 5)
+
+1. Go to the **AI** tab
+2. Click any **agent run button** (including the new Case Completeness Review agent)
+3. An **"AI consent"** dialog appears first — it states what data the agent will access (timeline events, evidence items, entities, members) and that the server only reads what you can already see
+4. Click **Continue** to run, or **Cancel** to abort
+5. The same consent dialog appears before running any **workflow** (multi-agent chain)
+
+#### Step 5d: Demonstrate Case Dashboard & Investigation Status (Phase 5)
+
+1. The case dashboard shows live statistics per room: evidence, people, locations, events, contradictions, gaps, unverified alibis, AI findings — served by the `v_case_statistics` view (RLS-scoped, no cross-room leaks)
+2. The **investigation status** lifecycle (separate from the room's active/archived status): `open → under_investigation → review → closed`
+3. Only the owner can transition status (`transition_investigation_status` RPC)
+4. On transition to **closed**, a **case-closed summary** snapshot is auto-generated and stored immutably
+5. Exported case reports now include investigation status, contradictions, alibis, and gaps
 
 ### DEVICE 2 — Sign in as Elena (Room Member)
 
@@ -520,9 +550,11 @@ audit_log row (immutable — no update/delete) →
 trigger mirrors to timeline_events
 ```
 
-### E. AI Suggestions (Phase 3)
+### E. AI Suggestions (Phase 3, consent step added Phase 5)
 
 ```
+User clicks agent run → AI CONSENT DIALOG (Phase 5: shows what data
+will be accessed, requires explicit confirmation) →
 Agent workflow runs → suggestion created (pending) →
 shown in AI tab with amber badge → Lead: Accept / Edit / Dismiss →
 review_suggestion() RPC → audit entry logged → timeline event created
@@ -566,6 +598,31 @@ case_types + slug-prefixed roles → server validates all invariants →
 Room from template uses unchanged create_case_room RPC
 ```
 
+### J. Investigation Intelligence (Phase 5)
+
+```
+Analysis tab → three sub-tabs: Alibis / Contradictions / Gaps →
+Alibi: record claim (person + time window) → verify_alibi() RPC →
+status + required human-readable reason + evidence links →
+Contradiction: flag manually or from AI suggestion →
+contradiction_decision() RPC → resolve / dismiss / create linked task →
+Gap: log what the case does NOT establish →
+gap_create_task() RPC → task created + gap auto-moves to in_progress →
+All writes RLS-gated (member read, edit_case write) + audited
+```
+
+### K. Case Dashboard & Status Lifecycle (Phase 5)
+
+```
+v_case_statistics() view (security_invoker) → RLS-scoped counts:
+evidence, people, locations, events, contradictions, gaps,
+unverified alibis, AI findings → no cross-room leaks →
+Investigation status: open → under_investigation → review → closed →
+transition_investigation_status() RPC (owner-only) →
+on →closed: case_closed_summaries row auto-inserted (immutable snapshot) →
+export_case_report v2 includes status + contradictions + alibis + gaps
+```
+
 ---
 
 ## 12. Testing & Verification Commands
@@ -584,7 +641,7 @@ flutter test
 
 # 4. Local database tests (Docker stack required)
 npx supabase test db
-# Expected: 166/166 pgTAP PASS
+# Expected: 224/224 pgTAP PASS (166 through Phase 4 + 58 Phase 5)
 
 # 5. AI adapter contract tests (Deno)
 deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts
@@ -608,7 +665,13 @@ flutter build web --release
 | Cross-Case Search (P4-S2) | 10 | new | ✅ |
 | Offline Sync (P4-S3) | 12 | new | ✅ |
 | Version History (P4-S4) | 7 | new | ✅ |
-| **Phase 4 Exit** | **166** | **82+** | **✅ ALL GREEN** |
+| RLS: Alibis (P5) | 10 | new | ✅ |
+| RLS: Contradictions (P5) | 10 | new | ✅ |
+| RLS: Investigation Gaps (P5) | 10 | new | ✅ |
+| Cross-Table Leak (P5) | 8 | new | ✅ |
+| Statistics View (P5) | 11 | new | ✅ |
+| Investigation Status (P5) | 9 | new | ✅ |
+| **Phase 5 Exit** | **224** | **82+ (4 new model suites)** | **✅ ALL GREEN** |
 
 ### Key Test Files
 
@@ -619,11 +682,21 @@ flutter build web --release
 - `supabase/tests/db/cross_case_search_test.sql` — 10 assertions: member-scoped search, redaction boundary, RLS deny proof
 - `supabase/tests/db/offline_sync_test.sql` — 12 assertions: LWW conflict, clear_conflict, replay deny
 - `supabase/tests/db/version_history_test.sql` — 7 assertions: task/timeline versions, RLS deny
+- `supabase/tests/db/rls_alibis_test.sql` — 10 assertions: member read, edit_case insert/update, non-member deny, status_reason CHECK
+- `supabase/tests/db/rls_contradictions_test.sql` — 10 assertions: manual + ai_suggestion sources, lead resolve, non-lead deny
+- `supabase/tests/db/rls_investigation_gaps_test.sql` — 10 assertions: gap CRUD, gap→task conversion, empty-title reject
+- `supabase/tests/db/rls_cross_table_leak_test.sql` — 8 assertions: no cross-room leaks via alibi_evidence_links / contradiction_sources
+- `supabase/tests/db/statistics_view_test.sql` — 11 assertions: correct counts, non-member room invisible, bigint types
+- `supabase/tests/db/investigation_status_test.sql` — 9 assertions: default open, owner-only transitions, closed summary auto-generated
 
 **Dart Unit Tests:**
 - `test/features/search/search_test.dart` — SearchHit parsing, SearchQueryState
 - `test/features/offline/offline_queue_test.dart` — Queue serialization, replay outcomes, security constraints
 - `test/features/history/version_history_test.dart` — VersionEntry parsing
+- `test/features/alibis/alibi_test.dart` — Alibi parsing, AlibiStatus round-trip
+- `test/features/contradictions/contradiction_test.dart` — Manual + AI-suggestion parsing, enum round-trips
+- `test/features/investigation_gaps/gap_task_test.dart` — InvestigationGap parsing, GapStatus round-trip
+- `test/features/dashboard/dashboard_test.dart` — CaseStatistics, CaseClosedSummary, InvestigationStatus
 
 ---
 
@@ -705,6 +778,15 @@ flutter run -d windows
 - [ ] Search icon → type query → results appear and deep-link
 - [ ] Task History button → version sheet opens
 - [ ] Template marketplace → publish → room-from-template works
+- [ ] Analysis tab shows Alibis / Contradictions / Gaps sub-tabs (Phase 5)
+- [ ] Quick Action chips jump to the correct tab (Phase 5)
+- [ ] AI agent run shows consent dialog before executing (Phase 5)
+- [ ] Workflow run shows consent dialog before executing (Phase 5)
+- [ ] Alibi verification requires a status reason (no bare status) (Phase 5)
+- [ ] Gap → task conversion creates the task and moves gap to in-progress (Phase 5)
+- [ ] Case dashboard statistics visible to members, invisible for non-member rooms (Phase 5)
+- [ ] Investigation status transitions owner-only; closed generates a summary (Phase 5)
+- [ ] Exported report includes investigation status, contradictions, alibis, gaps (Phase 5)
 
 ---
 

@@ -5,6 +5,7 @@ import '../../core/api/supabase_case_type_repository.dart';
 import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../auth/auth_providers.dart';
+import '../dashboard/dashboard_providers.dart';
 import 'data/supabase_rooms_repository.dart';
 
 /// Rooms list state machine.
@@ -77,3 +78,20 @@ final roomMembersProvider = FutureProvider.family<List<RoomMember>, String>((
   ref.watch(sessionProvider);
   return ref.watch(roomsRepositoryProvider).getMembers(roomId);
 });
+
+/// Investigation statistics for one room
+/// (Phase 5: v_case_statistics via dashboard provider).
+final roomStatisticsProvider = FutureProvider.family<CaseStatistics, String>((
+  ref,
+  roomId,
+) {
+  ref.watch(sessionProvider);
+  return ref.watch(dashboardRepositoryProvider).statistics(roomId);
+});
+
+/// Closed summary for one room (Phase 5).
+final roomClosedSummaryProvider =
+    FutureProvider.family<CaseClosedSummary?, String>((ref, roomId) {
+      ref.watch(sessionProvider);
+      return ref.watch(dashboardRepositoryProvider).closedSummary(roomId);
+    });

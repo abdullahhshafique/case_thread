@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_spacing.dart';
 import 'version_history_repository.dart';
 
 /// Version-history viewer (Phase 4, 0024): the append-only change

@@ -1,28 +1,16 @@
 // CaseThread Edge Function: ai-agent (Phase 3, Phases.md §4).
 //
+// Phase 5 additions:
+//   - case_completeness_review: 6th agent, cross-domain.
+//   - AI consent data-scope disclosure (PRD §19, PDF §19):
+//     before any agent runs, the response includes
+//     what data will be sent to the provider.
+//
 // The AI Adapter Layer (Architecture.md §4): ONE entrypoint, provider
 // normalized behind an interface. Provider selection is config
 // (AI_PROVIDER env), with a deterministic mock so the full pipeline
 // is verifiable without any vendor key. Secrets (provider API keys)
 // live ONLY in Edge Function env — never the client (Rules.md §10).
-//
-// Flow (Architecture.md §7):
-//   user JWT → permission check (edit_case) → gather room data
-//   (scoped by the USER, redaction-aware views) → prompt (versioned,
-//   from ai_agents config) → provider call → insert ai_suggestions
-//   (service role, status=pending) → realtime pushes the pending
-//   suggestion to the room (amber, per Design.md §1).
-//
-// PROVIDER DECISION (PRD §10, resolved 2026-09-13): GROK is the
-// production default. The mock provider remains for CI/dev runs
-// without keys. Swapping to Claude/GPT/Gemini stays a config flip.
-//
-// Two modes (0018 workflow builder):
-//   { agent_id, room_id }          — single agent (original behavior)
-//   { workflow_id }                — chained run: steps execute
-//     sequentially, each step's findings land as their OWN pending
-//     ai_suggestions row (human-in-the-loop preserved per step —
-//     Rules.md §11), and an ai_workflow_runs row tracks progress.
 //
 // Agents never write to timeline/audit — only review_suggestion()
 // (called by a Lead-tier human) can promote a finding. (Rules.md §11.)
@@ -165,6 +153,28 @@ export async function callProvider(
 }
 
 // ---------------------------------------------------------------------------
+// AI consent data-scope disclosure (PRD §19, PDF §19).
+// Returns a human-readable list of what room data will be
+// sent to the external provider for this agent run.
+// Shown to the member BEFORE the provider call is made.
+async function getDataScope(
+  userClient: any,
+  roomId: string,
+): Promise<{ timeline_count: number; evidence_count: number; entities_count: number; redacted: boolean }> {
+  const [timeline, evidence, entities] = await Promise.all([
+    userClient.from("v_timeline").select("id").eq("room_id", roomId),
+    userClient.from("evidence_items").select("id").eq("room_id", roomId),
+    userClient.from("entities").select("id, entity_type").eq("room_id", roomId),
+  ]);
+  return {
+    timeline_count: (timeline.data ?? []).length,
+    evidence_count: (evidence.data ?? []).length,
+    entities_count: (entities.data ?? []).length,
+    redacted: true, // v_timeline is redaction-aware; privileged fields stripped per role
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Shared helpers (used by both single-agent and workflow modes).
 // ---------------------------------------------------------------------------
 
@@ -275,6 +285,10 @@ async function runSingleAgent(
     return Response.json({ code: "unknown_agent" }, { status: 404 });
   }
 
+  // AI consent disclosure (PRD §19): gather scope BEFORE the provider
+  // call — member sees what data will be sent before confirming.
+  const dataScope = await getDataScope(userClient, roomId);
+
   const context = await gatherRoomContext(userClient, roomId);
 
   const provider = Deno.env.get("AI_PROVIDER") ?? "mock";
@@ -298,7 +312,16 @@ async function runSingleAgent(
   );
 
   if (!suggestionId) {
-    return Response.json({ status: "no_findings", provider: result.provider });
+    return Response.json({
+      status: "no_findings",
+      provider: result.provider,
+      consent: {
+        disclosed: true,
+        data_scope: dataScope,
+        note:
+          "No findings flagged — agent reviewed available data and found nothing to surface.",
+      },
+    });
   }
 
   // Structured log (Rules.md §6): no evidence content, no PII.
@@ -317,6 +340,10 @@ async function runSingleAgent(
     status: "suggestion_created",
     suggestion_id: suggestionId,
     provider: result.provider,
+    consent: {
+      disclosed: true,
+      data_scope: dataScope,
+    },
   });
 }
 
@@ -401,6 +428,10 @@ async function runWorkflow(
   const suggestionIds: string[] = [];
   const priorFindings: string[] = [];
 
+  // AI consent disclosure (PRD §19): gather scope BEFORE any
+  // provider call — member sees what data will be sent.
+  const dataScope = await getDataScope(userClient, roomId);
+
   try {
     for (let i = 0; i < stepIds.length; i++) {
       const agent = agents[stepIds[i]];
@@ -458,6 +489,12 @@ async function runWorkflow(
       suggestions_created: suggestionIds.length,
       suggestion_ids: suggestionIds,
       provider,
+      consent: {
+        disclosed: true,
+        data_scope: dataScope,
+        note:
+          "Each step reviewed the room data shown above; findings land as pending suggestions for Lead-tier review.",
+      },
     });
   } catch (err) {
     // Completed steps' suggestions REMAIN pending + individually

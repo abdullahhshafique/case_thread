@@ -98,6 +98,7 @@ class CaseRoom {
     required this.caseType,
     required this.ownerId,
     required this.status,
+    required this.investigationStatus,
     required this.createdAt,
     this.codeRotatedAt,
   });
@@ -107,6 +108,7 @@ class CaseRoom {
   final String caseType;
   final String ownerId;
   final String status;
+  final InvestigationStatus investigationStatus;
   final DateTime createdAt;
   final DateTime? codeRotatedAt;
 
@@ -125,6 +127,12 @@ class CaseRoom {
       caseType: map['case_type'] as String,
       ownerId: map['owner_id'] as String,
       status: (map['status'] as String?) ?? 'active',
+      investigationStatus: switch (map['investigation_status'] as String?) {
+        'under_investigation' => InvestigationStatus.underInvestigation,
+        'review' => InvestigationStatus.review,
+        'closed' => InvestigationStatus.closed,
+        _ => InvestigationStatus.open,
+      },
       createdAt: tryParse(map['created_at'] as String?) ?? DateTime.now(),
       codeRotatedAt: tryParse(map['code_rotated_at'] as String?),
     );
@@ -231,4 +239,295 @@ class AuditLogEntry {
 extension AuditLogEntryFormatting on AuditLogEntry {
   /// Stable `action_type object_type` summary for list rows.
   String get summary => '$actionType · $objectType';
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Fact / Claim / Finding / Unknown classification
+// (PRD §4.1). Applied to evidence_items, timeline_events,
+// alibis, contradictions, investigation_gaps.
+// ---------------------------------------------------------------------------
+enum Classification { fact, claim, finding, unknown }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Alibi verification status (PRD §4.2).
+// ---------------------------------------------------------------------------
+enum AlibiStatus { verified, partiallyVerified, conflict, insufficientData }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Contradiction source type + status (PRD §4.3).
+// ---------------------------------------------------------------------------
+enum ContradictionSourceType { manual, aiSuggestion }
+
+enum ContradictionStatus { open, resolved, dismissed }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Investigation gap status (PRD §4.4).
+// ---------------------------------------------------------------------------
+enum GapStatus { open, inProgress, resolved }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Investigation lifecycle (PRD §4.6).
+// Additive to the existing CaseRoom.status (active/archived).
+// Named distinctly in UI: "Investigation status" vs "Room status".
+// ---------------------------------------------------------------------------
+enum InvestigationStatus { open, underInvestigation, review, closed }
+
+// ---------------------------------------------------------------------------
+// Phase 5: Models
+// ---------------------------------------------------------------------------
+
+/// A claimed alibi for a person (entity), with verification
+/// status and a required human-readable reason. Never a bare
+/// status (PRD §4.2, Design.md §9 tone rules).
+class Alibi {
+  const Alibi({
+    required this.id,
+    required this.roomId,
+    required this.entityId,
+    required this.claimedWindowStart,
+    required this.claimedWindowEnd,
+    required this.claimText,
+    required this.status,
+    required this.statusReason,
+    required this.createdAt,
+    this.source,
+    this.createdBy,
+    this.verifiedBy,
+    this.verifiedAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String entityId;
+  final DateTime claimedWindowStart;
+  final DateTime claimedWindowEnd;
+  final String claimText;
+  final AlibiStatus status;
+  final String statusReason;
+  final DateTime createdAt;
+  final String? source;
+  final String? createdBy;
+  final String? verifiedBy;
+  final DateTime? verifiedAt;
+
+  factory Alibi.fromMap(Map<String, dynamic> map) {
+    return Alibi(
+      id: map['id'] as String,
+      roomId: map['room_id'] as String,
+      entityId: map['entity_id'] as String? ?? '',
+      claimedWindowStart: DateTime.parse(map['claimed_window_start'] as String),
+      claimedWindowEnd: DateTime.parse(map['claimed_window_end'] as String),
+      claimText: map['claim_text'] as String,
+      status: switch (map['status'] as String?) {
+        'verified' => AlibiStatus.verified,
+        'partially_verified' => AlibiStatus.partiallyVerified,
+        'conflict' => AlibiStatus.conflict,
+        'insufficient_data' => AlibiStatus.insufficientData,
+        _ => AlibiStatus.verified,
+      },
+      statusReason: map['status_reason'] as String? ?? '',
+      createdAt: DateTime.parse(map['created_at'] as String),
+      source: map['source'] as String?,
+      createdBy: map['created_by'] as String?,
+      verifiedBy: map['verified_by'] as String?,
+      verifiedAt: map['verified_at'] == null
+          ? null
+          : DateTime.tryParse(map['verified_at'] as String),
+    );
+  }
+}
+
+/// A contradiction between two or more sources, reviewable and
+/// resolvable independent of which agent (or human) raised it.
+class Contradiction {
+  const Contradiction({
+    required this.id,
+    required this.roomId,
+    required this.sourceType,
+    required this.conflictingDetail,
+    required this.flaggedReason,
+    required this.status,
+    required this.createdAt,
+    this.aiSuggestionId,
+    this.relevantTime,
+    this.relevantLocation,
+    this.resolutionNote,
+    this.flaggedBy,
+    this.resolvedBy,
+    this.resolvedAt,
+    this.linkedTaskId,
+  });
+
+  final String id;
+  final String roomId;
+  final ContradictionSourceType sourceType;
+  final String conflictingDetail;
+  final String flaggedReason;
+  final ContradictionStatus status;
+  final DateTime createdAt;
+  final String? aiSuggestionId;
+  final DateTime? relevantTime;
+  final String? relevantLocation;
+  final String? resolutionNote;
+  final String? flaggedBy;
+  final String? resolvedBy;
+  final DateTime? resolvedAt;
+  final String? linkedTaskId;
+
+  factory Contradiction.fromMap(Map<String, dynamic> map) {
+    return Contradiction(
+      id: map['id'] as String,
+      roomId: map['room_id'] as String,
+      sourceType: switch (map['source_type'] as String?) {
+        'ai_suggestion' => ContradictionSourceType.aiSuggestion,
+        _ => ContradictionSourceType.manual,
+      },
+      conflictingDetail: map['conflicting_detail'] as String,
+      flaggedReason: map['flagged_reason'] as String,
+      status: ContradictionStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => ContradictionStatus.open,
+      ),
+      createdAt: DateTime.parse(map['created_at'] as String),
+      aiSuggestionId: map['ai_suggestion_id'] as String?,
+      relevantTime: map['relevant_time'] == null
+          ? null
+          : DateTime.tryParse(map['relevant_time'] as String),
+      relevantLocation: map['relevant_location'] as String?,
+      resolutionNote: map['resolution_note'] as String?,
+      flaggedBy: map['flagged_by'] as String?,
+      resolvedBy: map['resolved_by'] as String?,
+      resolvedAt: map['resolved_at'] == null
+          ? null
+          : DateTime.tryParse(map['resolved_at'] as String),
+      linkedTaskId: map['linked_task_id'] as String?,
+    );
+  }
+}
+
+/// A structured record of something the case has not yet
+/// established (PRD §4.4 / §16 — the PDF's "major feature").
+class InvestigationGap {
+  const InvestigationGap({
+    required this.id,
+    required this.roomId,
+    required this.gapType,
+    required this.description,
+    required this.status,
+    required this.createdAt,
+    this.sourceType,
+    this.aiSuggestionId,
+    this.linkedTaskId,
+    this.createdBy,
+    this.resolvedAt,
+  });
+
+  final String id;
+  final String roomId;
+  final String gapType;
+  final String description;
+  final GapStatus status;
+  final DateTime createdAt;
+  final ContradictionSourceType? sourceType;
+  final String? aiSuggestionId;
+  final String? linkedTaskId;
+  final String? createdBy;
+  final DateTime? resolvedAt;
+
+  factory InvestigationGap.fromMap(Map<String, dynamic> map) {
+    return InvestigationGap(
+      id: map['id'] as String,
+      roomId: map['room_id'] as String,
+      gapType: map['gap_type'] as String? ?? 'unknown',
+      description: map['description'] as String,
+      status: switch (map['status'] as String?) {
+        'in_progress' => GapStatus.inProgress,
+        'resolved' => GapStatus.resolved,
+        _ => GapStatus.open,
+      },
+      createdAt: DateTime.parse(map['created_at'] as String),
+      sourceType: map['source_type'] == null
+          ? null
+          : switch (map['source_type'] as String) {
+              'ai_suggestion' => ContradictionSourceType.aiSuggestion,
+              _ => ContradictionSourceType.manual,
+            },
+      aiSuggestionId: map['ai_suggestion_id'] as String?,
+      linkedTaskId: map['linked_task_id'] as String?,
+      createdBy: map['created_by'] as String?,
+      resolvedAt: map['resolved_at'] == null
+          ? null
+          : DateTime.tryParse(map['resolved_at'] as String),
+    );
+  }
+}
+
+/// Dashboard statistics from v_case_statistics view.
+class CaseStatistics {
+  const CaseStatistics({
+    required this.roomId,
+    required this.evidenceCount,
+    required this.peopleCount,
+    required this.locationsCount,
+    required this.eventsCount,
+    required this.contradictionsCount,
+    required this.gapsCount,
+    required this.unverifiedAlibisCount,
+    required this.aiFindingsCount,
+  });
+
+  final String roomId;
+  final int evidenceCount;
+  final int peopleCount;
+  final int locationsCount;
+  final int eventsCount;
+  final int contradictionsCount;
+  final int gapsCount;
+  final int unverifiedAlibisCount;
+  final int aiFindingsCount;
+
+  factory CaseStatistics.fromMap(Map<String, dynamic> map) {
+    return CaseStatistics(
+      roomId: map['room_id'] as String,
+      evidenceCount: (map['evidence_count'] as num?)?.toInt() ?? 0,
+      peopleCount: (map['people_count'] as num?)?.toInt() ?? 0,
+      locationsCount: (map['locations_count'] as num?)?.toInt() ?? 0,
+      eventsCount: (map['events_count'] as num?)?.toInt() ?? 0,
+      contradictionsCount: (map['contradictions_count'] as num?)?.toInt() ?? 0,
+      gapsCount: (map['gaps_count'] as num?)?.toInt() ?? 0,
+      unverifiedAlibisCount:
+          (map['unverified_alibis_count'] as num?)?.toInt() ?? 0,
+      aiFindingsCount: (map['ai_findings_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Closed-case structured summary (PRD §4.6). Stable snapshot
+/// stored as JSONB so it doesn't change if underlying data changes.
+class CaseClosedSummary {
+  const CaseClosedSummary({
+    required this.id,
+    required this.roomId,
+    required this.summaryJson,
+    required this.generatedAt,
+    this.generatedBy,
+  });
+
+  final String id;
+  final String roomId;
+  final Map<String, dynamic> summaryJson;
+  final DateTime generatedAt;
+  final String? generatedBy;
+
+  factory CaseClosedSummary.fromMap(Map<String, dynamic> map) {
+    return CaseClosedSummary(
+      id: map['id'] as String,
+      roomId: map['room_id'] as String,
+      summaryJson: map['summary_json'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(map['summary_json'] as Map)
+          : {},
+      generatedAt: DateTime.parse(map['generated_at'] as String),
+      generatedBy: map['generated_by'] as String?,
+    );
+  }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/models.dart' show Permission;
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/api/models.dart' show Permission;
+import '../../core/errors/app_exceptions.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../offline/offline_banner.dart';
 import '../offline/offline_providers.dart';
 import '../auth/auth_providers.dart';

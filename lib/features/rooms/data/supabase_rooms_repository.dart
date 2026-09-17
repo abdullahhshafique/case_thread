@@ -131,6 +131,53 @@ class SupabaseRoomsRepository implements RoomsRepository {
     });
   }
 
+  @override
+  Future<InvestigationStatus> getInvestigationStatus(String roomId) async {
+    final rows = await _client
+        .from('case_rooms')
+        .select('investigation_status')
+        .eq('id', roomId)
+        .single();
+    return switch (rows['investigation_status'] as String) {
+      'under_investigation' => InvestigationStatus.underInvestigation,
+      'review' => InvestigationStatus.review,
+      'closed' => InvestigationStatus.closed,
+      _ => InvestigationStatus.open,
+    };
+  }
+
+  /// SQL CHECK values are snake_case; the Dart enum is camelCase.
+  static String _wireName(InvestigationStatus status) => switch (status) {
+    InvestigationStatus.underInvestigation => 'under_investigation',
+    InvestigationStatus.review => 'review',
+    InvestigationStatus.closed => 'closed',
+    InvestigationStatus.open => 'open',
+  };
+
+  @override
+  Future<void> transitionInvestigationStatus({
+    required String roomId,
+    required InvestigationStatus newStatus,
+  }) async {
+    return _guard(() async {
+      await _client.rpc(
+        'transition_investigation_status',
+        params: {'p_room_id': roomId, 'p_new_status': _wireName(newStatus)},
+      );
+    });
+  }
+
+  @override
+  Future<CaseClosedSummary?> getClosedSummary(String roomId) async {
+    final rows = await _client
+        .from('case_closed_summaries')
+        .select()
+        .eq('room_id', roomId)
+        .maybeSingle();
+    if (rows == null) return null;
+    return CaseClosedSummary.fromMap(Map<String, dynamic>.from(rows));
+  }
+
   /// Maps PostgREST/RPC failures to typed exceptions (Rules.md §5) —
   /// matching on the message fragment our SQL raises.
   Future<T> _guard<T>(Future<T> Function() action) async {

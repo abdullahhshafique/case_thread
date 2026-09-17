@@ -2,12 +2,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/theme/app_spacing.dart';
 import 'data/supabase_evidence_repository.dart' show evidenceRepositoryProvider;
 import 'domain/evidence_repository.dart';
 import 'domain/evidence_upload.dart';
-import '../../../core/api/models.dart' show Permission;
+import '../../core/api/models.dart' show Permission;
 import 'room_permissions.dart';
 import 'vault_providers.dart';
 

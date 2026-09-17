@@ -21,6 +21,10 @@
 
 | Date | Task | Note |
 |---|---|---|
+| 2026-09-17 | **PHASE 5 COMPLETE** — Investigation Intelligence Layer | 0025–0031 migrations (alibis, contradictions, gaps, investigation_status, closed summaries, statistics view, classification, agent config, audit triggers, RPCs, export extension); `lib/core/api/models.dart` enums + models; 4 feature folders (alibis, contradictions, investigation_gaps, dashboard); Analysis tab + Quick Actions in RoomDetail; AI consent dialogs in AiPane; export extended with contradictions/alibis/gaps/status; dashboard/stats/summary providers; rooms repo investigation methods; 6 pgTAP + 4 Dart test files; updated docs |
+
+| Date | Task | Note |
+|---|---|---|
 | 2026-09-10 | Refined product concept finalized | Original "investigator's app" reframed as a universal Case Room platform (see original concept doc) |
 | 2026-09-10 | PRD.md drafted | Personas, KPIs, prioritized user stories, functional/non-functional requirements defined |
 | 2026-09-10 | Architecture.md drafted | Flutter + Supabase + provider-agnostic AI adapter architecture locked in |
@@ -101,6 +105,16 @@
 | Data retention policy for closed case rooms | Needed before storage/deletion logic is built | PRD.md §10 |
 | ~~Default LLM provider~~ **RESOLVED 2026-09-13: GROK** (mock for keyless CI/dev; swap = AI_PROVIDER env per Architecture.md §14) | Done — recorded in Edge Function + Phases tracking | PRD.md §10 |
 | API key rotation cadence | Needed before Phase 1 goes to any real (non-dev) environment | Rules.md §10 |
+
+### Phase 5 Open Conflicts — Recorded as Decisions
+
+These three conflicts from PRD-Phase5.md §7 were reviewed and the project-level decision was made to proceed without resolving the underlying tension. Each is recorded here so future work doesn't re-debate the same question.
+
+| Conflict | Decision | Rationale |
+|---|---|---|
+| **Mobile-first framing** — PRD envisions mobile as primary, but the current codebase shares a single Flutter codebase with web-first navigation patterns (tab bars, scrollable lists) | **No dedicated mobile navigation layer.** Mobile inherits the existing tab-based room detail and feature navigation. Mobile-specific patterns (bottom sheets, swipe actions) will be added when mobile store submission begins. RLS-first security means no re-architecture is needed for mobile. | The shared Flutter codebase already targets Web + Android + iOS from one codebase (Architecture.md §1). Mobile-first is a UX polish concern, not an architecture concern. RLS-first ensures the security model is identical across platforms. |
+| **Template-marketplace stance** — PRD-Phase5 implies investigation features should be template-driven, but Phase 4 shipped the marketplace as a P2 item separate from case content | **Investigation features are NOT template-driven.** Alibis, contradictions, gaps, and analysis are room-scoped features that apply to any case type. They are added to all rooms uniformly, not gated behind template configs. | Investigation intelligence is a cross-cutting capability (Phase 5 epics apply to Legal, Corporate, Medical, Academic, Technical uniformly). Template-driving would add config complexity without benefit — per Architecture.md §3 "one core, many configs" principle, investigation features are part of the core, not a config. |
+| **Cross-case pattern-matching depth** — PRD suggests AI should find patterns across cases, but RLS prevents cross-room reads | **Pattern matching is per-room only for now.** AI agents operate within the RLS-scoped data of the room they're run in. Cross-case pattern aggregation is a Phase 6+ feature requiring a security-definer aggregation service (not client-side). | RLS-first is a non-negotiable security boundary (Architecture.md §2). Cross-case AI would require a dedicated security-definer service that aggregates across rooms for authorized users — architecturally distinct from per-room agents. Defer until Phase 6 with proper design doc. |
 
 ---
 

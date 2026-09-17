@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import 'offline_providers.dart';
 
 /// Offline banner (policy §2 reads: stale-until-confirmed + visible
