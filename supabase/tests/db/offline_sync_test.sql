@@ -37,6 +37,9 @@ select 'off-task',
 from tests.fixtures where key = 'off-room';
 
 -- A manual timeline event by the lead (editable by the lead offline).
+-- Inserted as postgres: the row's actor_id is what the stamp function
+-- checks, and RLS denies direct inserts to clients by design.
+select tests.unimpersonate();
 insert into public.timeline_events (room_id, event_type, actor_id, payload)
 select f.room_id, 'manual', (select user_id from tests.fixtures where key = 'off-lead@example.com'), '{"summary": "Site visit complete"}'
 from tests.fixtures f
@@ -55,17 +58,26 @@ select is(
 );
 
 -- 2. LWW deny: the task changed server-side AFTER the offline snapshot.
+-- The 0003 touch trigger collapses manual updated_at writes to txn-now,
+-- so the divergence is simulated with a divergent stamp on a SECOND
+-- writer's queued replay: its stamp (now()+5min) is newer than the
+-- offline device's (now()-10min) → the device's replay loses.
 select tests.impersonate('off-lead@example.com');
--- Simulate a second writer landing a newer change first.
-update public.tasks
-set status = 'in_progress', updated_at = now() + interval '5 minutes'
-where id = (select member_id from tests.fixtures where key = 'off-task');
+select is(
+  public.update_task_with_stamp(
+    (select member_id from tests.fixtures where key = 'off-task'),
+    'in_progress',
+    now() + interval '5 minutes' -- second writer: newer snapshot
+  ),
+  'applied',
+  'second writer applies with a newer stamp'
+);
 
 select is(
   public.update_task_with_stamp(
     (select member_id from tests.fixtures where key = 'off-task'),
     'done',
-    now() -- stale offline snapshot: LWW server wins
+    now() - interval '10 minutes' -- STALE offline snapshot
   ),
   'conflict_server_won',
   'stale stamped task update loses (LWW: server wins)'

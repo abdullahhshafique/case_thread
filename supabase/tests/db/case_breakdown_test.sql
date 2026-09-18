@@ -20,6 +20,9 @@ where cr.name = 'Breakdown Room' and cr.owner_id = (
   select user_id from tests.fixtures where key = 'alex@example.com'
 );
 
+-- Fixture writes run as postgres (direct inserts; RLS denies them to
+-- impersonated sessions).
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select id from public.case_rooms where name = 'Breakdown Room'),
   'sam@example.com',

@@ -20,7 +20,9 @@ where cr.name = 'Status Room' and cr.owner_id = (
   select user_id from tests.fixtures where key = 'alex@example.com'
 );
 
--- Sam must be a member to read the room row (RLS).
+-- Sam must be a member to read the room row (RLS). Fixture writes run
+-- as postgres.
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select id from public.case_rooms where name = 'Status Room'),
   'sam@example.com',
