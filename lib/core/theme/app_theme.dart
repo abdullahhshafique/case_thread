@@ -50,7 +50,7 @@ ThemeData buildAppTheme() {
 }
 
 InputDecorationTheme _inputDecoration() {
-  const radius = BorderRadius.all(Radius.circular(8));
+  const radius = BorderRadius.all(Radius.circular(12));
   return InputDecorationTheme(
     filled: true,
     fillColor: AppColors.bgSurface,
@@ -109,7 +109,7 @@ ElevatedButtonThemeData _elevatedButton() {
       ),
       shape: const WidgetStatePropertyAll(
         RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
     ),
@@ -128,7 +128,7 @@ OutlinedButtonThemeData _outlinedButton() {
         fontWeight: FontWeight.w600,
       ),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderRadius: BorderRadius.all(Radius.circular(12)),
       ),
     ),
   );

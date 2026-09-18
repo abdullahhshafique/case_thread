@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart' show Permission;
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/room_permissions.dart';
 import 'connections_providers.dart';
@@ -41,12 +42,12 @@ class ConnectionsScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.hub_outlined,
-                    size: 48,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4)),
+                Icon(
+                  Icons.hub_outlined,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.4),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Text('No entities yet', style: text.headlineSmall),
                 const SizedBox(height: AppSpacing.xs),
@@ -104,30 +105,40 @@ class ConnectionsScreen extends ConsumerWidget {
                 _nodeIcon(node.type),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(node.name,
-                      style: Theme.of(sheetContext).textTheme.titleMedium),
+                  child: Text(
+                    node.name,
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Connected to',
-                style: Theme.of(sheetContext).textTheme.labelLarge),
+            Text(
+              'Connected to',
+              style: Theme.of(sheetContext).textTheme.labelLarge,
+            ),
             const SizedBox(height: AppSpacing.xs),
             if (edges.isEmpty)
-              Text('No direct connections yet.',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium),
+              Text(
+                'No direct connections yet.',
+                style: Theme.of(sheetContext).textTheme.bodyMedium,
+              ),
             for (final e in edges)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: _nodeIcon(
-                    data.nodeById(e.fromId == node.id ? e.toId : e.fromId)
-                            ?.type ??
-                        'person'),
+                  data
+                          .nodeById(e.fromId == node.id ? e.toId : e.fromId)
+                          ?.type ??
+                      'person',
+                ),
                 title: Text(
-                    data.nodeById(e.fromId == node.id ? e.toId : e.fromId)
-                            ?.name ??
-                        'Unknown'),
+                  data
+                          .nodeById(e.fromId == node.id ? e.toId : e.fromId)
+                          ?.name ??
+                      'Unknown',
+                ),
                 subtitle: Text(e.type.replaceAll('_', ' ')),
               ),
           ],
@@ -150,20 +161,26 @@ class ConnectionsScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Why connected?',
-                  style: Theme.of(sheetContext).textTheme.titleMedium),
+              Text(
+                'Why connected?',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
-                    child: Text(from?.name ?? '?',
-                        style: Theme.of(sheetContext).textTheme.bodyLarge),
+                    child: Text(
+                      from?.name ?? '?',
+                      style: Theme.of(sheetContext).textTheme.bodyLarge,
+                    ),
                   ),
                   const Icon(Icons.arrow_forward, size: 18),
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
-                    child: Text(to?.name ?? '?',
-                        style: Theme.of(sheetContext).textTheme.bodyLarge),
+                    child: Text(
+                      to?.name ?? '?',
+                      style: Theme.of(sheetContext).textTheme.bodyLarge,
+                    ),
                   ),
                 ],
               ),
@@ -187,7 +204,10 @@ class ConnectionsScreen extends ConsumerWidget {
   }
 
   Future<void> _addRelationship(
-      BuildContext context, WidgetRef ref, EntityMapData data) async {
+    BuildContext context,
+    WidgetRef ref,
+    EntityMapData data,
+  ) async {
     if (data.nodes.length < 2) return;
     String? fromId;
     String? toId;
@@ -201,15 +221,17 @@ class ConnectionsScreen extends ConsumerWidget {
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             top: AppSpacing.lg,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom +
-                AppSpacing.lg,
+            bottom:
+                MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add relationship',
-                  style: Theme.of(sheetContext).textTheme.headlineSmall),
+              Text(
+                'Add relationship',
+                style: Theme.of(sheetContext).textTheme.headlineSmall,
+              ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 key: const Key('map-from-select'),
@@ -339,13 +361,12 @@ class _GraphView extends StatelessWidget {
       out[data.nodes[i].id] = n == 1
           ? center
           : center +
-              Offset(radiusX * math.cos(angle), radiusY * math.sin(angle));
+                Offset(radiusX * math.cos(angle), radiusY * math.sin(angle));
     }
     return out;
   }
 
-  void _handleTap(
-      Offset tap, Map<String, Offset> positions) {
+  void _handleTap(Offset tap, Map<String, Offset> positions) {
     // Nodes first (closer targets win).
     for (final node in data.nodes) {
       final p = positions[node.id];
@@ -369,7 +390,9 @@ class _GraphView extends StatelessWidget {
   static double _distanceToSegment(Offset p, Offset a, Offset b) {
     final ab = b - a;
     final denom = ab.distanceSquared;
-    final t = denom == 0 ? 0.0 : ((p - a).dx * ab.dx + (p - a).dy * ab.dy) / denom;
+    final t = denom == 0
+        ? 0.0
+        : ((p - a).dx * ab.dx + (p - a).dy * ab.dy) / denom;
     final clamped = t.clamp(0.0, 1.0);
     final proj = Offset(a.dx + ab.dx * clamped, a.dy + ab.dy * clamped);
     return (p - proj).distance;
@@ -388,13 +411,13 @@ class _GraphPainter extends CustomPainter {
   final double nodeRadius;
 
   Color _nodeColor(String type) => switch (type) {
-        'person' => const Color(0xFF4FC3F7), // cyan — the doc's mint family
-        'location' => const Color(0xFF81C784),
-        'vehicle' => const Color(0xFFFFB74D),
-        'evidence' => const Color(0xFFBA68C8),
-        'org' => const Color(0xFF90A4AE),
-        _ => Colors.grey,
-      };
+    'person' => AppColors.statusOpen,
+    'location' => AppColors.stateSuccess,
+    'vehicle' => AppColors.statePending,
+    'evidence' => AppColors.statusGap,
+    'org' => AppColors.statusNeutral,
+    _ => AppColors.statusNeutral,
+  };
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -407,7 +430,7 @@ class _GraphPainter extends CustomPainter {
         a,
         b,
         Paint()
-          ..color = Colors.blueGrey.withValues(alpha: 0.6)
+          ..color = AppColors.textSecondary.withValues(alpha: 0.6)
           ..strokeWidth = 2,
       );
       final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
@@ -425,7 +448,7 @@ class _GraphPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
-          ..color = Colors.white,
+          ..color = AppColors.bgPrimary,
       );
       _drawIcon(canvas, node.type, p, color);
       _drawLabel(canvas, node.name, p + Offset(0, nodeRadius + 12));
@@ -436,7 +459,7 @@ class _GraphPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
+        style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
       ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
@@ -459,7 +482,7 @@ class _GraphPainter extends CustomPainter {
         style: TextStyle(
           fontFamily: icon.fontFamily,
           fontSize: 20,
-          color: Colors.white,
+          color: AppColors.textPrimary,
         ),
       ),
       textDirection: TextDirection.ltr,

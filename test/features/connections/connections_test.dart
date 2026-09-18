@@ -32,10 +32,7 @@ void main() {
     });
 
     test('handles empty map payloads', () {
-      final data = EntityMapData.fromMap({
-        'nodes': [],
-        'edges': [],
-      });
+      final data = EntityMapData.fromMap({'nodes': [], 'edges': []});
 
       expect(data.nodes, isEmpty);
       expect(data.edges, isEmpty);

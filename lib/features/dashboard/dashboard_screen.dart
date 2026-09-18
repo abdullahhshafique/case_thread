@@ -43,14 +43,46 @@ class DashboardScreen extends ConsumerWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              _StatTile(label: 'Evidence', value: s.evidenceCount, icon: Icons.folder_outlined),
-              _StatTile(label: 'People', value: s.peopleCount, icon: Icons.people_outlined),
-              _StatTile(label: 'Locations', value: s.locationsCount, icon: Icons.location_on_outlined),
-              _StatTile(label: 'Events', value: s.eventsCount, icon: Icons.timeline),
-              _StatTile(label: 'Contradictions', value: s.contradictionsCount, icon: Icons.warning_amber),
-              _StatTile(label: 'Gaps', value: s.gapsCount, icon: Icons.report_problem_outlined),
-              _StatTile(label: 'Unverified alibis', value: s.unverifiedAlibisCount, icon: Icons.shield_outlined),
-              _StatTile(label: 'AI findings', value: s.aiFindingsCount, icon: Icons.auto_awesome_outlined),
+              _StatTile(
+                label: 'Evidence',
+                value: s.evidenceCount,
+                icon: Icons.folder_outlined,
+              ),
+              _StatTile(
+                label: 'People',
+                value: s.peopleCount,
+                icon: Icons.people_outlined,
+              ),
+              _StatTile(
+                label: 'Locations',
+                value: s.locationsCount,
+                icon: Icons.location_on_outlined,
+              ),
+              _StatTile(
+                label: 'Events',
+                value: s.eventsCount,
+                icon: Icons.timeline,
+              ),
+              _StatTile(
+                label: 'Contradictions',
+                value: s.contradictionsCount,
+                icon: Icons.warning_amber,
+              ),
+              _StatTile(
+                label: 'Gaps',
+                value: s.gapsCount,
+                icon: Icons.report_problem_outlined,
+              ),
+              _StatTile(
+                label: 'Unverified alibis',
+                value: s.unverifiedAlibisCount,
+                icon: Icons.shield_outlined,
+              ),
+              _StatTile(
+                label: 'AI findings',
+                value: s.aiFindingsCount,
+                icon: Icons.auto_awesome_outlined,
+              ),
             ],
           ),
           orElse: () => const Padding(
@@ -79,7 +111,8 @@ class DashboardScreen extends ConsumerWidget {
         Text('Events over time (14 days)', style: text.titleMedium),
         const SizedBox(height: AppSpacing.xs),
         breakdown.maybeWhen(
-          data: (b) => _BarChartV(data: b.eventsPerDay, color: AppColors.accentPrimary),
+          data: (b) =>
+              _BarChartV(data: b.eventsPerDay, color: AppColors.accentPrimary),
           orElse: () => const SizedBox(
             height: 48,
             child: Center(child: CircularProgressIndicator()),
@@ -155,11 +188,22 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon) = switch (status) {
-      InvestigationStatus.open => (AppColors.statusOpen, Icons.play_circle_outline),
-      InvestigationStatus.underInvestigation => (AppColors.stateSuccess, Icons.search),
-      InvestigationStatus.review =>
-        (AppColors.statePending, Icons.rate_review_outlined),
-      InvestigationStatus.closed => (AppColors.statusNeutral, Icons.check_circle_outline),
+      InvestigationStatus.open => (
+        AppColors.statusOpen,
+        Icons.play_circle_outline,
+      ),
+      InvestigationStatus.underInvestigation => (
+        AppColors.stateSuccess,
+        Icons.search,
+      ),
+      InvestigationStatus.review => (
+        AppColors.statePending,
+        Icons.rate_review_outlined,
+      ),
+      InvestigationStatus.closed => (
+        AppColors.statusNeutral,
+        Icons.check_circle_outline,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -174,9 +218,7 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             status.name.replaceAll('_', ' ').toUpperCase(),
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
+            style: Theme.of(context).textTheme.labelSmall
                 ?.copyWith(color: color, fontWeight: FontWeight.w600),
           ),
         ],
@@ -231,8 +273,10 @@ class _BarChartH extends StatelessWidget {
     if (data.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Text('No evidence yet.',
-            style: Theme.of(context).textTheme.bodySmall),
+        child: Text(
+          'No evidence yet.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       );
     }
     final max = data.values.reduce((a, b) => a > b ? a : b);
@@ -244,9 +288,12 @@ class _BarChartH extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                    width: 64,
-                    child: Text(e.key,
-                        style: Theme.of(context).textTheme.bodySmall)),
+                  width: 64,
+                  child: Text(
+                    e.key,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
                 Expanded(
                   child: Stack(
                     children: [
@@ -265,8 +312,10 @@ class _BarChartH extends StatelessWidget {
                           alignment: Alignment.centerRight,
                           child: Padding(
                             padding: const EdgeInsets.only(right: 6),
-                            child: Text('${e.value}',
-                                style: Theme.of(context).textTheme.labelSmall),
+                            child: Text(
+                              '${e.value}',
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
                           ),
                         ),
                       ),
@@ -293,8 +342,10 @@ class _BarChartV extends StatelessWidget {
     if (data.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Text('No events in the last 14 days.',
-            style: Theme.of(context).textTheme.bodySmall),
+        child: Text(
+          'No events in the last 14 days.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       );
     }
     final keys = data.keys.toList()..sort();
@@ -311,8 +362,10 @@ class _BarChartV extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text('${data[k]}',
-                        style: Theme.of(context).textTheme.labelSmall),
+                    Text(
+                      '${data[k]}',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                     const SizedBox(height: 2),
                     FractionallySizedBox(
                       heightFactor: max == 0 ? 0 : data[k]! / max,
@@ -320,13 +373,16 @@ class _BarChartV extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.75),
                           borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(4)),
+                            top: Radius.circular(4),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(k.substring(5), // MM-DD
-                        style: Theme.of(context).textTheme.labelSmall),
+                    Text(
+                      k.substring(5), // MM-DD
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ],
                 ),
               ),

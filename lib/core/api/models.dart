@@ -549,7 +549,9 @@ class CaseBreakdown {
   factory CaseBreakdown.fromMap(Map<String, dynamic> map) {
     Map<String, int> readInts(Object? raw) {
       if (raw is! Map) return const {};
-      return raw.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0));
+      return raw.map(
+        (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
+      );
     }
 
     return CaseBreakdown(

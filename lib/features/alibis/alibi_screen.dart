@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart' show Alibi, AlibiStatus, Permission;
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/room_permissions.dart';
 import 'alibi_providers.dart';
@@ -71,10 +72,10 @@ class _AlibiTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final statusColor = switch (alibi.status) {
-      AlibiStatus.verified => Colors.green,
-      AlibiStatus.partiallyVerified => Colors.orange,
-      AlibiStatus.conflict => Colors.red,
-      AlibiStatus.insufficientData => Colors.grey,
+      AlibiStatus.verified => AppColors.stateSuccess,
+      AlibiStatus.partiallyVerified => AppColors.statePending,
+      AlibiStatus.conflict => AppColors.stateError,
+      AlibiStatus.insufficientData => AppColors.statusNeutral,
     };
 
     return Card(

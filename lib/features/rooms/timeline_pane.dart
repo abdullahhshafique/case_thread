@@ -53,7 +53,13 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             children: [
-              for (final f in const ['All', 'fact', 'claim', 'finding', 'unknown'])
+              for (final f in const [
+                'All',
+                'fact',
+                'claim',
+                'finding',
+                'unknown',
+              ])
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.xs),
                   child: ChoiceChip(
@@ -105,14 +111,17 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             top: AppSpacing.lg,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
+            bottom:
+                MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add case event',
-                  style: Theme.of(sheetContext).textTheme.headlineSmall),
+              Text(
+                'Add case event',
+                style: Theme.of(sheetContext).textTheme.headlineSmall,
+              ),
               const SizedBox(height: AppSpacing.md),
               TextField(
                 key: const Key('timeline-add-summary'),
@@ -121,7 +130,8 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
                 maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Summary',
-                  hintText: 'e.g. CCTV shows Vehicle V01 at Riverside Road 8:42 PM',
+                  hintText:
+                      'e.g. CCTV shows Vehicle V01 at Riverside Road 8:42 PM',
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -172,64 +182,64 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
     }
   }
 
-  Widget _list(AsyncValue<List<TimelineEventModel>> timeline, bool canEdit,
-      TextTheme text) {
+  Widget _list(
+    AsyncValue<List<TimelineEventModel>> timeline,
+    bool canEdit,
+    TextTheme text,
+  ) {
     return timeline.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Text(
-                  toAppException(error).message,
-                  style: text.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            data: (events) {
-              final filtered = (_filter == null)
-                  ? events
-                  : events.where((e) => e.classification == _filter).toList();
-              if (filtered.isEmpty) return _empty(context, text);
-              return ListView.builder(
-                // Rules.md §9: lazy list — timelines grow unbounded.
-                itemCount: filtered.length,
-                itemBuilder: (context, index) => _TimelineTile(
-                  event: filtered[index],
-                  canEdit: canEdit,
-                ),
-              );
-            },
-          );
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Text(
+            toAppException(error).message,
+            style: text.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      data: (events) {
+        final filtered = (_filter == null)
+            ? events
+            : events.where((e) => e.classification == _filter).toList();
+        if (filtered.isEmpty) return _empty(context, text);
+        return ListView.builder(
+          // Rules.md §9: lazy list — timelines grow unbounded.
+          itemCount: filtered.length,
+          itemBuilder: (context, index) =>
+              _TimelineTile(event: filtered[index], canEdit: canEdit),
+        );
+      },
+    );
   }
 
   static String _cap(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
-  Widget _empty(BuildContext context, TextTheme text) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.timeline,
-            size: 48,
-            color: Theme.of(context).colorScheme.onSurface
-                .withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text('No events yet', style: text.headlineSmall),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Case activity appears here as the team works.',
-            style: text.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+Widget _empty(BuildContext context, TextTheme text) {
+  return Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.timeline,
+          size: 48,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text('No events yet', style: text.headlineSmall),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Case activity appears here as the team works.',
+          style: text.bodyMedium,
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
 
 /// Realtime timeline stream (Architecture.md §8: Riverpod wraps
 /// Supabase Realtime; updates arrive without pull-to-refresh).
@@ -463,11 +473,11 @@ class _ClassificationBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, label) = switch (classification) {
-      'fact' => (Colors.green, 'Fact'),
-      'claim' => (Colors.orange, 'Claim'),
-      'finding' => (Colors.blueGrey, 'Finding'),
-      'unknown' => (Colors.grey, 'Unknown'),
-      _ => (Colors.grey, classification),
+      'fact' => (AppColors.stateSuccess, 'Fact'),
+      'claim' => (AppColors.statePending, 'Claim'),
+      'finding' => (AppColors.statusOpen, 'Finding'),
+      'unknown' => (AppColors.statusNeutral, 'Unknown'),
+      _ => (AppColors.statusNeutral, classification),
     };
     return Container(
       margin: const EdgeInsets.only(left: AppSpacing.sm),
@@ -478,9 +488,7 @@ class _ClassificationBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
+        style: Theme.of(context).textTheme.labelSmall
             ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );

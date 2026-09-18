@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-import '../../../core/api/models.dart'
-    show Alibi, AlibiStatus;
+import '../../../core/api/models.dart' show Alibi, AlibiStatus;
 import '../../../core/errors/error_mapper.dart';
 import '../domain/alibi_repository.dart';
 

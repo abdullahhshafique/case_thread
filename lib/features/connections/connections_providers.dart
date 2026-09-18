@@ -2,6 +2,7 @@
 // relationships as edges, "why connected" via edge detail sheets.
 import '../../../core/errors/error_mapper.dart';
 import '../auth/auth_providers.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// One node in the relationship map (an entity).
@@ -74,8 +75,7 @@ class EntityMapData {
     return EntityMapData(nodes: nodes, edges: edges);
   }
 
-  MapNode? nodeById(String id) =>
-      nodes.where((n) => n.id == id).firstOrNull;
+  MapNode? nodeById(String id) => nodes.where((n) => n.id == id).firstOrNull;
 }
 
 abstract class ConnectionsRepository {
@@ -132,8 +132,10 @@ final connectionsRepositoryProvider = Provider<ConnectionsRepository>((ref) {
   return SupabaseConnectionsRepository(ref.watch(supabaseClientProvider));
 });
 
-final entityMapProvider =
-    FutureProvider.family<EntityMapData, String>((ref, roomId) {
+final entityMapProvider = FutureProvider.family<EntityMapData, String>((
+  ref,
+  roomId,
+) {
   ref.watch(sessionProvider);
   return ref.watch(connectionsRepositoryProvider).getMap(roomId);
 });
