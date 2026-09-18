@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart'
     show CaseRoom, InvestigationStatus, RoomMember;
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/rooms_providers.dart'
     show RoomsLoaded, roomMembersProvider, roomsProvider;
@@ -23,7 +24,6 @@ class DashboardScreen extends ConsumerWidget {
     final roomsState = ref.watch(roomsProvider);
     final members = ref.watch(roomMembersProvider(roomId));
     final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
 
     final room = roomsState is RoomsLoaded
         ? roomsState.rooms.where((r) => r.id == roomId).firstOrNull
@@ -66,7 +66,7 @@ class DashboardScreen extends ConsumerWidget {
         breakdown.maybeWhen(
           data: (b) => _BarChartH(
             data: _groupEvidence(b.evidenceByType),
-            color: scheme.primary,
+            color: AppColors.accentPrimary,
           ),
           orElse: () => const SizedBox(
             height: 48,
@@ -79,7 +79,7 @@ class DashboardScreen extends ConsumerWidget {
         Text('Events over time (14 days)', style: text.titleMedium),
         const SizedBox(height: AppSpacing.xs),
         breakdown.maybeWhen(
-          data: (b) => _BarChartV(data: b.eventsPerDay, color: scheme.primary),
+          data: (b) => _BarChartV(data: b.eventsPerDay, color: AppColors.accentPrimary),
           orElse: () => const SizedBox(
             height: 48,
             child: Center(child: CircularProgressIndicator()),
@@ -154,13 +154,12 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final (color, icon) = switch (status) {
-      InvestigationStatus.open => (scheme.primary, Icons.play_circle_outline),
-      InvestigationStatus.underInvestigation => (Colors.orange, Icons.search),
+      InvestigationStatus.open => (AppColors.statusOpen, Icons.play_circle_outline),
+      InvestigationStatus.underInvestigation => (AppColors.stateSuccess, Icons.search),
       InvestigationStatus.review =>
-        (Colors.blueGrey, Icons.rate_review_outlined),
-      InvestigationStatus.closed => (Colors.green, Icons.check_circle_outline),
+        (AppColors.statePending, Icons.rate_review_outlined),
+      InvestigationStatus.closed => (AppColors.statusNeutral, Icons.check_circle_outline),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
