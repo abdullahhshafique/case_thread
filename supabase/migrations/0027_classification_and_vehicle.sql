@@ -12,7 +12,10 @@
 -- addition, not a restructure — Architecture-Phase5.md §2.8).
 -- ---------------------------------------------------------------------------
 alter table public.entities
-  add check (entity_type in ('person', 'org', 'location', 'evidence', 'vehicle'));
+  drop constraint if exists entities_entity_type_check;
+alter table public.entities
+  add constraint entities_entity_type_check
+  check (entity_type in ('person', 'org', 'location', 'evidence', 'vehicle'));
 
 -- ---------------------------------------------------------------------------
 -- evidence_items: classification column (PRD §4.1).
