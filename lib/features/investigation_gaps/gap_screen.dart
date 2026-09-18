@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart'
     show GapStatus, InvestigationGap, Permission;
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/room_permissions.dart';
 import 'gap_providers.dart';
@@ -69,9 +70,9 @@ class _GapTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final gapColor = switch (gap.status) {
-      GapStatus.open => Colors.red,
-      GapStatus.inProgress => Colors.orange,
-      GapStatus.resolved => Colors.green,
+      GapStatus.open => AppColors.stateError,
+      GapStatus.inProgress => AppColors.statePending,
+      GapStatus.resolved => AppColors.stateSuccess,
     };
 
     return Card(

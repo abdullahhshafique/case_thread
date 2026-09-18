@@ -62,9 +62,12 @@ void main() {
       expect(ContradictionSourceType.manual.name, 'manual');
       expect(ContradictionSourceType.aiSuggestion.name, 'aiSuggestion');
       // SQL stores snake_case; models.dart maps via switch, not .name.
-      expect(ContradictionSourceType.values.firstWhere(
-        (e) => e.name == 'aiSuggestion',
-      ), ContradictionSourceType.aiSuggestion);
+      expect(
+        ContradictionSourceType.values.firstWhere(
+          (e) => e.name == 'aiSuggestion',
+        ),
+        ContradictionSourceType.aiSuggestion,
+      );
     });
   });
 }

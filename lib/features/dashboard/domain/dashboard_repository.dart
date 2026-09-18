@@ -1,5 +1,6 @@
 // CaseThread Phase 5: Dashboard repository contract.
-import '../../../core/api/models.dart' show CaseBreakdown, CaseClosedSummary, CaseStatistics;
+import '../../../core/api/models.dart'
+    show CaseBreakdown, CaseClosedSummary, CaseStatistics;
 
 abstract class DashboardRepository {
   Future<CaseStatistics> statistics(String roomId);

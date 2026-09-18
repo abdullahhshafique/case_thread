@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-import '../../../core/api/models.dart' show CaseBreakdown, CaseClosedSummary, CaseStatistics;
+import '../../../core/api/models.dart'
+    show CaseBreakdown, CaseClosedSummary, CaseStatistics;
 import '../../../core/errors/error_mapper.dart';
 import '../../../core/errors/app_exceptions.dart';
 import '../domain/dashboard_repository.dart';

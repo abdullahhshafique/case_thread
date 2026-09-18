@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart'
     show Contradiction, ContradictionStatus, Permission;
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/room_permissions.dart';
 import 'contradiction_providers.dart';
@@ -74,9 +75,9 @@ class _ContradictionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final statusColor = switch (contradiction.status) {
-      ContradictionStatus.open => Colors.orange,
-      ContradictionStatus.resolved => Colors.green,
-      ContradictionStatus.dismissed => Colors.grey,
+      ContradictionStatus.open => AppColors.statePending,
+      ContradictionStatus.resolved => AppColors.stateSuccess,
+      ContradictionStatus.dismissed => AppColors.statusNeutral,
     };
 
     return Card(

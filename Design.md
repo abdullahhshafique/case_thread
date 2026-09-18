@@ -1,39 +1,76 @@
 # CaseThread — Design System
 
-**Status:** Draft v1.0
-**Last updated:** 2026-09-10
-**Design direction:** Calm, high-contrast, trust-oriented — navy/slate base with a single restrained accent. Built for a legal/academic case-management context: this is a tool people trust with sensitive material, not a flashy consumer app.
+**Status:** Draft v2.0
+**Last updated:** 2026-09-17
+**Design direction:** Calm, investigation-grade, dark navy canvas with a single restrained mint accent. Colors are functional: mint = confirmed/healthy, amber = needs attention/partial, coral = conflict, slate = neutral/unknown. Nothing implies guilt — colors flag *data states*, not people.
+**Source of truth:** sampled from the approved UI prototype walkthrough (Sept 2026) and cross-referenced with the "Complete Project Understanding" document.
 **Related docs:** [PRD.md](./PRD.md) · [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md)
+
+> Visual idea: **Scattered Info → Connections → Analysis → Clear Picture.**
 
 ---
 
 ## 1. Colour & Theme
 
-Dark-first design (see §8), with a light theme following the same token structure in Phase 2+.
+Dark-first design (see §10). All values live in `lib/core/theme/app_colors.dart` — components reference tokens, never raw hex.
+
+### 1.1 Surface / background layers
 
 | Token | Hex | Usage |
 |---|---|---|
-| `bg/primary` | `#0B1220` | App background, deepest layer |
-| `bg/surface` | `#1B2436` | Cards, panels, sidebars |
-| `bg/surface-raised` | `#242F45` | Modals, popovers, elevated elements |
-| `border/subtle` | `#2E3A52` | Dividers, card borders |
-| `text/primary` | `#EDEFF3` | Primary text on dark backgrounds |
-| `text/secondary` | `#8B96AB` | Secondary/muted text — intentionally lower contrast |
-| `accent/primary` (teal) | `#4FA8A0` | Primary buttons, links, active states, focus rings |
-| `accent/primary-hover` | `#63BDB4` | Hover state for teal accent elements |
-| `state/pending` (amber) | `#E8B04B` | AI-suggestion / pending-review badges only — never used for standard UI |
-| `state/success` | `#5FBF7A` | Success confirmations |
-| `state/error` | `#E06767` | Errors, destructive actions |
+| `bg/primary` (bg-app) | `#0A1017` | App background, deepest layer, icon rail |
+| `bg/surface` (bg-card) | `#121C28` | Cards, stat tiles, evidence/task rows |
+| `bg/surface-raised` (bg-panel) | `#16212E` | Panels, modals, popovers, snackbars |
+| `bg/mint-tint` | `#122C2D` | Pill fill behind mint text (status badges, active tiles) |
+| `border/subtle` | `#1E2A38` | Hairline borders separating cards/rows |
 
-**Rationale:** navy + slate reads as calm and professional rather than "techy dark mode." Teal is the single accent used for anything actionable (buttons, links, active nav). Amber is reserved *exclusively* for the "this is an AI suggestion, not yet human-approved" state — this keeps it meaningfully distinct rather than just another brand color, reinforcing the human-in-the-loop model from the product itself.
+### 1.2 Brand / accent
+
+| Token | Hex | Usage |
+|---|---|---|
+| `accent/primary` (mint) | `#4ADE9F` | Primary buttons, links, active tab label + underline, progress fill, focus rings |
+| `accent/primary-hover` | `#4EE3B8` | Hover/positive status dot |
+| `chat/bubble-own` | `#1E4C44` | Solid fill for the current user's own chat bubble |
+
+### 1.3 Status colors (functional, not decorative)
+
+| Status | Token | Hex | Where used |
+|---|---|---|---|
+| 🟢 Confirmed / Active | `state/success` | `#4EE3B8` | Under-Investigation status, verified alibi progress, Fact tags |
+| 🟠 Attention / Partial | `state/pending` | `#E1A66B` | Review status, Partially-Verified alibi, in-progress gaps, **AI-pending suggestion badge** |
+| 🔴 Conflict / Warning | `state/error` | `#D5666C` | Contradiction icons, Conflict alibi badge, high-severity counts |
+| 🔵 Open / Neutral-info | `status/open` | `#6193FF` | Open case status, Finding tags |
+| 🟣 Gaps / Investigation | `status/gap` | `#B98AE0` | Gaps stat number, gap highlights |
+| ⚪ Closed / Insufficient | `status/neutral` | `#8C99A8` | Closed status, Insufficient-Data alibi, muted/disabled states |
+
+**Rationale:** near-black navy keeps the chrome quiet so colored status cues (badges, chips, chart bars) draw the eye. Mint is the single brand accent for anything actionable. Amber originally reserved exclusively for AI-pending; v2 extends it to "needs attention / partial" data states (Review status, partially-verified alibis) — in every use it is paired with a text label, never color alone.
+
+**Amber + AI rule (v2):** amber flags data that needs human attention — which is exactly what a pending AI suggestion is. The AI badge keeps its distinctive pairing (amber border + "AI suggestion" label + hourglass icon) so it stays recognizable.
+
+### 1.4 Text
+
+| Token | Hex | Usage |
+|---|---|---|
+| `text/primary` | `#FFFFFF` | Headings, case titles, message body |
+| `text/secondary` | `#8A99A9` | Timestamps, sub-labels, metadata, counts |
+
+### 1.5 Avatar chip colors
+
+Soft-tinted circular chips (dark fill + saturated initials), rotating through a small palette for consistent teammate identity:
+
+| Chip fill | Letter color |
+|---|---|
+| dark green `#28433A` | mint `#3E8F71` |
+| dark teal `#21313A` | soft blue-teal `#93BDD6` |
+| dark violet `#302547` | lavender `#9E88C0` |
+| dark slate `#233848` | muted steel-blue `#829FB7` |
 
 ### Accessibility Notes
 
-- **White text on dark backgrounds:** `#EDEFF3` on `#0B1220` ≈ **15:1** — exceeds WCAG AAA.
-- **Teal accent on dark background:** `#4FA8A0` on `#0B1220` ≈ **7.2:1** — meets WCAG AAA for normal text, safe for body-sized interactive text, not just large text.
-- **Amber (pending state) on dark background:** `#E8B04B` on `#0B1220` ≈ **9.8:1** — meets WCAG AAA; always paired with a text label ("AI suggestion"), never color alone, since it's a meaningful status indicator.
-- **Muted secondary text:** `#8B96AB` on `#0B1220` ≈ **6.1:1** — intentionally lower contrast than primary text to establish visual hierarchy, but still comfortably clears WCAG AA (4.5:1) for normal text.
-- **Never rely on color alone** for any status (pending/success/error) — always pair with an icon or text label, per Rules.md §8.
+- **White on bg-app:** `#FFFFFF` on `#0A1017` ≈ **18:1** — exceeds WCAG AAA.
+- **Mint accent on bg-app:** `#4ADE9F` on `#0A1017` ≈ **10:1** — exceeds WCAG AAA, safe for body-sized interactive text.
+- **Secondary text:** `#8A99A9` on `#0A1017` ≈ **6:1** — comfortably clears WCAG AA while establishing hierarchy.
+- **Status colors:** always paired with an icon or text label (never color alone) — mint/amber/coral/slate are data-state flags, per Rules.md §8 and the no-guilt-copy rule (Design.md §9).
 
 ---
 
@@ -41,58 +78,59 @@ Dark-first design (see §8), with a light theme following the same token structu
 
 | Role | Font | Notes |
 |---|---|---|
-| UI / body / headings | **Inter** | Clean, highly legible at small sizes, wide language support, free/open |
-| Monospace (audit log entries, code, hashes) | **JetBrains Mono** | Used specifically where exact character distinction matters (file hashes, log entries) |
+| UI / body / headings | **Inter** | Clean geometric/humanist sans (SF Pro / Segoe UI class). No serif or decorative fonts anywhere |
+| Monospace (audit log entries, code, hashes) | **JetBrains Mono** | Where exact character distinction matters (file hashes, log entries) |
+
+**Weight scale:** Bold/Semibold for screen titles ("Cases", "Riverside Robbery"), stat numbers, active tab labels, sender names, card titles. Regular/Medium for body, list secondary lines, chat messages.
 
 **Type scale (base 16px):**
 
 | Style | Size | Weight | Usage |
 |---|---|---|---|
-| Display | 32px | 700 | Landing/marketing headline only |
+| Display | 32px | 700 | Landing headline only |
 | H1 | 28px | 700 | Page titles |
 | H2 | 22px | 600 | Section headers |
 | H3 | 18px | 600 | Card/panel titles |
 | Body | 16px | 400 | Default text |
 | Body small | 14px | 400 | Secondary text, metadata, timestamps |
-| Caption | 12px | 500 | Labels, badges, audit log entries |
+| Caption | 12px | 500 | Labels, badges, audit entries |
 
-- Line height: 1.5 for body text, 1.3 for headings.
-- Never use font weight below 400 for body text (thin weights fail at small sizes and reduce accessibility).
+- Stat-tile numbers are noticeably larger and bolder than their labels, and **color-coded by meaning** (white neutral, coral conflicts, violet gaps).
+- Line height: 1.5 body, 1.3 headings. Never below weight 400 for body text.
 
 ---
 
 ## 3. Design System Link
 
-*(Placeholder — link to the team's Figma file and/or Storybook instance once created in Phase 1.)*
-`Figma: [TBD — to be added when the file exists]`
-`Storybook: [TBD — to be added alongside the Flutter component library]`
+*(Placeholder — link to the team's Figma file and/or Storybook instance once created.)*
+`Figma: [TBD]` · `Storybook: [TBD]`
 
 ---
 
-## 4. Spacing & Layout Grid
+## 4. Spacing, Layout & Shape
 
 - **Base spacing unit:** 4px. Scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64.
-- **Layout grid (web):** 12-column grid, 24px gutters, max content width 1280px, centered with fluid side margins beyond that.
-- **Breakpoints:**
+- **Breakpoints:** Mobile < 600px · Tablet 600–1024 · Desktop 1024–1440 · Wide > 1440.
+- **Card padding:** 16px (mobile), 24px (tablet+). Generous internal padding (~16–20px).
+- **Corner radius: large everywhere — nothing is sharp-cornered.** Cards, pills, chat bubbles, modals: 10–14px (`radius/card` = 12px, `radius/pill` = 999px). Buttons and inputs use 12px.
+- **Depth via contrast, not shadows:** cards separate by background contrast and subtle 1px `border/subtle` borders — flat and calm, no heavy drop shadows.
+- **Grouped panel cards:** related items (e.g. "Needs your attention") live in one card with thin dividers between rows.
 
-| Name | Width |
-|---|---|
-| Mobile | < 600px |
-| Tablet | 600–1024px |
-| Desktop | 1024–1440px |
-| Wide | > 1440px |
+### Global shell patterns
 
-- **Card padding:** 16px (mobile), 24px (tablet+).
-- **Section spacing:** 48px between major page sections on desktop, 32px on mobile.
+- **Mobile:** single column, bottom tab bar; Quick Actions as a horizontal chip row.
+- **Desktop (3-pane):** icon rail (~52px, active item gets a mint-tinted rounded-square tile) · list panel (~300px with title, search, filter chips, "Waiting on you" banner) · main panel (Case Room).
+- **Case Room header:** avatar + case name + `#ID` + status pill + member count, horizontal tab bar underneath (active = bold mint text + mint underline).
 
 ---
 
 ## 5. Iconography
 
-- **Icon set:** a single consistent outline-style icon set (e.g., Phosphor or Lucide icons) — no mixing filled and outline styles within the same context.
-- **Sizes:** 16px (inline with text/caption), 20px (default UI icons in buttons/nav), 24px (section headers, empty states).
-- **Usage rules:** icons always paired with a text label in primary navigation (never icon-only nav for accessibility); icon-only buttons (e.g., a toolbar) require an accessible label via tooltip/`Semantics`.
-- **Status icons:** pending (clock/sparkle, amber), success (checkmark, green), error (alert, red) — consistent shape language so status is recognizable even without color.
+- **Style:** simple line/stroke icons, consistent weight, rounded joins — matches the rounded-corner language.
+- **Sizes:** 16px inline, 20px default UI, 24px section headers/empty states.
+- **Color logic:** glyph color matches semantics (coral triangle = contradiction, amber scales = alibi, slate question-mark = gap, mint = positive/brand); icon *background tile* is a low-opacity tint of the same hue.
+- **Set:** share/graph nodes (product mark), briefcase (cases), clipboard-check (tasks, with badge), activity/pulse (audit), search, bell (with red count badge), people, sparkle (AI), triangle-alert, scales-of-justice, question-circle, chat-bubble, video-camera, document, link/chain, paperclip, lock, chevron-right.
+- Icon-only buttons always carry an accessible label via tooltip/`Semantics`.
 
 ---
 
@@ -100,76 +138,139 @@ Dark-first design (see §8), with a light theme following the same token structu
 
 | Component | Variants | States |
 |---|---|---|
-| **Button** | Primary (teal fill), Secondary (outline), Destructive (red), Ghost/text | default, hover, pressed, disabled, loading |
-| **Input field** | Text, textarea, select, date picker | default, focused (teal ring), error (red border + message), disabled |
-| **Card** | Standard, elevated (raised surface token) | default, hover (for clickable cards), selected |
-| **Badge** | Status (pending/success/error), Role badge | — |
-| **Modal** | Standard, confirmation (destructive action) | open, closing |
-| **Table/list row** | Timeline entry, audit log entry, evidence item | default, hover, selected |
-| **Avatar** | User, with role label | default, with pending/invited indicator |
+| **Button** | Primary (mint fill), Secondary (outline), Destructive (coral), Ghost/text | default, hover, pressed, disabled, loading |
+| **Input field** | Text, textarea, select, date picker | default, focused (mint ring), error, disabled |
+| **Card** | Standard, elevated (raised token) | default, hover, selected (mint left-edge bar + background lift) |
+| **Status badge/pill** | ● Under Investigation (mint) · ● Review (amber) · ● Open (blue) · ● Closed (slate) — leading dot + colored label on low-opacity tint | — |
+| **Count chip** | Icon + number sharing one status color (coral warnings, amber gaps, gray docs) | — |
+| **Case list row** | Avatar · name + relative time · last-activity preview · status pill + `#ID` + count chips; selected row gets mint left-edge bar | default, selected |
+| **"Waiting on you" banner** | Mint lightning tile + bold title + one-line rollup + chevron | — |
+| **Dashboard stat tile** | Large bold color-coded number over small gray label | — |
+| **Progress bar** | 4–6px rounded, mint fill over darker track + % caption | — |
+| **"Needs your attention" list** | Colored icon tile + bold title + gray subtitle (source ID · priority) + chevron | — |
+| **Activity feed row** | Icon + event line + detail + relative time | — |
+| **Mini bar chart** | Vertical mint bars per evidence type, gray labels — glanceable, not dense | — |
+| **Quick actions grid** | 2×2 rounded utility buttons (Add evidence/event/person/statement) — neutral card bg, never accent-colored | — |
+| **Discussion** | Teammate: avatar chip + name (mint) + role (gray) + slate bubble; linked-evidence chip nested in bubble; own: right-aligned mint-tinted bubble; system dividers: centered gray pill text; composer: bottom bar with attach menu + circular mint send | — |
+| **Timeline entry** | Line-and-dot node + date/time + card with type tag (Record/Claim/Finding/Unknown) + linked-source chip; filter chips above (All/Records/Claims/Unknown) | — |
+| **Evidence card** | Icon tile + title/reference code + metadata line + Record tag + linked-entity chips | — |
+| **Analysis tabs** | Segmented control (Alibis/Contradictions/Gaps), filled active segment; persistent non-accusatory caption card (§9) | — |
+| **Contradiction modal** | Icon + title + ID/priority subtitle + × close; Side A / Side B rows; metadata table (Window/Place/Why flagged); clarifying callout; actions: **Dismiss** (ghost) · **Create task** (outline) · **Resolve** (solid mint) | — |
+| **Tasks** | Checklist card: mint circular check when done (label struck + dimmed), source tag (Gap G-01 / Contradiction C-02), assignee avatar, due label; "Create task" mint text-link | — |
+| **Notifications panel** | Bell-anchored modal: "N new" + Mark-all-read link, grouped rows (color/type-coded icon tile + headline + detail + time), footer tip bar | — |
+| **Empty state** | Centered: large outline icon + bold short title + gray description | — |
+| **Avatar** | User, with role label; tinted identity chips (§1.5) | default, pending/invited |
 | **Toast/snackbar** | Info, success, error | entering, visible, dismissing |
-| **Tabs** | Room sections (Dashboard/Timeline/Vault/Discussion) | active, inactive |
+| **Tabs** | Room sections | active (bold + mint underline), inactive |
 
-Each component's default/hover/disabled/error states must use only the token palette in §1 — no ad hoc colors introduced at the component level.
+Every component's states use only the §1 token palette — no ad hoc colors at the component level.
 
 ---
 
 ## 7. Motion & Animations
 
-- **Duration:** micro-interactions (button press, hover) 100–150ms; panel/modal transitions 200–250ms; page transitions 250–300ms. Nothing longer than 300ms for functional UI motion.
-- **Easing:** standard ease-out for elements entering, ease-in for elements exiting; avoid bouncy/elastic easing — it undercuts the calm, trust-oriented tone.
-- **When to use:** confirm state changes (item added to timeline, AI suggestion appearing — a subtle fade/slide-in, not an attention-grabbing bounce, since it's a "please review" moment, not a celebration), loading states (skeleton screens preferred over spinners for content areas), and role/permission-gated content (fade in once resolved, rather than a layout jump).
-- **Avoid:** decorative animation that doesn't communicate a state change; anything that could distract during a review of sensitive case material.
+- **Duration:** micro-interactions 100–150ms; panel/modal transitions 200–250ms; page transitions 250–300ms. Nothing over 300ms.
+- **Easing:** ease-out entering, ease-in exiting; no bouncy/elastic easing — calm, trust-oriented tone.
+- **When:** confirm state changes (AI suggestion appearing = subtle fade/slide "please review", not a celebration), loading (skeletons preferred), permission-gated content (fade in once resolved).
+- **Avoid:** decorative animation; anything distracting during review of sensitive material.
 
 ---
 
 ## 8. Imagery & Illustration Style
 
-- **Photography:** avoid stock photography of "generic business people" — if imagery is needed (marketing site, empty states), prefer simple geometric illustration over photos.
-- **Illustration:** flat, minimal, line-based, using only palette tokens (teal accent, navy/slate base) — consistent with the architecture/workflow diagram style defined in Phases.md §9.
-- **Gradients:** used sparingly, only as subtle background texture (e.g., a very subtle navy-to-slate gradient on marketing/landing surfaces) — never on functional UI surfaces where it could reduce text contrast.
-- **Empty states:** simple line illustration + concise copy ("No evidence yet — upload your first document to get started") rather than a large decorative graphic.
+- **Photography:** avoid generic stock; prefer geometric illustration.
+- **Illustration:** flat, line-based, palette tokens only.
+- **Gradients:** sparingly, subtle background texture only — never on functional UI surfaces.
+- **Empty states:** line illustration + concise factual copy.
 
 ---
 
 ## 9. Voice & Tone (Copy)
 
-- **Personality:** professional, direct, calm — never playful or cute, given the sensitive nature of the content (legal, academic misconduct, medical). Think "a competent colleague," not "a friendly assistant."
-- **Error messages:** specific and actionable, never blaming the user. E.g., "Your role — Observer — can't upload evidence in this room" rather than "Permission denied" or "Oops, something went wrong."
-- **AI suggestion copy:** always framed as a suggestion requiring review — "AI flagged a possible contradiction — review it" rather than "AI found a contradiction," which overstates certainty.
-- **Empty/onboarding states:** encouraging but factual — no exclamation-point-heavy marketing voice inside the working product.
+- **Personality:** professional, direct, calm — "a competent colleague," not "a friendly assistant."
+- **Error messages:** specific and actionable, never blaming ("Your role — Observer — can't upload evidence in this room").
+- **AI suggestion copy:** framed as a suggestion requiring review, never overstating certainty.
+- **Non-accusatory framing (from the prototype, doc §5.14):** analysis screens carry a persistent guiding caption, e.g. *"A conflict is a difference between a claim and a record. It is not a conclusion about guilt."* Action verbs are safe by default — **Dismiss / Create task / Resolve** — never "Confirm guilt".
+- **Empty/onboarding states:** encouraging but factual, no exclamation-heavy marketing voice.
 
 ---
 
 ## 10. Dark Mode / Theming
 
-- **MVP:** dark theme only (per §1 tokens) — this is the primary/default experience, not a toggle-on mode.
-- **Light theme (Phase 2+):** built on the same token *names* with light-appropriate values (e.g., `bg/primary` becomes a near-white, `text/primary` becomes near-black), so components never hardcode a color — only reference tokens.
-- **System preference:** once light mode exists, default to matching OS-level preference (`prefers-color-scheme`), with a manual override available in user settings.
+- **MVP:** dark theme only (per §1 tokens) — the primary/default experience.
+- **Light theme (Phase 2+):** same token *names*, light-appropriate values, so components never hardcode colors.
+- **System preference:** once light mode exists, match OS preference with a manual override.
 
 ---
 
 ## 11. Accessibility Design
 
-- **Focus indicators:** every interactive element has a visible focus ring using `accent/primary` at 2px, never removed via `outline: none` without a replacement.
-- **Touch target size:** minimum 44x44 logical pixels for any tappable element, per Rules.md §8.
-- **Reading order:** DOM/widget tree order matches visual order — no CSS/layout tricks that visually reorder content in a way that breaks screen-reader flow.
-- **Form labelling:** every input has a persistent, programmatically associated label (not placeholder-only) — critical given forms here often involve sensitive data entry (evidence metadata, case details) where a user needs to double check what they're filling in.
+- **Focus indicators:** every interactive element has a visible 2px mint focus ring.
+- **Touch targets:** minimum 44×44 logical pixels (Rules.md §8).
+- **Reading order:** widget-tree order matches visual order.
+- **Form labelling:** every input has a persistent programmatic label — critical for sensitive data entry.
+- **Status presentation:** color + icon + text label together (never color alone), and analysis copy never implies guilt from a data state.
 
 ---
 
 ## 12. Responsive & Adaptive Behaviour
 
-- **Mobile:** single-column layouts; primary navigation collapses to a bottom tab bar (Dashboard / Timeline / Vault / Discussion / More); secondary actions move into an overflow menu.
-- **Tablet:** two-column layouts where useful (e.g., list + detail pane for evidence vault).
-- **Desktop:** full multi-panel layouts (sidebar nav + main content + optional right-hand context panel, e.g., audit log or member list).
-- **Content reflow, not just hiding:** on narrow viewports, tables (e.g., audit log) reflow into stacked card-style rows rather than requiring horizontal scroll.
+- **Mobile:** single column; bottom tab bar; Quick Actions as a horizontal chip strip.
+- **Tablet:** two-column where useful (list + detail).
+- **Desktop:** 3-pane shell (icon rail + list panel + main panel); audit log / members as right-hand context panels.
+- **Content reflow:** tables reflow into stacked card rows on narrow viewports.
 
 ---
 
 ## 13. Brand Assets
 
-*(Placeholder — to be produced alongside Phase 1 UI build.)*
-- **Logo:** wordmark "CaseThread" in Inter Semi-Bold, teal accent on navy, plus a simple mark (e.g., an abstract linked-thread/node motif reflecting the entity-relationship concept) — final logo file paths TBD, store under `/docs/assets/brand/`.
-- **Clearspace:** minimum clearspace around the logo equal to the height of the wordmark's cap-height.
-- **Favicon:** simplified single-color version of the mark, navy background, teal glyph, exported at standard favicon sizes (16/32/48px + SVG).
+*(Placeholder — to be produced alongside the UI build.)*
+- **Logo:** wordmark "CaseThread" in Inter Semi-Bold, mint accent on navy, plus an abstract linked-thread/node mark (reflecting the entity-relationship concept).
+- **Clearspace:** minimum equal to the wordmark's cap-height.
+- **Favicon:** single-color mark, navy background, mint glyph (16/32/48px + SVG).
+
+---
+
+## 14. Token Quick Reference (CSS-style)
+
+```css
+/* Backgrounds */
+--bg-app: #0A1017;
+--bg-panel: #16212E;
+--bg-card: #121C28;
+--bg-mint-tint: #122C2D;
+--border-subtle: #1E2A38;
+
+/* Brand */
+--accent-mint: #4ADE9F;
+--accent-mint-hover: #4EE3B8;
+--chat-bubble-own: #1E4C44;
+
+/* Status */
+--status-confirmed: #4EE3B8;  /* mint  — Under Investigation / Verified / Fact */
+--status-attention: #E1A66B;  /* amber — Review / Partially Verified / AI pending */
+--status-conflict:  #D5666C;  /* coral — Conflict / Contradiction */
+--status-open:      #6193FF;  /* blue  — Open / Finding */
+--status-gap:       #B98AE0;  /* violet — Gaps */
+--status-neutral:   #8C99A8;  /* slate — Closed / Insufficient / Unknown */
+
+/* Text */
+--text-primary: #FFFFFF;
+--text-secondary: #8A99A9;
+
+/* Shape */
+--radius-card: 12px;
+--radius-pill: 999px;
+```
+
+---
+
+## 15. How this maps to the product spec
+
+- **Fact / Claim / Finding / Unknown** → distinct tag styles in Timeline & Evidence (Record = mint, Claim = amber, Finding = blue, Unknown = slate) + filter chips.
+- **"Never a guilt conclusion"** → deliberately neutral action verbs (Dismiss / Create task / Resolve) and in-UI disclaimers ("It is not a conclusion about guilt").
+- **Gaps as actionable** → every gap row and contradiction becomes a Task in one click; the guiding caption says so.
+- **Mobile-first, card-based** → every module is the same stackable card-row pattern, collapsing naturally to one mobile column.
+- **Dark navy + mint theme** → confirmed by the instructor; implemented as the default theme via `app_colors.dart` + `app_theme.dart`.
+
+*v2 note: exact hex values are best-effort samples from compressed prototype footage (±5–10 units). If a Figma file or official token file appears, it becomes the source of truth.*

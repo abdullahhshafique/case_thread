@@ -11,23 +11,31 @@ import 'package:case_thread/core/theme/app_theme.dart';
 void main() {
   group('AppColors match Design.md §1', () {
     test('background tokens', () {
-      expect(AppColors.bgPrimary, const Color(0xFF0B1220));
-      expect(AppColors.bgSurface, const Color(0xFF1B2436));
-      expect(AppColors.bgSurfaceRaised, const Color(0xFF242F45));
-      expect(AppColors.borderSubtle, const Color(0xFF2E3A52));
+      expect(AppColors.bgPrimary, const Color(0xFF0A1017));
+      expect(AppColors.bgSurface, const Color(0xFF121C28));
+      expect(AppColors.bgSurfaceRaised, const Color(0xFF16212E));
+      expect(AppColors.borderSubtle, const Color(0xFF1E2A38));
     });
 
     test('text and accent tokens', () {
-      expect(AppColors.textPrimary, const Color(0xFFEDEFF3));
-      expect(AppColors.textSecondary, const Color(0xFF8B96AB));
-      expect(AppColors.accentPrimary, const Color(0xFF4FA8A0));
-      expect(AppColors.accentPrimaryHover, const Color(0xFF63BDB4));
+      expect(AppColors.textPrimary, const Color(0xFFFFFFFF));
+      expect(AppColors.textSecondary, const Color(0xFF8A99A9));
+      expect(AppColors.accentPrimary, const Color(0xFF4ADE9F));
+      expect(AppColors.accentPrimaryHover, const Color(0xFF4EE3B8));
     });
 
-    test('state tokens — amber reserved for AI suggestions only', () {
-      expect(AppColors.statePending, const Color(0xFFE8B04B));
-      expect(AppColors.stateSuccess, const Color(0xFF5FBF7A));
-      expect(AppColors.stateError, const Color(0xFFE06767));
+    test('state tokens — amber = attention/partial, always labeled', () {
+      expect(AppColors.statePending, const Color(0xFFE1A66B));
+      expect(AppColors.stateSuccess, const Color(0xFF4EE3B8));
+      expect(AppColors.stateError, const Color(0xFFD5666C));
+    });
+
+    test('semantic status tokens (Design.md v2 §1.3)', () {
+      expect(AppColors.statusOpen, const Color(0xFF6193FF));
+      expect(AppColors.statusGap, const Color(0xFFB98AE0));
+      expect(AppColors.statusNeutral, const Color(0xFF8C99A8));
+      expect(AppColors.bgMintTint, const Color(0xFF122C2D));
+      expect(AppColors.chatBubbleOwn, const Color(0xFF1E4C44));
     });
   });
 
