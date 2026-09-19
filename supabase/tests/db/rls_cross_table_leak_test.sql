@@ -15,6 +15,16 @@ select tests.create_test_user('sam@example.com');
 
 -- Two rooms. Alex owns both; Sam is a member of both.
 select tests.impersonate('alex@example.com');
+insert into tests.fixtures (key, room_id)
+select 'leak-room-a', (result).room_id
+from public.create_case_room('Room A', 'legal') as result;
+insert into tests.fixtures (key, room_id)
+select 'leak-room-b', (result).room_id
+from public.create_case_room('Room B', 'legal') as result;
+
+select tests.unimpersonate();
+
+select tests.impersonate('alex@example.com');
 select is(
   count(*),
   1::bigint,
@@ -33,6 +43,7 @@ where cr.name = 'Room B' and cr.owner_id = (
   select user_id from tests.fixtures where key = 'alex@example.com'
 );
 
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select id from public.case_rooms where name = 'Room A'),
   'sam@example.com',

@@ -79,17 +79,21 @@ select is(
 
 -- 3. Non-member cannot insert (RLS with check raises).
 select tests.impersonate('kai@example.com');
-select throws_ok(
-  'insert into public.alibis (room_id, entity_id, claimed_window_start, '
-  || 'claimed_window_end, claim_text, source, status, status_reason, created_by) '
-  || 'select cr.id, e.id, ''2026-09-01 08:00:00+00'', ''2026-09-01 10:00:00+00'', '
-  || '''Fake alibi'', ''self'', ''verified'', ''no reason'', (select user_id '
-  || 'from tests.fixtures where key = ''kai@example.com'') '
-  || 'from public.case_rooms cr, public.entities e '
-  || 'where cr.name = ''Alibi Test Room'' and e.name = ''Kai Lee''',
-  null,
-  'non-member cannot insert alibi'
-);
+-- Non-member INSERT..SELECT: the RLS-scoped SELECT sees no rooms, so
+-- zero rows insert (no exception — the WITH CHECK is never reached).
+-- The product promise is "nothing enters the record" — assert that.
+insert into public.alibis (room_id, entity_id, claimed_window_start,
+  claimed_window_end, claim_text, source, status, status_reason, created_by)
+select cr.id, e.id, '2026-09-01 08:00:00+00', '2026-09-01 10:00:00+00',
+  'Fake alibi', 'self', 'verified', 'no reason', (select user_id
+from tests.fixtures where key = 'kai@example.com')
+from public.case_rooms cr, public.entities e
+where cr.name = 'Alibi Test Room' and e.name = 'Kai Lee';
+select is(
+  count(*),
+  0::bigint,
+  'non-member cannot insert alibi (row never lands)'
+) from public.alibis where claim_text = 'Fake alibi';
 
 select tests.impersonate('alex@example.com');
 -- 4. Owner can update alibi status with reason.

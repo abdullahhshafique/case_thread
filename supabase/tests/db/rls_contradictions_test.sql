@@ -3,7 +3,7 @@
 -- approve_ai_findings holders can update (resolve/dismiss).
 
 begin;
-select plan(10);
+select plan(11);
 
 select tests.unimpersonate();
 select tests.create_test_user('alex@example.com');
@@ -76,17 +76,18 @@ select is(
 
 -- 3. Non-member cannot insert (RLS with check raises).
 select tests.impersonate('kai@example.com');
-select throws_ok(
-  'insert into public.contradictions (room_id, source_type, '
-  || 'conflicting_detail, flagged_reason, status, flagged_by) '
-  || 'select cr.id, ''manual'', ''X'', ''Y'', '
-  || '''open'', (select user_id from tests.fixtures '
-  || 'where key = ''kai@example.com'') '
-  || 'from public.case_rooms cr where cr.name = '
-  || '''Contradiction Test Room''',
-  null,
-  'non-member cannot insert contradiction'
-);
+-- Non-member INSERT..SELECT: RLS hides the room from the source SELECT
+-- → zero rows land. Assert the record never entered (the promise).
+insert into public.contradictions (room_id, source_type,
+  conflicting_detail, flagged_reason, status, flagged_by)
+select cr.id, 'manual', 'X', 'Fake open', 'open', (select user_id
+from tests.fixtures where key = 'kai@example.com')
+from public.case_rooms cr where cr.name = 'Contradiction Test Room';
+select is(
+  count(*),
+  0::bigint,
+  'non-member cannot insert contradiction (row never lands)'
+) from public.contradictions where flagged_reason = 'Fake open';
 
 select tests.impersonate('sam@example.com');
 -- 4. Lead-tier can resolve a contradiction.
