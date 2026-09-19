@@ -10,7 +10,15 @@ select tests.create_test_user('alex@example.com');
 select tests.create_test_user('sam@example.com');
 select tests.create_test_user('kai@example.com');
 
--- Setup.
+-- Setup: create the room via the generic RPC (impersonated as the
+-- owner), then fixtures run as postgres.
+select tests.impersonate('alex@example.com');
+insert into tests.fixtures (key, room_id)
+select 'gaps-room', (result).room_id
+from public.create_case_room('Gaps Test Room', 'legal') as result;
+
+select tests.unimpersonate();
+
 select tests.impersonate('alex@example.com');
 select is(
   count(*),
@@ -21,6 +29,7 @@ where cr.name = 'Gaps Test Room' and cr.owner_id = (
   select user_id from tests.fixtures where key = 'alex@example.com'
 );
 
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select id from public.case_rooms where name = 'Gaps Test Room'),
   'sam@example.com',

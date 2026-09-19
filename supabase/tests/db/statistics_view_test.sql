@@ -12,6 +12,14 @@ select tests.create_test_user('sam@example.com');
 
 -- Two rooms with different content.
 select tests.impersonate('alex@example.com');
+insert into tests.fixtures (key, room_id)
+select 'stats-0', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
+select 'stats-1', (result).room_id from public.create_case_room('Stats Room Y', 'legal') as result;
+select 'stats-2', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
+select 'stats-3', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
+select 'stats-4', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
+select 'stats-5', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
+
 select is(
   count(*),
   1::bigint,

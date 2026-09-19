@@ -35,7 +35,10 @@ select tests.add_approved_member(
   'analyst'
 );
 
-select tests.impersonate('alex@example.com');
+-- Evidence fixtures as postgres: direct evidence_items inserts are
+-- RPC-only for clients (0009 removed the insert policy), and the
+-- breakdown view itself is what these tests verify.
+select tests.unimpersonate();
 -- Two PDFs + one image.
 insert into public.evidence_items (
   room_id, uploader_id, filename, storage_path, file_hash,
