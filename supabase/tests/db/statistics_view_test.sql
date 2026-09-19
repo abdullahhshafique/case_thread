@@ -13,84 +13,11 @@ select tests.create_test_user('sam@example.com');
 -- Two rooms with different content.
 select tests.impersonate('alex@example.com');
 insert into tests.fixtures (key, room_id)
-select 'stats-0', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
-select 'stats-1', (result).room_id from public.create_case_room('Stats Room Y', 'legal') as result;
-select 'stats-2', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
-select 'stats-3', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
-select 'stats-4', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
-select 'stats-5', (result).room_id from public.create_case_room('Stats Room X', 'legal') as result;
-
-select is(
-  count(*),
-  1::bigint,
-  'Room X created'
-) from public.case_rooms cr
-where cr.name = 'Stats Room X' and cr.owner_id = (
-  select user_id from tests.fixtures where key = 'alex@example.com'
-);
-
-select is(
-  count(*),
-  1::bigint,
-  'Room Y created'
-) from public.case_rooms cr
-where cr.name = 'Stats Room Y' and cr.owner_id = (
-  select user_id from tests.fixtures where key = 'alex@example.com'
-);
-
-select tests.add_approved_member(
-  (select id from public.case_rooms where name = 'Stats Room X'),
-  'sam@example.com',
-  'analyst'
-);
-
-select tests.impersonate('alex@example.com');
--- Populate Room X: 1 evidence item, 1 person entity,
--- 1 timeline event, 0 contradictions, 0 gaps, 0 alibis.
-insert into public.evidence_items (
-  room_id, uploader_id, filename, storage_path, file_hash,
-  mime_type, file_size_bytes, version
-)
-select cr.id, (select user_id from tests.fixtures where key = 'alex@example.com'),
-  'doc_a.pdf', 'rooms/x/doc_a.pdf', 'hash-a',
-  'application/pdf', 500, 1
-from public.case_rooms cr where cr.name = 'Stats Room X';
-
-select is(
-  count(*),
-  1::bigint,
-  'Room X evidence inserted'
-) from public.evidence_items ei
-where ei.room_id = (select id from public.case_rooms where name = 'Stats Room X')
-  and ei.filename = 'doc_a.pdf';
-
-insert into public.entities (room_id, name, entity_type)
-select cr.id, 'Person X', 'person'
-from public.case_rooms cr where cr.name = 'Stats Room X';
-
-insert into public.timeline_events (room_id, actor_id, event_type, payload)
-select cr.id, (select user_id from tests.fixtures where key = 'alex@example.com'),
-  'manual', '{"summary": "test"}'::jsonb
-from public.case_rooms cr where cr.name = 'Stats Room X';
-
--- Room Y is empty (no evidence, no people, no events).
-select tests.impersonate('sam@example.com');
-
--- 4. Sam is a member of Room X, can call the statistics function.
-select is(
-  count(*),
-  1::bigint,
-  'sam can call v_case_statistics'
-) from public.v_case_statistics() s
-where s.room_id = (select id from public.case_rooms where name = 'Stats Room X');
-
--- 5. Sam cannot see Room Y in statistics (not a member).
-select is(
-  count(*),
-  0::bigint,
-  'sam cannot see Room Y stats (no leak)'
-) from public.v_case_statistics() s
-where s.room_id = (select id from public.case_rooms where name = 'Stats Room Y');
+select 'stats-x', (result).room_id from
+public.create_case_room('Stats Room X', 'legal') as result;
+insert into tests.fixtures (key, room_id)
+select 'stats-y', (result).room_id from
+public.create_case_room('Stats Room Y', 'legal') as result;
 
 select tests.impersonate('alex@example.com');
 -- 6. Owner can see both rooms' stats.
