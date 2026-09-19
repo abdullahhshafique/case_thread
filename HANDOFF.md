@@ -15,10 +15,10 @@
 | Phase 3 | AI agent workflows (registry, Edge Function, human-in-the-loop review) | ✅ 100% — merged via PR #1 (4ed09b4); **live E2E verified** |
 | Phase 4 | Marketplace, cross-case search, offline sync, version history | 🟡 ~80% — S1 (marketplace) merged to `main` (#2); S2–S4 code on `feature/phase-4-s2-s4` (CI green at 908893d), **not merged** |
 | Phase 5 | Investigation intelligence (alibis, contradictions, gaps, dashboard, case status) | 🟡 ~90% — code on `feature/phase-5-investigation-intelligence`, CI issues being fixed |
-| Phase 6 | Spec alignment to the v3 HTML console (`C:\Users\Aadi\Downloads\casethread-v3.html`) | 🟡 ~85% — v3 console shell + Overview/Audit/Summary/Connections built (see §4b); **analyzer/tests not re-run yet** |
+| Phase 6 | Spec alignment to the v3 HTML console (`C:\Users\Aadi\Downloads\casethread-v3.html`) | 🟢 ~90% — v3 console built + local gates green (analyze 0, 116/116 Dart); pushed 8d2901e; **CI run pending**; remaining = v3 UI polish (see §4b) |
 | Phase 4 remainder (S5+) | App-store release, billing groundwork, template marketplace UI polish | ⬜ 0% |
 
-**Overall: ≈80% of the planned roadmap is built.** The backend (34 migrations, 26 pgTAP test files, 8 Edge Functions, RPCs, RLS on every table) is substantially complete. The Flutter client implements most of it. The remaining work is (a) one red CI branch, (b) merging three CI-green branches, (c) the console UI rebuild to match the v3 mockup, (d) Phase 4's P2 tail.
+**Overall: ≈85% of the planned roadmap is built.** The backend (34 migrations, 26 pgTAP test files, RPCs, RLS on every table) is substantially complete. The Flutter client implements all of it, plus the v3 Investigation Console shell. The remaining work is (a) the CI run validating the pushed phase-6 branch, (b) merging the pending branches to main, (c) v3 UI polish panes (§4b), (d) Phase 4's P2 tail.
 
 ---
 
@@ -28,12 +28,12 @@
 main                        = Phase 1+2+3 merged (PRs #1, #2). CI green.
 feature/phase-4-s2-s4       = cross-case search, offline sync, version history. CI GREEN (908893d) → MERGE ME
 feature/phase-5-investigation-intelligence = alibis/contradictions/gaps/dashboard. CI RED (minor test-context fixes)
-feature/phase-6-spec-alignment = v3-console alignment + Phase-6 tests. CI RED (current work, checkout here)
+feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild. PUSHED 8d2901e (2026-09-19, history scrubbed of the p6j.txt secret); CI run pending (checkout here)
 ```
 
 **DB migrations: 0001–0034** (all applied to cloud `hxrztoakimebjcibvkaa`).
 **pgTAP tests: 26 files, 220 tests** (98 were green at the Phase-3 boundary; the Phase-4/5/6 session's new test files introduced fixture-context bugs now mostly fixed).
-**Dart: 64+ tests, analyze 0.**
+**Dart: 116 tests, analyze 0.**
 
 ---
 
@@ -43,18 +43,7 @@ feature/phase-6-spec-alignment = v3-console alignment + Phase-6 tests. CI RED (c
 
 **Already fixed and pushed** (commit 0093efa): `entity_type` CHECK constraint conflict (0027/0034), missing room creation in 4 test files, impersonation-context bugs, LWW test semantics, jsonb access in case_breakdown, non-member INSERT..SELECT row-count semantics, version-history outsider not-found.
 
-**Known remaining failures** (from run for f7c1f28 — the latest commit adds fixes for these; verify with a fresh CI run):
-1. `case_breakdown_test.sql:103` — `column bd.evidence_by_type does not exist`: one more `bd.` column-style ref wasn't converted (fixed at 0093efa — verify).
-2. `statistics_view_test` — "sam sees only Room X" fails: the evidence fixture ran impersonated; commit 0093efa added the unimpersonate guard (verify).
-3. `version_history_test.sql:112` — `Task not found.`: the outsider `list_versions` assertion needs the typed-error form (fixed at 0093efa — verify).
-4. `offline_sync_test.sql:202` — `syntax error at "1"`: **NOT yet fixed** — the second `clear_conflict` assertion has a missing closing paren at line 184–187:
-   ```sql
-   select is(
-     (select count(*) from public.clear_conflict('task',
-       (select member_id from tests.fixtures where key = 'off-task'))),
-     1::bigint, ...
-   ```
-   Both instances must end `)))` then `, 1::bigint,` — check lines ~174–187.
+**Resolution state (2026-09-19):** all four previously-flagged failures are fixed on the branch. Items 1–3 were fixed at 0093efa; item 4 (offline_sync paren) was verified fixed in the file on 2026-09-19 — both `clear_conflict` assertions correctly end `)))`. Important context: the remote sat at f7c1f28 until 2026-09-19 (the 0093efa push had actually been blocked by GitHub Push Protection — see §4b), so CI never validated these fixes until the 8d2901e push. If `rls-tests` still fails, apply the patterns below to the failing file.
 
 **Fix pattern for any remaining test failures** (the recurring bug class — fixture/setup SQL running while a session is impersonated):
 - `select tests.unimpersonate();` before any direct `INSERT` into app tables, member fixtures, or evidence fixtures (0005/0009 RLS denies impersonated sessions).
@@ -64,14 +53,14 @@ feature/phase-6-spec-alignment = v3-console alignment + Phase-6 tests. CI RED (c
 - Capture timeline fixtures with `and event_type = 'manual'` (0010 mirrors system events into the same txn; `occurred_at` ties make unfiltered captures non-deterministic).
 - jsonb: `v_case_breakdown(...)` returns a jsonb scalar — access keys with `(bd -> 'key')`, not `bd.key`.
 
-Then: `git push` → CI → green → `git checkout main && git merge --squash feature/phase-6-spec-alignment && git commit && git push`.
+**Now:** the branch is already pushed (8d2901e, history scrubbed). Watch the CI run for it → green → `git checkout main && git merge --squash feature/phase-6-spec-alignment && git commit && git push`. If `rls-tests` goes red, apply the §6 fix patterns to the failing file.
 
 ### Step 2 — Merge the pending CI-green branches
 - `feature/phase-4-s2-s4` (908893d) — CI green, just squash-merge.
 - `feature/phase-5-investigation-intelligence` — after rebase onto updated main + CI green.
 
-### Step 3 — Cloud resync
-The cloud DB `hxrztoakimebjcibvkaa` is at 0017+partial-hotfixes; `npx supabase db push --include-all` applies the rest (0018–0034). Then re-apply the seed: `npx supabase db query --linked --file supabase/seed.sql` (idempotent-ish; use `on conflict do nothing` discipline).
+### Step 3 — Cloud resync (migrations ✅; seed hardened, rerun pending)
+`npx supabase db push --include-all` reported **"Remote database is up to date"** (2026-09-19) — the cloud migrations table already records 0001–0034 (this doc's old "0017+hotfixes" estimate was stale). The 2026-09-19 data check: 14 rooms, investigation tables live, `v_case_breakdown` deployed — but **Riverside Robbery was never seeded to cloud** (the seed had only ever run via local `db reset`; a cloud rerun died on the `elena@casethread.demo` email conflict because cloud's demo users were created through the app with different UUIDs than the seed's fixed ones). Fix: `seed.sql` now resolves every demo-user reference through `public.demo_user_id(email, fixed_id)` and uses a targetless `on conflict do nothing` on the `auth.users` insert — rerun-safe on both fresh resets and cloud. **Action: `npx supabase db query --linked --file supabase/seed.sql`, then re-run the data check (`riverside_seeded` should be 1).**
 
 ### Step 4 — Deploy Edge Functions
 `npx supabase functions deploy ai-agent --project-ref hxrztoakimebjcibvkaa` (worked before, mock provider runs without keys). Set `AI_PROVIDER=grok` + `GROK_API_KEY=<key>` via `npx supabase secrets set` for the real provider.
@@ -127,7 +116,7 @@ All five workstream items below are implemented on `feature/phase-6-spec-alignme
 | Summary pane (closed-case snapshot) | ✅ | `lib/features/rooms/summary_pane.dart` (new file) |
 | Join / Search / Templates entry points restored in console | ✅ | Cases panel header icon buttons (keys `rooms-join`, `rooms-search`, `rooms-templates`) |
 
-**Not re-verified yet (no terminal in that session):** `flutter analyze` and `flutter test` must be run before merge. `test/app_test.dart` was updated for the console UI (expects `Cases`, `Open a case to start work`, `rooms-join`) and its signed-in test now uses manual `pump()` calls — the ambient atmosphere animates forever by design, so `pumpAndSettle` on the console route will time out. Keep that in mind for any future widget test that renders `RoomsScreen`.
+**Verified 2026-09-19:** `flutter analyze` — 0 issues; `flutter test` — **116/116** (app_theme_test expectations updated to Geist/GeistMono per the v3 font switch). Pushed as **8d2901e** — but only after GitHub Push Protection blocked the first push: commit 0093efa had included `p6j.txt` (a pasted CI log containing a Supabase secret key at line 594). History was rewritten with `git filter-branch` (file removed from all commits), the branch force-pushed, and the local backup ref + reflogs pruned. **The flagged key must still be rotated** (Supabase Dashboard → Settings → API) — treat it as burned. `test/app_test.dart`'s signed-in test uses manual `pump()` calls on the console route — the ambient atmosphere animates forever by design, so `pumpAndSettle` on `RoomsScreen` will time out. Keep that in mind for future widget tests.
 
 **Still open on the v3 rebuild:** mobile bottom nav, notifications sheet, invite/code-display restyle, discussion/evidence/timeline pane restyles to v3 bubble/row styling, quick-actions grid inside Overview.
 
@@ -177,6 +166,7 @@ All learned the hard way — details in memory.md §8:
 
 - **Medical domain fields** — deferred behind the SME gate (PRD §10); generic roles seeded only.
 - **Anon key rotation** — was briefly in a public commit (audited: anon key only); routine hygiene.
+- **Supabase secret key exposure (2026-09-19)** — a service-tier key printed in a pasted CI log (`p6j.txt:594`) was committed in 0093efa. Push protection blocked it from ever reaching GitHub; history was scrubbed (filter-branch + force-push 8d2901e; local backup ref + reflogs expired). The key itself must still be **ROTATED** (Dashboard → Settings → API) — treated as burned.
 - **Windows Developer Mode** — off; needed before Android device builds (both-platform verification is therefore partial: Chrome verified, Android pending).
 - **Vercel deploy** — configured in docs, not yet connected in this environment.
 - **AI provider** — GROK chosen (user decision); live real-provider run still needs `GROK_API_KEY` secret + one E2E.

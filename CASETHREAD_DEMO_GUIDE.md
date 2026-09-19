@@ -2,7 +2,7 @@
 
 > **Purpose:** Walk a teammate through every step of setting up, logging in, and demonstrating CaseThread on Chrome (Windows + VS Code). Includes all accounts, room codes, case details, and the full demo flow.
 
-**Last updated:** 2026-09-17 · **Version:** 1.2 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case)
+**Last updated:** 2026-09-19 · **Version:** 1.3 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case) plus the v3 Investigation Console rebuild — Geist typography, topbar/rail/cases shell, Overview hero with stat cards + charts, live "Waiting on you" counts, animated Connections graph, Audit Log + Summary panes
 
 ---
 

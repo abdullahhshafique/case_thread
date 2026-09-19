@@ -1,7 +1,7 @@
 # CaseThread — Design System
 
-**Status:** Draft v2.0
-**Last updated:** 2026-09-17
+**Status:** Draft v2.1 (adds §16 — v3 console addendum)
+**Last updated:** 2026-09-19
 **Design direction:** Calm, investigation-grade, dark navy canvas with a single restrained mint accent. Colors are functional: mint = confirmed/healthy, amber = needs attention/partial, coral = conflict, slate = neutral/unknown. Nothing implies guilt — colors flag *data states*, not people.
 **Source of truth:** sampled from the approved UI prototype walkthrough (Sept 2026) and cross-referenced with the "Complete Project Understanding" document.
 **Related docs:** [PRD.md](./PRD.md) · [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md)
@@ -274,3 +274,21 @@ Every component's states use only the §1 token palette — no ad hoc colors at 
 - **Dark navy + mint theme** → confirmed by the instructor; implemented as the default theme via `app_colors.dart` + `app_theme.dart`.
 
 *v2 note: exact hex values are best-effort samples from compressed prototype footage (±5–10 units). If a Figma file or official token file appears, it becomes the source of truth.*
+
+---
+
+## 16. v3 Console Addendum (2026-09-19)
+
+Phase 6 rebuilt the Flutter shell to the approved v3 HTML console (`casethread-v3.html`). This addendum records where v3 supersedes or extends §1–§14. Everything here is implemented in `app_colors.dart` / `app_text_theme.dart` / `app_theme.dart` / `lib/shell/ambient_atmosphere.dart`.
+
+**16.1 Typography — Geist replaces Inter as the UI face.** The theme's base family is now **Geist** (weights 400–900 bundled) and the mono face is **Geist Mono** (replacing JetBrains Mono in `AppTextTheme.mono` and all tabular/monospace UI). Inter and JetBrains Mono remain bundled as fallbacks. §2's size/weight scale is unchanged.
+
+**16.2 Brand gradient.** A three-stop brand gradient is the chrome accent for active-tab indicators, meters, selected-case rails, and the logo mark: teal `#08CBD8` → blue `#3D71FF` → violet `#A54EFF` (`AppColors.brandGradient`). This coexists with the single mint accent of §1.2: mint still owns *case-data* semantics (confirmed/verified/healthy); the gradient is decorative chrome only, never a data-state color.
+
+**16.3 Console surfaces & text.** The console shell uses a darker surface set than §1.1: `consoleBg #05060A`, `consoleSidebar #07080C`, `consolePanel #0B0D14`, `consolePanel2 #10131D`, with `consoleText #F7F8FC`, `consoleTextSecondary #B7C6DC`, `consoleMuted #9AA2B6`, and `consoleBorder` (white @ 9%).
+
+**16.4 Status pairs.** v3 §3.6 adds tinted status *pairs* (foreground + background + border always used together): `v3Ok #6EE7B7`, `v3Warn #FCD34D`, `v3Err #FDA4AF`, `v3Info #A5B4FC`, `v3Violet #C4B5FD`, `v3Cyan #67E8F9`. These map onto the §1.3 semantics (ok→success, warn→attention, err→conflict) — the no-guilt labeling rules of §9 apply unchanged.
+
+**16.5 Ambient atmosphere.** One shared decorative layer behind the shell: 54px shell grid, slow conic aurora, two breathing glow orbs. Purely decorative (pointer-transparent), and fully disabled under `prefers-reduced-motion` — consistent with §7's motion restraint.
+
+**16.6 What did NOT change:** all §1.3 data-state colors, §9 voice/tone (non-accusatory copy), §11 accessibility rules, and the component semantics of §6. The v3 work is chrome + typography; case-data meaning is still carried by the §1 tokens.
