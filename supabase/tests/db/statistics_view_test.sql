@@ -47,6 +47,9 @@ select tests.impersonate('alex@example.com');
 -- Evidence fixtures run as postgres (direct evidence inserts are
 -- RPC-only for clients, 0009).
 select tests.unimpersonate();
+-- Evidence fixture as postgres (direct evidence inserts are RPC-only
+-- for clients — 0009).
+select tests.unimpersonate();
 insert into public.evidence_items (
   room_id, uploader_id, filename, storage_path, file_hash,
   mime_type, file_size_bytes, version
@@ -55,6 +58,7 @@ select cr.id, (select user_id from tests.fixtures where key = 'alex@example.com'
   'doc_b.pdf', 'rooms/x/doc_b.pdf', 'hash-b',
   'application/pdf', 500, 1
 from public.case_rooms cr where cr.name = 'Stats Room X';
+select tests.impersonate('alex@example.com');
 
 -- 9. After adding a second evidence, count = 2.
 select tests.impersonate('sam@example.com');

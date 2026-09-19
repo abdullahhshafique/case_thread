@@ -102,13 +102,15 @@ select is(
   'timeline edit detail shows before → after'
 );
 
--- 5. Outsiders see nothing (audit RLS member scoping — deny proof).
+-- 5. Outsiders see nothing (RLS member scoping — deny proof): the
+-- version RPC raises not-found for non-members (no information leak
+-- about the task's existence).
 select tests.impersonate('hist-outsider@example.com');
-select is(
-  (select count(*) from public.list_versions('task',
-    (select member_id from tests.fixtures where key = 'hist-task'))),
-  0::bigint,
-  'outsider sees zero history rows (RLS deny)'
+select throws_ok(
+  'select public.list_versions(''task'', '
+    || '(select member_id::text from tests.fixtures where key = ''hist-task'')::uuid)',
+  'Task not found.',
+  'outsider history query raises not-found (no leak)'
 );
 
 -- 6. Unknown kinds are rejected with a typed error.
