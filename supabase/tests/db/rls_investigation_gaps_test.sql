@@ -72,15 +72,18 @@ select is(
 
 -- 3. Non-member cannot insert (RLS with check raises).
 select tests.impersonate('kai@example.com');
-select throws_ok(
-  'insert into public.investigation_gaps (room_id, gap_type, '
-  || 'description, source_type, status, created_by) select cr.id, '
-  || '''missing_evidence'', ''X'', ''manual'', ''open'', '
-  || '(select user_id from tests.fixtures where key = ''kai@example.com'') '
-  || 'from public.case_rooms cr where cr.name = ''Gaps Test Room''',
-  null,
-  'non-member cannot insert gap'
-);
+-- Non-member INSERT..SELECT: RLS hides the room from the source SELECT
+-- → zero rows land. The promise is "nothing enters the record".
+insert into public.investigation_gaps (room_id, gap_type,
+  description, source_type, status, created_by)
+select cr.id, 'missing_evidence', 'Fake gap', 'manual', 'open',
+  (select user_id from tests.fixtures where key = 'kai@example.com')
+from public.case_rooms cr where cr.name = 'Gaps Test Room';
+select is(
+  count(*),
+  0::bigint,
+  'non-member cannot insert gap (row never lands)'
+) from public.investigation_gaps where description = 'Fake gap';
 
 select tests.impersonate('sam@example.com');
 -- 4. Member with edit_case (analyst) can update gap status.

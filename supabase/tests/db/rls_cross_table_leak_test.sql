@@ -56,6 +56,9 @@ select tests.add_approved_member(
 );
 
 select tests.impersonate('alex@example.com');
+-- Evidence fixtures run as postgres (direct evidence inserts are
+-- RPC-only for clients, 0009).
+select tests.unimpersonate();
 
 -- Room A: entity + evidence + timeline event.
 insert into public.entities (room_id, name, entity_type)

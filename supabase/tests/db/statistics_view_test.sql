@@ -44,6 +44,9 @@ select is(
 where s.room_id = (select id from public.case_rooms where name = 'Stats Room X');
 
 select tests.impersonate('alex@example.com');
+-- Evidence fixtures run as postgres (direct evidence inserts are
+-- RPC-only for clients, 0009).
+select tests.unimpersonate();
 insert into public.evidence_items (
   room_id, uploader_id, filename, storage_path, file_hash,
   mime_type, file_size_bytes, version
