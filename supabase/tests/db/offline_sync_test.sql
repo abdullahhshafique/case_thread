@@ -111,12 +111,14 @@ where room_id = (select room_id from tests.fixtures where key = 'off-room')
   and user_id = (select user_id from tests.fixtures where key = 'off-analyst@example.com');
 
 select tests.impersonate('off-analyst@example.com');
+-- Revoked members lose read visibility first (RLS): the replay reports
+-- not-found rather than confirming the task's existence (no info leak).
 select throws_ok(
   'select public.update_task_with_stamp('
     || '(select member_id::text from tests.fixtures where key = ''off-task'')::uuid, '
     || '''done'', now())',
-  'Your role can''t update tasks in this room.',
-  'revoked member queued replay is denied (typed error)'
+  'Task not found.',
+  'revoked member queued replay is denied (task invisible)'
 );
 select tests.unimpersonate();
 select is(
@@ -127,10 +129,15 @@ select is(
 );
 
 -- 4. Timeline LWW: newer server edit beats the offline snapshot.
+-- Capture the MANUAL event: 0010 mirrors system events into the
+-- timeline within the same txn (occurred_at ties), and the stamp RPC
+-- only edits manual events — an unfiltered capture can pick a system
+-- event and fail with a misleading permission error.
 insert into tests.fixtures (key, text_value)
 select 'off-event',
        (select id::text from public.timeline_events te
         where room_id = (select room_id from tests.fixtures where key = 'off-room')
+          and te.event_type = 'manual'
         order by occurred_at desc limit 1)
 on conflict (key) do update set text_value = excluded.text_value;
 
