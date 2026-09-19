@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/error_mapper.dart';
+import '../../core/errors/error_mapper.dart';
 
 import 'data/supabase_evidence_repository.dart';
 import 'domain/evidence_repository.dart';

@@ -2,12 +2,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import 'data/supabase_evidence_repository.dart' show evidenceRepositoryProvider;
 import 'domain/evidence_repository.dart';
 import 'domain/evidence_upload.dart';
-import '../../../core/api/models.dart' show Permission;
+import '../../core/api/models.dart' show Permission;
 import 'room_permissions.dart';
 import 'vault_providers.dart';
 
@@ -174,7 +175,13 @@ class _EvidenceTile extends ConsumerWidget {
               ? Icons.audio_file_outlined
               : Icons.description_outlined,
         ),
-        title: Text(entry.displayName, style: text.bodyLarge),
+        title: Row(
+          children: [
+            Expanded(child: Text(entry.displayName, style: text.bodyLarge)),
+            if (entry.classification != null)
+              _VaultClassificationBadge(classification: entry.classification!),
+          ],
+        ),
         subtitle: Text(
           '${_formatSize(entry.sizeBytes)} · '
                   '${entry.uploaderName ?? 'Member'} · '
@@ -298,6 +305,38 @@ class _UploadBar extends StatelessWidget {
             LinearProgressIndicator(value: progress.progress),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Fact/Claim/Finding/Unknown badge (Phase 6, doc §7) — label +
+/// outline color, never color alone (Design.md §1).
+class _VaultClassificationBadge extends StatelessWidget {
+  const _VaultClassificationBadge({required this.classification});
+
+  final String classification;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (classification) {
+      'fact' => (AppColors.stateSuccess, 'Fact'),
+      'claim' => (AppColors.statePending, 'Claim'),
+      'finding' => (AppColors.statusOpen, 'Finding'),
+      'unknown' => (AppColors.statusNeutral, 'Unknown'),
+      _ => (AppColors.statusNeutral, classification),
+    };
+    return Container(
+      margin: const EdgeInsets.only(left: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

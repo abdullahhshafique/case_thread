@@ -1,7 +1,7 @@
 # CaseThread — Phases
 
-**Status:** Draft v1.0
-**Last updated:** 2026-09-10
+**Status:** Draft v1.1
+**Last updated:** 2026-09-15
 **Timeline basis:** Larger team, standard 6–12 month startup timeline
 **Related docs:** [PRD.md](./PRD.md) · [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md) · [memory.md](./memory.md)
 
@@ -9,13 +9,13 @@
 
 ## 1. Phase Overview
 
-| Phase | Objective | Target window |
-|---|---|---|
-| Phase 0 | Planning & foundation (this document set, environment setup) | Weeks 1–2 |
-| Phase 1 | Core platform — Case Rooms, access codes, roles, shared core, 2 case-type modules | Months 1–3 |
-| Phase 2 | Full template library + redaction + notifications + export | Months 3–5 |
-| Phase 3 | AI agent workflows | Months 5–7 |
-| Phase 4 | SaaS polish — marketplace, cross-case search, offline mode, mobile store release | Months 7–12 |
+| Phase | Objective | Target window | Status |
+|---|---|---|---|
+| Phase 0 | Planning & foundation (this document set, environment setup) | Weeks 1–2 | ✅ Complete |
+| Phase 1 | Core platform — Case Rooms, access codes, roles, shared core, 2 case-type modules | Months 1–3 | ✅ Complete |
+| Phase 2 | Full template library + redaction + notifications + export | Months 3–5 | ✅ Complete |
+| Phase 3 | AI agent workflows | Months 5–7 | ✅ Complete |
+| Phase 4 | SaaS polish — marketplace, cross-case search, offline mode, mobile store release | Months 7–12 | ✅ Complete (S1–S4); mobile store + paid tier deferred |
 
 ---
 
@@ -111,46 +111,87 @@
 
 ---
 
-## 5. Phase 4 — SaaS Polish
+## 5. Phase 4 — SaaS Polish (COMPLETE 2026-09-15)
 
-**Goal:** Template marketplace, cross-case search, offline-first mobile, mobile app store release, and initial paid-tier groundwork.
+**Goal (as planned):** Template marketplace, cross-case search, offline-first mobile, mobile app store release, and initial paid-tier groundwork.
+
+**Epic breakdown — actual delivery:**
+
+| Epic | Priority | Status |
+|---|---|---|
+| Template marketplace (design/share custom case-type templates) | P2 | ✅ P4-S1 — `publish_template()` RPC + draft→materialize flow; `features/templates/` |
+| Cross-case search | P2 | ✅ P4-S2 — `search_cases()` RPC (RLS-scoped prefix full-text); `features/search/` |
+| Offline-first mobile sync | P2 | ✅ P4-S3 — LWW-stamped RPCs, conflict flags, offline queue; `features/offline/` |
+| Version history on documents/notes | P2 | ✅ P4-S4 — `list_versions()` RPC over audit log; `features/history/` |
+| Mobile app store submission (iOS/Android) | P1 | ⏳ Blocked — developer accounts not provisioned |
+| Paid tier groundwork (billing integration, SSO, compliance export) | P2 | ⏳ Blocked — pending Go/No-Go product decision |
+
+**Definition of Done (as executed):** All four P2 epics shipped with pgTAP contract tests (29 new assertions: 10 search, 12 offline, 7 history), Dart unit tests, and RLS scoping verified. Offline sync conflict-resolution policy doc (`docs/offline-sync-conflict-policy.md`) served as the pre-build gate. Mobile store and paid-tier items were not in scope for Phase 4 S1–S4 per Phases.md §5 re-plan.
+
+**Key decisions:**
+- Offline conflict resolution: LWW with visible conflict flag for manual-event/task edits (not append-only streams); security-sensitive writes never queue; revoked-member queued writes typed-denied.
+- Search scope: cross-case full-text (room names, discussion, timeline, tasks, evidence) scoped by RLS — no privileged fields visible.
+- Version history: read surface over append-only audit log (no new writes); timeline edits numbered from v2.
+
+**Dependencies:** Stable Phase 1–3 core ✅; app store developer accounts provisioned ahead of submission — **NOT YET DONE**.
+
+**Risks (remaining):** App store review delays — submit early, treat review time as a hard external dependency. Developer accounts (Apple/Google) — provision EARLY per §5.
+
+**Deliverables:** Marketplace ✅, cross-case search ✅, offline mode ✅, version history ✅, published mobile apps ⏳, updated memory.md ✅.
+
+**Go/No-Go:** Phase 4 epics S1–S4 complete. Remaining items (store submission, paid tier) are Phase 5 candidates pending product direction.
+
+---
+
+## 5. Phase 5 — Investigation Intelligence Layer (COMPLETE 2026-09-17)
+
+**Goal:** Ship fact/claim/finding/unknown classification, investigation gaps, alibi verification, contradiction detection (elevated to first-class), case dashboard with statistics, AI case completeness review agent, case status/closed summary, Analysis nav section, Quick Actions bar, and AI consent disclosure. All additive, RLS-first, human-in-the-loop.
 
 **Epic breakdown:**
 
-| Epic | Priority |
-|---|---|
-| Template marketplace (design/share custom case-type templates) | P2 |
-| Cross-case search | P2 |
-| Offline-first mobile sync | P2 |
-| Version history on documents/notes | P2 |
-| Mobile app store submission (iOS/Android) | P1 |
-| Paid tier groundwork (billing integration, SSO, compliance export) | P2 |
+| Epic | Priority | Status |
+|---|---|---|
+| Fact/Claim/Finding/Unknown classification | P1 | ✅ — 0027 migration (nullable CHECK columns on evidence_items + timeline_events; vehicle added to entities.type) |
+| Investigation gaps | P0 | ✅ — `investigation_gaps` table + `gap_create_task()` RPC; `features/investigation_gaps/` |
+| Alibi verification | P0 | ✅ — `alibis` + `alibi_evidence_links` tables + `verify_alibi()` RPC; `features/alibis/` |
+| Contradiction detection (elevated) | P0 | ✅ — `contradictions` + `contradiction_sources` tables (first-class); `features/contradictions/` |
+| Case dashboard with statistics | P1 | ✅ — `v_case_statistics` view + `CaseStatistics` model; `features/dashboard/` |
+| AI case completeness review agent | P1 | ✅ — `case_completeness_review` agent (6th, cross-domain); consent disclosure in Edge Function |
+| Case status + closed summary | P1 | ✅ — `case_rooms.investigation_status` + `case_closed_summaries` + `transition_investigation_status()` |
+| Analysis nav section + Quick Actions bar | P1 | ✅ — `AnalysisPane` with Alibis/Contradictions/Gaps sub-tabs; Quick Actions in RoomDetailScreen |
+| AI consent step | P0 | ✅ — Consent dialogs in AiPane (single-agent + workflow); consent data scope gathered server-side before provider call |
+| Export extension (contradictions/alibis/gaps/status) | P1 | ✅ — Migration 0031 extends `export_case_report()` v2; `export_report.dart` toMarkdown extended |
 
-**Definition of Done:** Offline mode verified on at least one field-test scenario (loss of connectivity mid-session, successful resync); marketplace supports at least template creation + sharing within a workspace; mobile builds pass store review.
+**Definition of Done:**
+- All P0 epics demoable end-to-end.
+- New tables have RLS contract tests (pgTAP).
+- `v_case_statistics` verified no leak.
+- AI agent output only via `ai_suggestions` (never directly to case record).
+- No guilt-implying UI copy (Design.md §9).
+- Open Conflicts from PRD-Phase5.md §7 recorded as decisions in memory.md §6.
 
-**Dependencies:** Stable Phase 1–3 core; app store developer accounts provisioned ahead of submission (external dependency, review timelines outside team control).
+**Key decisions:**
+- Investigation status is additive to room status (case_room.status = room lifecycle; investigation_status = investigation lifecycle — separate concepts, not a replacement).
+- `v_case_statistics` implemented as a function returning a table (live aggregate, not materialized view — per Architecture-Phase5.md §2.10).
+- Dashboard repository queries `v_case_statistics` via RPC and filters client-side (RLS on the function itself scopes results).
 
-**Risks:** Offline sync conflict resolution is inherently complex — scope a clear conflict-resolution policy (e.g., last-write-wins with a visible conflict flag) before building rather than during; app store review delays — submit early, treat review time as a hard external dependency.
+**Migrations:** 0025 (investigation tables) → 0027 (classification + vehicle) → 0026 (status/summary/view) → 0028 (RLS) → 0029 (agent + audit) → 0030 (RPCs) → 0031 (export extension).
 
-**Resources:** Full team; may need dedicated mobile release engineer for store submission logistics.
-
-**Deliverables:** Marketplace, cross-case search, offline mode, published mobile apps, updated memory.md.
-
-**Go/No-Go:** Product decision point — proceed to monetization/billing work, or extend polish based on pilot feedback.
+**Tests:** 6 pgTAP (rls_alibis, rls_contradictions, rls_investigation_gaps, rls_cross_table_leak, statistics_view, investigation_status) + 4 Dart (alibi, contradiction, gap_task, dashboard).
 
 ---
 
 ## 6. Phase Retrospective Log
 
-*(Placeholder — update after each phase closes.)*
+*(Updated after each phase closes. All phases through Phase 4 complete.)*
 
 | Phase | What went well | What went poorly | Changes for next phase |
 |---|---|---|---|
-| Phase 0 | — | — | — |
+| Phase 0 | Planning document set produced, environment provisioned, no rework needed | — | — |
 | Phase 1 | Full feature set shipped ahead of plan: auth, rooms/join, vault, timeline/discussion/tasks, UI gating — all live-verified against cloud; RLS-first design caught a real policy hole via contract tests; pgTAP suite grew 0→75 | Debugging RLS via blind CI loops cost ~a day before Docker arrived; supabase_flutter API drift (instanceOrNull/publishableKey) and pgTAP 3.36 semantics (throws_ok exact-match, empty-set is()) were repeated time sinks | Local-Docker-loop-first is now standing policy for any DB work (CI is the gate, not the debugger); pin exact library versions + read actual package sources instead of assuming APIs |
 | Phase 2 | Five case types shipped as pure config (zero core-schema deviation — the Sprint-6 architecture proof held); redaction enforced server-side via security-barrier views and live-proven in a single session; phase-boundary CI pass caught 9 real bugs before they could ship | Recorded-migration hotfixes needed for cloud (policy patches outside files); export testing required careful privileged-field scoping; recursive-CTE entity queries took several iterations to bound | Contract-test-first applied beyond RLS (redaction, export scoping); phase-boundary full verification pass is now standing policy; view-based redaction (security_invoker) is the pattern for any future field-level gating |
 | Phase 3 | Full human-in-the-loop pipeline shipped as data + one Edge Function: agent registry, review RPC, provider adapter with 5 providers behind one interface; workflow builder (0018) reused the case-types-as-config pattern; Deno contract tests with stubbed fetch machine-prove provider-swap-is-config (DoD); realtime publication closed the Architecture §7 push gap | Realtime publication was never wired in Sprint 5 — `.stream()` panes silently no-oped, caught only while wiring suggestions live; UPDATE/DELETE RLS denials are silent no-ops (test asserts state, not throws — cost a test rewrite); local Docker stack start failed twice (pg_meta unhealthy) before a working exclude list | Tables added to `supabase_realtime` publication in the same migration that introduces them, with a pgTAP assertion; deny-contract tests for UPDATE/DELETE assert state-change absence; keep `postgres-meta` excluded from local stack starts |
-| Phase 4 | *(pending)* | | |
+| Phase 4 | All four P2 epics shipped as committed code with contract tests: template marketplace (draft→publish materialization, per-role validation), cross-case search (RLS-scoped, redaction-aware), offline sync (LWW conflicts, append-only replay, security-gated writes), version history (audit-derived, no new writes). Policy-first approach: conflict-resolution design doc written before any code; every write path uses the same LWW RPCs for live + replay. | Append-only streams (discussion messages) proved trivially replay-safe; manual-event/timeline edits required careful LWW+conflict-flag implementation. RLS scoping for search required verifying no privileged-field leakage (redaction boundary test). | Mobile store submission moves to Phase 5 (external dependency); paid-tier groundwork deferred pending Go/No-Go. All 4 epic items shipped on schedule — no carries. |
 
 ---
 
@@ -248,3 +289,18 @@ team actually trusted with sensitive case data? Would love to hear it.
 ```
 
 **Hashtag notes:** swap `#ProductDevelopment` for something more specific to the milestone if useful (`#LegalTech`, `#EdTech`, `#AIAgents`) — keep to 3–5 total per the original brief.
+
+## 6. Phase 6 — Spec Alignment (COMPLETE 2026-09-17)
+
+Closes the gaps against the instructor's "Complete Project Understanding" doc.
+
+| Epic | What shipped |
+|---|---|
+| Dashboard (doc §8–9) | Case-info header (name, investigation status, lead, team, opened), 8th stat tile (unverified alibis), evidence-by-type + events-over-time graphs (custom-drawn, no deps), mounted as the FIRST tab |
+| Fact/Claim/Finding/Unknown (doc §7) | Classification badges on Timeline + Vault tiles, filter chips on Timeline, classification picker in the Add-Event sheet, v_timeline exposes the 0027 column |
+| Connections map (doc §13) | New Map tab: circular entity graph (person/location/vehicle/evidence/org colors), tap node/edge for "Why connected?" sheets, add-relationship flow for edit_case holders |
+| Coherent mock case (doc §30) | Riverside Robbery #2291 seed: full cast, relationships, classified evidence, the doc's timeline sequence, alibi-in-conflict, contradiction, gaps — access code ROBBERY2 |
+| Tests | case_breakdown pgTAP suite (6), CaseBreakdown + EntityMapData Dart suites; flutter analyze clean, 115/115 pass |
+
+Key decisions: charts hand-drawn (no fl_chart — pinned-deps rule); Dashboard mounted as tab 0 (doc §32 main-nav); seed added alongside existing rooms (back-compat).
+Migrations: 0033_case_breakdown.sql (v_case_breakdown security-invoker fn + v_timeline gains classification).

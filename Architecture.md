@@ -80,8 +80,10 @@
 | **Discussion/task service** | Threaded comments, `@mentions`, task CRUD | Postgres + Realtime channels | Realtime for live discussion updates |
 | **AI workflow panel** | Trigger agents, display suggestions, capture accept/edit/dismiss | Flutter UI + Edge Function orchestration | Calls AI Adapter Layer; never writes directly to case tables |
 | **AI Adapter Layer** | Normalize calls across LLM providers; provider fallback/config | Edge Function | Config-driven provider selection (see PRD open question) |
-| **Export service** | Compile case summary/timeline/findings → PDF/Word | Edge Function + a document-generation library | Triggered on-demand, not scheduled in MVP |
+| **Export service** | Compile case summary/timeline/findings → PDF/Word | Edge Function + a document-generation library | Triggered on-demand, not scheduled in MVP; Phase 5 extends to include contradictions, alibis, gaps, investigation status |
 | **Notification/activity feed** | Surface "what changed since you last opened this room" | Postgres + Realtime | P1, built in Phase 2 |
+| **Investigation intelligence** | Alibis, contradictions, investigation gaps, case statistics | Postgres tables + security-definer RPCs | Phase 5; all writes land as `ai_suggestions` until human accept via review_suggestion() |
+| **Case status service** | Investigation lifecycle (open/under_investigation/review/closed) | Postgres column + transition RPC | Additive to room status (case_room.status = room lifecycle); auto-generates closed summary |
 
 ---
 
@@ -98,8 +100,15 @@
 - `audit_log` — id, room_id, actor_id, action_type, object_type, object_id, metadata (JSONB), created_at. **Append-only; no UPDATE/DELETE grants for any role.**
 - `discussion_messages` — id, room_id, author_id, body, mentions (array), created_at.
 - `tasks` — id, room_id, title, assignee_id, due_date, status, linked_evidence_id (nullable).
-- `ai_suggestions` — id, room_id, agent_type, input_ref, output (JSONB), status (pending/accepted/edited/dismissed), reviewed_by, reviewed_at.
-- `entities` / `entity_relationships` — for the entity-relationship map; `entities` (id, room_id, type [person/org/location/evidence], name, attributes JSONB), `entity_relationships` (from_entity_id, to_entity_id, relationship_type, room_id).
+- `ai_suggestions` — id, room_id, agent_type, input_ref, output (JSONB), status (pending/accepted/edited/dismissed), reviewed_by, reviewed_at. **All AI output lands here first — never directly in case tables (human-in-the-loop).**
+- `entities` / `entity_relationships` — for the entity-relationship map; `entities` (id, room_id, type [person/org/location/evidence/vehicle], name, attributes JSONB), `entity_relationships` (from_entity_id, to_entity_id, relationship_type, room_id).
+- `alibis` — id, room_id, entity_id, claimed_window_start/end, claim_text, source, status (verified/partially_verified/conflict/insufficient_data), status_reason, created_by, verified_by, created_at, verified_at. **Verified only via `verify_alibi()` RPC.**
+- `alibi_evidence_links` — id, alibi_id, evidence_item_id/timeline_event_id (polymorphic), relation (supports/conflicts). Exactly one of evidence_item_id/timeline_event_id populated.
+- `contradictions` — id, room_id, source_type (manual/ai_suggestion), ai_suggestion_id (nullable), conflicting_detail, relevant_time/location, flagged_reason, status (open/resolved/dismissed), linked_task_id, flagged_by, resolved_by, created_at, resolved_at.
+- `contradiction_sources` — id, contradiction_id, evidence_item_id/timeline_event_id/alibi_id (polymorphic). Exactly one populated per row.
+- `investigation_gaps` — id, room_id, gap_type, description, source_type (manual/ai_suggestion), ai_suggestion_id (nullable), status (open/in_progress/resolved), linked_task_id, created_by, created_at, resolved_at.
+- `case_closed_summaries` — id, room_id (unique), summary_json (JSONB), generated_at, generated_by. Auto-generated when investigation_status → closed.
+- `case_rooms.investigation_status` — (open/under_investigation/review/closed) additive to room status (case_room.status = room lifecycle).
 
 **Relationships (summary):**
 - A `case_room` has many `room_members`, `evidence_items`, `timeline_events`, `audit_log` entries, `discussion_messages`, `tasks`, `ai_suggestions`, `entities`.
@@ -126,6 +135,13 @@ MVP uses **Supabase's auto-generated REST/RPC layer** (PostgREST) for straightfo
 | `/rooms/:id/agents/:agentType/run` (Edge Fn) | POST | JWT + role permission check | Trigger an AI agent |
 | `/rooms/:id/suggestions/:id/decision` | POST | JWT + Lead-tier role | Accept/edit/dismiss an AI suggestion |
 | `/rooms/:id/export` (Edge Fn) | POST | JWT + role permission check | Generate PDF/Word export |
+| `/rooms/:id/alibis` | GET/POST | RLS (members read, edit_case write) | List/create alibis |
+| `/rooms/:id/alibis/:id/verify` | POST | RLS (edit_case) | Verify alibi via `verify_alibi()` |
+| `/rooms/:id/contradictions` | GET/POST | RLS (members read, edit_case manual write, approve_ai_findings update) | List/flag/resolve contradictions |
+| `/rooms/:id/gaps` | GET/POST | RLS (members read, edit_case write) | List/create investigation gaps |
+| `transition_investigation_status` | RPC | RLS (edit_case) | Transition investigation status; generates closed summary on →closed |
+| `gap_create_task` | RPC | RLS (edit_case) | Convert a gap to a task |
+| `v_case_statistics` | RPC | authenticated | Room statistics (counts by category, RLS-scoped) |
 
 - **Authentication:** Supabase Auth issues short-lived JWTs; refresh tokens handled by the Supabase client SDK.
 - **Authorization:** every table has RLS policies keyed off `room_members.role` and the case type's permission matrix — this is the actual enforcement point, not the API layer.
@@ -142,10 +158,13 @@ MVP uses **Supabase's auto-generated REST/RPC layer** (PostgREST) for straightfo
 `Client submits code → Edge Fn validates code hash + room status → creates pending room_members row → Realtime notifies Owner → Owner approves → RLS now grants that user row-level access → Client receives updated permission set`
 
 **AI agent workflow:**
-`Member triggers agent from workflow panel → Edge Fn gathers relevant room data (scoped by RLS as the calling user) → Edge Fn calls AI Adapter Layer → Adapter normalizes request to configured provider (Claude/GPT/Gemini/Grok) → response written to ai_suggestions (status=pending) → Realtime pushes to timeline UI as a visually-distinct suggestion → Lead-role member accepts/edits/dismisses → decision + resulting timeline_event + audit_log entry written atomically (single transaction)`
+`Member triggers agent from workflow panel → Edge Fn gathers data scope (timeline events, evidence items, entities, members — scoped by RLS as the calling user) → Edge Fn discloses scope to caller BEFORE provider call (AI consent, PRD §19) → user confirms → Edge Fn calls AI Adapter Layer → Adapter normalizes request to configured provider (Claude/GPT/Gemini/Grok) → response written to ai_suggestions (status=pending) → Realtime pushes to timeline UI as a visually-distinct suggestion → Lead-role member accepts/edits/dismisses → decision + resulting timeline_event + audit_log entry written atomically (single transaction)`
 
-**Export:**
-`Lead triggers export → Edge Fn compiles case summary + timeline + accepted findings → renders PDF/Word → returns signed download URL (Storage, time-limited) → audit_log entry recorded`
+**Investigation status transition:**
+`Member triggers status transition → `transition_investigation_status` RPC validates permission → if →closed, auto-generates `case_closed_summaries` row with JSONB snapshot → audit_log entry recorded`
+
+**Export (Phase 5 extended):**
+`Lead triggers export → Edge Fn compiles case summary + timeline + findings + contradictions + alibis + investigation gaps + investigation status → renders PDF/Word → returns signed download URL (Storage, time-limited) → audit_log entry recorded`
 
 ---
 

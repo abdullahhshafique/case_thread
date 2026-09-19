@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_spacing.dart';
+import '../offline/offline_banner.dart';
+import '../offline/offline_providers.dart';
+import '../history/version_history_sheet.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
-import '../../../core/api/models.dart' show Permission;
+import '../../core/api/models.dart' show Permission;
 import 'room_permissions.dart';
 import 'rooms_providers.dart';
 
@@ -141,13 +144,20 @@ class _TasksPaneState extends ConsumerState<TasksPane> {
                 final title = _titleController.text.trim();
                 if (title.isEmpty) return;
                 try {
-                  await ref
-                      .read(roomContentRepositoryProvider)
-                      .createTask(
-                        roomId: widget.roomId,
-                        title: title,
-                        assigneeId: _assigneeId,
-                      );
+                  // Offline path: live insert; network failure queues.
+                  await runQueuedWrite(
+                    ref,
+                    widget.roomId,
+                    'task_create',
+                    {'title': title, 'assignee_id': _assigneeId},
+                    () => ref
+                        .read(roomContentRepositoryProvider)
+                        .createTask(
+                          roomId: widget.roomId,
+                          title: title,
+                          assigneeId: _assigneeId,
+                        ),
+                  );
                   _titleController.clear();
                   _assigneeId = null;
                   if (sheetContext.mounted) Navigator.of(sheetContext).pop();
@@ -196,8 +206,22 @@ class _TaskTile extends ConsumerWidget {
               ? text.bodyLarge?.copyWith(decoration: TextDecoration.lineThrough)
               : text.bodyLarge,
         ),
-        subtitle: task.assigneeName != null || task.dueDate != null
-            ? Text(
+        // Version history (0024) — audit-derived, member-visible.
+        secondary: IconButton(
+          tooltip: 'Version history', // a11y: labeled icon button
+          icon: const Icon(Icons.history),
+          onPressed: () => showVersionHistory(
+            context,
+            objectKind: 'task',
+            objectId: task.id,
+            title: task.title,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (task.assigneeName != null || task.dueDate != null)
+              Text(
                 [
                   if (task.assigneeName != null) task.assigneeName!,
                   if (task.dueDate != null)
@@ -206,15 +230,29 @@ class _TaskTile extends ConsumerWidget {
                 style: text.bodyMedium?.copyWith(
                   color: text.bodyMedium?.color?.withValues(alpha: 0.7),
                 ),
-              )
-            : null,
-        onChanged: (checked) => ref
-            .read(roomContentRepositoryProvider)
-            .updateTaskStatus(
-              roomId: task.roomId,
-              taskId: task.id,
-              status: checked == true ? 'done' : 'open',
-            ),
+              ),
+            // Offline LWW loser: visible conflict chip (policy §4).
+            if (task.conflictFlag)
+              ConflictChip(
+                objectKind: 'task',
+                objectId: task.id,
+                note: task.conflictNote,
+              ),
+          ],
+        ),
+        onChanged: (checked) => runQueuedWrite(
+          ref,
+          task.roomId,
+          'task_status',
+          {'task_id': task.id, 'status': checked == true ? 'done' : 'open'},
+          () => ref
+              .read(roomContentRepositoryProvider)
+              .updateTaskStatus(
+                roomId: task.roomId,
+                taskId: task.id,
+                status: checked == true ? 'done' : 'open',
+              ),
+        ),
       ),
     );
   }

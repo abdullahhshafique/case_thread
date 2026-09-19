@@ -46,11 +46,27 @@ abstract class RoomContentRepository {
   });
 
   /// Updates status; assignee may tick done, permitted roles may edit
-  /// (0005 policy enforces the boundary).
+  /// (0005 policy enforces the boundary). Live + offline replay share
+  /// the LWW-stamped RPC (0023).
   Future<void> updateTaskStatus({
     required String roomId,
     required String taskId,
     required String status,
+  });
+
+  /// Creates a manual case event (edit_case holders, 0005 policy).
+  /// [classification] is the Fact/Claim/Finding/Unknown tag (0027).
+  Future<void> addManualEvent({
+    required String roomId,
+    required String summary,
+    String? classification,
+  });
+
+  /// Edits a manual event's summary (author + edit_case, 0005/0023).
+  Future<void> editManualEvent({
+    required String roomId,
+    required String eventId,
+    required String summary,
   });
 }
 
@@ -61,7 +77,7 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
 
   static const _timelineSelect =
       'id, room_id, event_type, actor_id, occurred_at, payload, '
-      'profiles(actor_id)(display_name)';
+      'classification, conflict_flag, profiles(actor_id)(display_name)';
 
   @override
   Future<List<TimelineEventModel>> getTimeline(String roomId) async {
@@ -139,7 +155,8 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
         .from('tasks')
         .select(
           'id, room_id, title, assignee_id, assignee:profiles(assignee_id)(display_name), '
-          'due_date, status, created_by, linked_evidence_id, created_at',
+          'due_date, status, created_by, linked_evidence_id, created_at, '
+          'conflict_flag, conflict_note',
         )
         .eq('room_id', roomId)
         .order('created_at');
@@ -188,11 +205,57 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
     required String status,
   }) async {
     try {
-      await _client
-          .from('tasks')
-          .update({'status': status})
-          .eq('id', taskId)
-          .eq('room_id', roomId);
+      // 0023: both live and offline-replay updates go through the
+      // LWW-stamped RPC — one conflict policy for every write path.
+      // The stamp (now()) means live writes always apply.
+      await _client.rpc(
+        'update_task_with_stamp',
+        params: {
+          'target_task': taskId,
+          'new_status': status,
+          'client_value_at': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (error) {
+      throw toAppException(error);
+    }
+  }
+
+  @override
+  Future<void> addManualEvent({
+    required String roomId,
+    required String summary,
+    String? classification,
+  }) async {
+    try {
+      await _client.from('timeline_events').insert({
+        'room_id': roomId,
+        'actor_id': _client.auth.currentUser!.id,
+        'event_type': 'manual',
+        'payload': {'summary': summary},
+        'classification': ?classification,
+      });
+    } catch (error) {
+      throw toAppException(error);
+    }
+  }
+
+  @override
+  Future<void> editManualEvent({
+    required String roomId,
+    required String eventId,
+    required String summary,
+  }) async {
+    try {
+      // LWW-stamped path (0023) — same endpoint offline replay uses.
+      await _client.rpc(
+        'edit_timeline_event_with_stamp',
+        params: {
+          'target_event': eventId,
+          'new_summary': summary,
+          'client_value_at': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (error) {
       throw toAppException(error);
     }

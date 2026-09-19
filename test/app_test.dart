@@ -52,6 +52,24 @@ class FakeRoomsRepository implements RoomsRepository {
   Future<String> rotateCode(String roomId) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<InvestigationStatus> getInvestigationStatus(String roomId) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> transitionInvestigationStatus({
+    required String roomId,
+    required InvestigationStatus newStatus,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<CaseClosedSummary?> getClosedSummary(String roomId) async {
+    throw UnimplementedError();
+  }
 }
 
 /// Whole-app smoke tests: bootstrap states and routing guards

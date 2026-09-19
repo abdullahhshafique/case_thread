@@ -14,6 +14,8 @@ class TimelineEventModel {
     this.summary,
     this.actionType,
     this.details,
+    this.conflictFlag = false,
+    this.classification,
   });
 
   final String id;
@@ -21,6 +23,10 @@ class TimelineEventModel {
 
   /// 'manual' | 'system' | 'ai_suggestion' (last arrives Phase 3).
   final String eventType;
+
+  /// Offline-sync LWW flag (0023): amber chip on the loser of a
+  /// manual-event edit conflict.
+  final bool conflictFlag;
   final String? actorId;
   final String? actorName;
 
@@ -32,6 +38,9 @@ class TimelineEventModel {
 
   /// Raw payload details (JSONB) for expansion in the UI.
   final Map<String, dynamic>? details;
+
+  /// Fact / Claim / Finding / Unknown (0027, doc §7). Null = unset.
+  final String? classification;
 
   final DateTime occurredAt;
 
@@ -60,6 +69,8 @@ class TimelineEventModel {
       summary: parsedPayload?['summary'] as String?,
       actionType: parsedPayload?['action_type'] as String?,
       details: parsedPayload,
+      conflictFlag: map['conflict_flag'] == true,
+      classification: map['classification'] as String?,
       occurredAt: DateTime.parse(map['occurred_at'] as String),
     );
   }
@@ -126,6 +137,8 @@ class TaskModel {
     this.assigneeName,
     this.dueDate,
     this.linkedEvidenceId,
+    this.conflictFlag = false,
+    this.conflictNote,
   });
 
   final String id;
@@ -140,6 +153,11 @@ class TaskModel {
   final String createdBy;
   final String? linkedEvidenceId;
   final DateTime createdAt;
+
+  /// Offline-sync LWW metadata (0023): amber chip when the row lost a
+  /// conflict; note explains who lost to what.
+  final bool conflictFlag;
+  final String? conflictNote;
 
   factory TaskModel.fromMap(Map<String, dynamic> map) {
     final assignee = map['assignee'];
@@ -158,6 +176,8 @@ class TaskModel {
       createdBy: map['created_by'] as String,
       linkedEvidenceId: map['linked_evidence_id'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
+      conflictFlag: map['conflict_flag'] == true,
+      conflictNote: map['conflict_note'] as String?,
     );
   }
 

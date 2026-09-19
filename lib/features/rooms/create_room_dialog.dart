@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/models.dart';
-import '../../../core/errors/app_exceptions.dart';
-import '../../../core/errors/error_mapper.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/api/models.dart';
+import '../../core/errors/app_exceptions.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_spacing.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'domain/rooms_repository.dart';
 import 'rooms_providers.dart';
