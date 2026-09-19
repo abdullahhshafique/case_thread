@@ -11,6 +11,12 @@ select tests.create_test_user('sam@example.com');
 select tests.create_test_user('kai@example.com');
 
 select tests.impersonate('alex@example.com');
+
+-- The room is created via the generic RPC (config-driven; the tests
+-- reference it by name below).
+insert into tests.fixtures (key, room_id)
+select 'status-room', (result).room_id
+from public.create_case_room('Status Room', 'legal') as result;
 select is(
   count(*),
   1::bigint,
