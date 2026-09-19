@@ -12,6 +12,12 @@ select tests.create_test_user('kai@example.com');
 
 -- Setup: a room where Alex is owner and Sam is an approved member.
 select tests.impersonate('alex@example.com');
+
+-- The room is created via the generic RPC (config-driven; the tests
+-- reference it by name below).
+insert into tests.fixtures (key, room_id)
+select 'alibi-test-room', (result).room_id
+from public.create_case_room('Alibi Test Room', 'legal') as result;
 select is(
   count(*),
   1::bigint,
@@ -21,6 +27,9 @@ where cr.name = 'Alibi Test Room' and cr.owner_id = (
   select user_id from tests.fixtures where key = 'alex@example.com'
 );
 
+-- Member fixtures run as postgres (direct inserts; RLS denies
+-- impersonated sessions).
+select tests.unimpersonate();
 select tests.add_approved_member(
   (select id from public.case_rooms where name = 'Alibi Test Room'),
   'sam@example.com',

@@ -173,7 +173,7 @@ select is(
 -- 5. clear_conflict: permitted member clears; clear is audited.
 select is(
   (select count(*) from public.clear_conflict('task',
-    (select member_id from tests.fixtures where key = 'off-task')),
+    (select member_id from tests.fixtures where key = 'off-task'))),
   1::bigint,
   'clear_conflict on a task runs for permitted member'
 );
@@ -181,7 +181,7 @@ select is(
 -- Clearing an already-cleared/never-flagged task is a no-op, not an error.
 select is(
   (select count(*) from public.clear_conflict('task',
-    (select member_id from tests.fixtures where key = 'off-task')),
+    (select member_id from tests.fixtures where key = 'off-task'))),
   1::bigint,
   'clear_conflict is idempotent'
 );
