@@ -68,7 +68,7 @@ from public.case_rooms cr where cr.name = 'Breakdown Room';
 select tests.impersonate('sam@example.com');
 -- 2. Evidence by type groups correctly.
 select is(
-  (bd.evidence_by_type ->> 'pdf')::int,
+  ((bd ->> 'evidence_by_type')::jsonb ->> 'pdf')::int,
   2,
   'evidence_by_type counts pdf = 2'
 ) from public.v_case_breakdown(
@@ -76,7 +76,7 @@ select is(
 ) bd;
 
 select is(
-  (bd.evidence_by_type ->> 'image')::int,
+  ((bd ->> 'evidence_by_type')::jsonb ->> 'image')::int,
   1,
   'evidence_by_type counts image = 1'
 ) from public.v_case_breakdown(
@@ -85,7 +85,7 @@ select is(
 
 -- 3. Events-per-day includes today's event.
 select is(
-  jsonb_typeof(bd.events_per_day),
+  jsonb_typeof((bd -> 'events_per_day')),
   'object',
   'events_per_day is an object'
 ) from public.v_case_breakdown(
@@ -103,7 +103,7 @@ select is(
 ) bd;
 
 select is(
-  bd.events_per_day,
+  (bd -> 'events_per_day'),
   '{}'::jsonb,
   'non-member events_per_day is empty'
 ) from public.v_case_breakdown(

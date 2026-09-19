@@ -52,6 +52,7 @@ insert into tests.fixtures (key, text_value)
 select 'hist-event',
        (select id::text from public.timeline_events
         where room_id = (select room_id from tests.fixtures where key = 'hist-room')
+          and event_type = 'manual'
         order by occurred_at desc limit 1)
 from tests.fixtures where key = 'hist-room';
 
