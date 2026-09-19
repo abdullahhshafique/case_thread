@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart'
-    show CaseRoom, InvestigationStatus, RoomMember;
+    show
+        CaseRoom,
+        CaseStatistics,
+        InvestigationStatus,
+        MemberStatus,
+        RoomMember;
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/rooms_providers.dart'
     show RoomsLoaded, roomMembersProvider, roomsProvider;
+import '../rooms/vault_providers.dart'
+    show VaultLoaded, VaultState, vaultProvider;
+import '../rooms/domain/evidence_repository.dart' show VaultEntry;
 import 'dashboard_providers.dart';
 
-/// Case Dashboard (Phase 6, doc §8–9): case-info header, stat tiles,
-/// and investigation-oriented graphs. Doc §32 puts Dashboard first in
-/// navigation — it is the central overview of the investigation.
+/// Overview pane (Phase 6 — v3 §7): case-info hero with coverage meter,
+/// six stat tiles, and the investigation graphs. All numbers come from
+/// v_case_statistics (0026) / v_case_breakdown (0033) — nothing decorative.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key, required this.roomId});
 
@@ -21,151 +29,67 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(dashboardStatsProvider(roomId));
     final breakdown = ref.watch(dashboardBreakdownProvider(roomId));
-    final roomsState = ref.watch(roomsProvider);
+    final vault = ref.watch(vaultProvider(roomId));
     final members = ref.watch(roomMembersProvider(roomId));
-    final text = Theme.of(context).textTheme;
+    final roomsState = ref.watch(roomsProvider);
 
     final room = roomsState is RoomsLoaded
         ? roomsState.rooms.where((r) => r.id == roomId).firstOrNull
         : null;
+    final memberList = members.maybeWhen(
+      data: (m) => m
+          .where((m) => m.status == MemberStatus.approved)
+          .toList(growable: false),
+      orElse: () => const <RoomMember>[],
+    );
+    final (classified, total) = _coverage(vault);
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        // -- Case info header (doc §8) ------------------------------
-        if (room != null) _caseHeader(context, room, members.value ?? const []),
-
-        // -- Statistics (doc §8) ------------------------------------
-        Text('Statistics', style: text.headlineSmall),
-        const SizedBox(height: AppSpacing.sm),
+        _HeroCard(
+          room: room,
+          members: memberList,
+          classified: classified,
+          total: total,
+        ),
+        const SizedBox(height: AppSpacing.lg),
         stats.maybeWhen(
-          data: (s) => Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _StatTile(
-                label: 'Evidence',
-                value: s.evidenceCount,
-                icon: Icons.folder_outlined,
-              ),
-              _StatTile(
-                label: 'People',
-                value: s.peopleCount,
-                icon: Icons.people_outlined,
-              ),
-              _StatTile(
-                label: 'Locations',
-                value: s.locationsCount,
-                icon: Icons.location_on_outlined,
-              ),
-              _StatTile(
-                label: 'Events',
-                value: s.eventsCount,
-                icon: Icons.timeline,
-              ),
-              _StatTile(
-                label: 'Contradictions',
-                value: s.contradictionsCount,
-                icon: Icons.warning_amber,
-              ),
-              _StatTile(
-                label: 'Gaps',
-                value: s.gapsCount,
-                icon: Icons.report_problem_outlined,
-              ),
-              _StatTile(
-                label: 'Unverified alibis',
-                value: s.unverifiedAlibisCount,
-                icon: Icons.shield_outlined,
-              ),
-              _StatTile(
-                label: 'AI findings',
-                value: s.aiFindingsCount,
-                icon: Icons.auto_awesome_outlined,
-              ),
-            ],
-          ),
-          orElse: () => const Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
-            child: Center(child: CircularProgressIndicator()),
-          ),
+          data: (s) => _StatGrid(stats: s),
+          orElse: () => const _SectionSpinner(),
         ),
-
-        // -- Graph: evidence by type (doc §9) ------------------------
-        const SizedBox(height: AppSpacing.lg),
-        Text('Evidence by type', style: text.titleMedium),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle(context, 'Evidence by type'),
+        const SizedBox(height: AppSpacing.sm),
         breakdown.maybeWhen(
-          data: (b) => _BarChartH(
-            data: _groupEvidence(b.evidenceByType),
-            color: AppColors.accentPrimary,
-          ),
-          orElse: () => const SizedBox(
-            height: 48,
-            child: Center(child: CircularProgressIndicator()),
-          ),
+          data: (b) => _EvidenceChart(byType: _bucketed(b.evidenceByType)),
+          orElse: () => const _ChartSpinner(),
         ),
-
-        // -- Graph: events over time (doc §9) ------------------------
-        const SizedBox(height: AppSpacing.lg),
-        Text('Events over time (14 days)', style: text.titleMedium),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle(context, 'Events over time (14 days)'),
+        const SizedBox(height: AppSpacing.sm),
         breakdown.maybeWhen(
-          data: (b) =>
-              _BarChartV(data: b.eventsPerDay, color: AppColors.accentPrimary),
-          orElse: () => const SizedBox(
-            height: 48,
-            child: Center(child: CircularProgressIndicator()),
-          ),
+          data: (b) => _EventsChart(perDay: b.eventsPerDay),
+          orElse: () => const _ChartSpinner(),
         ),
       ],
     );
   }
 
-  Widget _caseHeader(
-    BuildContext context,
-    CaseRoom room,
-    List<RoomMember> members,
-  ) {
-    final lead = members
-        .where((m) => m.userId == room.ownerId)
-        .map((m) => m.displayName ?? 'Owner')
-        .firstOrNull;
-    final teamCount = members.where((m) => m.status.name == 'approved').length;
-    final text = Theme.of(context).textTheme;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(room.name, style: text.titleLarge),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _StatusChip(status: room.investigationStatus),
-                Text('Room status: ${room.status}', style: text.bodySmall),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Lead: ${lead ?? '—'} · Team: $teamCount · '
-              'Opened ${_fmtDate(room.createdAt)}',
-              style: text.bodySmall,
-            ),
-          ],
-        ),
-      ),
+  /// Real coverage metric: share of vault items carrying a
+  /// Fact/Claim/Finding/Unknown classification (0027). Null-safe.
+  static (int, int) _coverage(AsyncValue<VaultState> vault) {
+    final entries = vault.maybeWhen(
+      data: (state) =>
+          state is VaultLoaded ? state.entries : const <VaultEntry>[],
+      orElse: () => const <VaultEntry>[],
     );
+    if (entries.isEmpty) return (0, 0);
+    final classified = entries.where((e) => e.classification != null).length;
+    return (classified, entries.length);
   }
 
-  /// Buckets raw mime groups into the doc §9 categories.
-  static Map<String, int> _groupEvidence(Map<String, int> raw) {
+  static Map<String, int> _bucketed(Map<String, int> raw) {
     const order = ['pdf', 'image', 'video', 'audio', 'other'];
     final out = <String, int>{};
     for (final key in order) {
@@ -174,55 +98,349 @@ class DashboardScreen extends ConsumerWidget {
     }
     return out;
   }
-
-  static String _fmtDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
-/// Investigation-status chip — label + color, never color alone.
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+Widget _sectionTitle(BuildContext context, String label) {
+  return Text(
+    label,
+    style: Theme.of(context).textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+  );
+}
 
-  final InvestigationStatus status;
+// ═══════════════════════════════════════════════════════════
+//  HERO (v3 §7 card-hero)
+// ═══════════════════════════════════════════════════════════════
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
+    required this.room,
+    required this.members,
+    required this.classified,
+    required this.total,
+  });
+
+  final CaseRoom? room;
+  final List<RoomMember> members;
+  final int classified;
+  final int total;
+
+  static const _months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon) = switch (status) {
-      InvestigationStatus.open => (
-        AppColors.statusOpen,
-        Icons.play_circle_outline,
-      ),
-      InvestigationStatus.underInvestigation => (
-        AppColors.stateSuccess,
-        Icons.search,
-      ),
-      InvestigationStatus.review => (
-        AppColors.statePending,
-        Icons.rate_review_outlined,
-      ),
-      InvestigationStatus.closed => (
-        AppColors.statusNeutral,
-        Icons.check_circle_outline,
-      ),
-    };
+    final text = Theme.of(context).textTheme;
+    final pct = total == 0 ? 0.0 : classified / total * 100;
+
+    final (statusColor, statusLabel) = room == null
+        ? (AppColors.v3Info, 'Loading')
+        : switch (room!.investigationStatus) {
+            InvestigationStatus.open => (AppColors.statusOpen, 'Open'),
+            InvestigationStatus.underInvestigation => (
+              AppColors.v3Ok,
+              'Under Investigation',
+            ),
+            InvestigationStatus.review => (AppColors.v3Warn, 'Review'),
+            InvestigationStatus.closed => (AppColors.statusNeutral, 'Closed'),
+          };
+
+    final lead = room == null
+        ? null
+        : members
+              .where((m) => m.userId == room!.ownerId)
+              .map((m) => m.displayName)
+              .firstOrNull;
+
+    final opened = room == null
+        ? null
+        : '${room!.createdAt.day} ${_months[room!.createdAt.month - 1]} '
+              '${room!.createdAt.year}';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.v3StatusBorder(AppColors.v3Info)),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0x1A2563EB), Color(0x0F7C3AED)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 50,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status row
+          Row(
+            children: [
+              _Pill(color: statusColor, label: statusLabel),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                room == null ? '' : '#${room!.id.substring(0, 4)}',
+                style: text.bodySmall?.copyWith(
+                  color: AppColors.consoleMuted,
+                  fontFamily: 'GeistMono',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm + 2),
+          // Lead line
+          Text(
+            room == null
+                ? 'Case information loads with the room.'
+                : 'Lead investigator ${lead ?? '—'}'
+                      '${opened == null ? '' : ' · Opened $opened'}',
+            style: text.bodyMedium?.copyWith(
+              color: AppColors.consoleTextSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // People
+          Row(
+            children: [
+              _AvatarStack(members: members),
+              const SizedBox(width: AppSpacing.sm + 2),
+              Text(
+                '${members.length} investigators in this room',
+                style: text.bodySmall?.copyWith(color: AppColors.consoleMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          // Coverage meter
+          Text(
+            'Evidence classified (Fact / Claim / Finding)',
+            style: text.bodySmall?.copyWith(
+              color: AppColors.consoleMuted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    height: 7,
+                    color: Colors.white.withValues(alpha: 0.06),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: pct / 100),
+                      duration: const Duration(milliseconds: 1100),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: value.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: AppColors.brandGradient,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 44,
+                child: Text(
+                  '${pct.toStringAsFixed(0)}%',
+                  textAlign: TextAlign.right,
+                  style: text.bodySmall?.copyWith(
+                    color: AppColors.consoleText,
+                    fontFamily: 'GeistMono',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (total > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Text(
+                '$classified of $total vault items tagged.',
+                style: text.bodySmall?.copyWith(color: AppColors.consoleMuted),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: AppColors.v3StatusBg(color),
+        border: Border.all(color: AppColors.v3StatusBorder(color)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 5),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           Text(
-            status.name.replaceAll('_', ' ').toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: color, fontWeight: FontWeight.w600),
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AvatarStack extends StatelessWidget {
+  const _AvatarStack({required this.members});
+
+  final List<RoomMember> members;
+
+  static const _gradients = [
+    [Color(0xFF22D3EE), Color(0xFF3B82F6)],
+    [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
+    [Color(0xFFF472B6), Color(0xFFD946EF)],
+    [Color(0xFF34D399), Color(0xFF14B8A6)],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = members.take(4).toList(growable: false);
+    return SizedBox(
+      height: 26,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < shown.length; i++)
+            Container(
+              margin: EdgeInsets.only(right: i == shown.length - 1 ? 0 : -9),
+              height: 26,
+              width: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _gradients[i % _gradients.length],
+                ),
+                border: Border.all(color: const Color(0xFF0A0D16), width: 2),
+              ),
+              child: Text(
+                (shown[i].displayName ?? '?').substring(0, 1).toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STAT TILES (v3 §7 stats)
+// ═══════════════════════════════════════════════════════════════
+
+class _StatGrid extends StatelessWidget {
+  const _StatGrid({required this.stats});
+
+  final CaseStatistics stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth > 1100
+            ? 6
+            : constraints.maxWidth > 700
+            ? 3
+            : 2;
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.sm,
+          childAspectRatio: columns == 2 ? 2.4 : 1.55,
+          children: [
+            _StatTile(
+              label: 'Evidence',
+              value: stats.evidenceCount,
+              icon: Icons.description_outlined,
+            ),
+            _StatTile(
+              label: 'People',
+              value: stats.peopleCount,
+              icon: Icons.groups_outlined,
+            ),
+            _StatTile(
+              label: 'Events',
+              value: stats.eventsCount,
+              icon: Icons.schedule,
+            ),
+            _StatTile(
+              label: 'Conflicts',
+              value: stats.contradictionsCount,
+              icon: Icons.warning_amber_rounded,
+              tone: AppColors.v3Err,
+            ),
+            _StatTile(
+              label: 'Gaps',
+              value: stats.gapsCount,
+              icon: Icons.help_outline,
+              tone: AppColors.v3Violet,
+            ),
+            _StatTile(
+              label: 'Unverified',
+              value: stats.unverifiedAlibisCount,
+              icon: Icons.shield_outlined,
+              tone: AppColors.v3Warn,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -232,130 +450,193 @@ class _StatTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    this.tone,
   });
 
   final String label;
   final int value;
   final IconData icon;
+  final Color? tone;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: SizedBox(
-          width: 96,
-          child: Column(
+    final accent = tone ?? AppColors.v3Info;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md - 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: AppColors.consolePanel,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, size: 22),
-              const SizedBox(height: AppSpacing.xxs),
-              Text('$value', style: text.headlineSmall),
-              Text(label, style: text.bodySmall, textAlign: TextAlign.center),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: text.labelMedium?.copyWith(
+                    color: AppColors.consoleMuted,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                    fontSize: 10.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 14, color: accent),
             ],
           ),
-        ),
+          Text(
+            '$value',
+            style: text.headlineLarge?.copyWith(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+              color: tone,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Horizontal bar chart — hand-drawn (no chart dependency); the max
-/// bar scales to the largest bucket, label + value always visible.
-class _BarChartH extends StatelessWidget {
-  const _BarChartH({required this.data, required this.color});
+// ═══════════════════════════════════════════════════════════
+//  CHARTS (v3 §7 — gradient bars)
+// ═══════════════════════════════════════════════════════════════
 
-  final Map<String, int> data;
-  final Color color;
+class _EvidenceChart extends StatelessWidget {
+  const _EvidenceChart({required this.byType});
+
+  final Map<String, int> byType;
+
+  static const _barColors = [
+    Color(0xFF22D3EE),
+    Color(0xFF6366F1),
+    Color(0xFF7C3AED),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    if (data.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Text(
-          'No evidence yet.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      );
+    final text = Theme.of(context).textTheme;
+    if (byType.isEmpty) {
+      return const _ChartEmpty(label: 'No evidence in the vault yet.');
     }
-    final max = data.values.reduce((a, b) => a > b ? a : b);
-    return Column(
-      children: [
-        for (final e in data.entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 64,
-                  child: Text(
-                    e.key,
-                    style: Theme.of(context).textTheme.bodySmall,
+    final max = byType.values.reduce((a, b) => a > b ? a : b);
+    final entries = byType.entries.toList(growable: false);
+    return Container(
+      height: 190,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: AppColors.consolePanel,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < entries.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    '${entries[i].value}',
+                    style: text.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontFamily: 'GeistMono',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      FractionallySizedBox(
-                        widthFactor: max == 0 ? 0 : e.value / max,
-                        child: Container(
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Text(
-                              '${e.value}',
-                              style: Theme.of(context).textTheme.labelSmall,
+                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    height: 110,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: entries[i].value / max),
+                        duration: const Duration(milliseconds: 900),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, t, _) => FractionallySizedBox(
+                          heightFactor: t.clamp(0.02, 1.0),
+                          child: Container(
+                            width: 40,
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(8),
+                                bottom: Radius.circular(3),
+                              ),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: _barColors,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0x386366F1),
+                                  blurRadius: 22,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    entries[i].key[0].toUpperCase() +
+                        entries[i].key.substring(1),
+                    style: text.bodySmall?.copyWith(
+                      color: AppColors.consoleMuted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 }
 
-/// Vertical bar chart for events-per-day, sorted chronologically.
-class _BarChartV extends StatelessWidget {
-  const _BarChartV({required this.data, required this.color});
+class _EventsChart extends StatelessWidget {
+  const _EventsChart({required this.perDay});
 
-  final Map<String, int> data;
-  final Color color;
+  final Map<String, int> perDay;
 
   @override
   Widget build(BuildContext context) {
-    if (data.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Text(
-          'No events in the last 14 days.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      );
+    final text = Theme.of(context).textTheme;
+    if (perDay.isEmpty) {
+      return const _ChartEmpty(label: 'No events in the last 14 days.');
     }
-    final keys = data.keys.toList()..sort();
-    final max = data.values.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: 96,
+    final keys = perDay.keys.toList()..sort();
+    final max = perDay.values.reduce((a, b) => a > b ? a : b);
+    return Container(
+      height: 140,
+      padding: const EdgeInsets.all(AppSpacing.md + 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: AppColors.consolePanel,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          for (final k in keys)
+          for (final key in keys)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -363,25 +644,43 @@ class _BarChartV extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      '${data[k]}',
-                      style: Theme.of(context).textTheme.labelSmall,
+                      '${perDay[key]}',
+                      style: text.labelMedium?.copyWith(
+                        color: AppColors.consoleMuted,
+                        fontSize: 10,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     FractionallySizedBox(
-                      heightFactor: max == 0 ? 0 : data[k]! / max,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.75),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
+                      widthFactor: 1,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: perDay[key]! / max),
+                        duration: const Duration(milliseconds: 900),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, t, _) => FractionallySizedBox(
+                          heightFactor: t.clamp(0.04, 1.0),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(4),
+                              ),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xFF22D3EE), Color(0xFF6366F1)],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      k.substring(5), // MM-DD
-                      style: Theme.of(context).textTheme.labelSmall,
+                      key.substring(5),
+                      style: text.labelMedium?.copyWith(
+                        color: AppColors.consoleMuted,
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ),
@@ -389,6 +688,60 @@ class _BarChartV extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _ChartEmpty extends StatelessWidget {
+  const _ChartEmpty({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 96,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: AppColors.consolePanel,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: AppColors.consoleMuted),
+      ),
+    );
+  }
+}
+
+class _SectionSpinner extends StatelessWidget {
+  const _SectionSpinner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(AppSpacing.lg),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _ChartSpinner extends StatelessWidget {
+  const _ChartSpinner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 140,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: AppColors.consolePanel,
+      ),
+      child: const CircularProgressIndicator(),
     );
   }
 }

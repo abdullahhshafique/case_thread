@@ -51,9 +51,9 @@ void main() {
       expect(theme.colorScheme.primary, AppColors.accentPrimary);
     });
 
-    test('base font is Inter', () {
-      expect(theme.textTheme.bodyLarge!.fontFamily, 'Inter');
-      expect(theme.textTheme.headlineSmall!.fontFamily, 'Inter');
+    test('base font is Geist (v3 console §0)', () {
+      expect(theme.textTheme.bodyLarge!.fontFamily, 'Geist');
+      expect(theme.textTheme.headlineSmall!.fontFamily, 'Geist');
     });
 
     test('body text never below weight 400 (Design.md §2)', () {
@@ -71,9 +71,9 @@ void main() {
       expect(theme.textTheme.labelMedium!.fontSize, 12);
     });
 
-    test('mono helper uses JetBrains Mono', () {
+    test('mono helper uses Geist Mono (v3 console §0)', () {
       final mono = AppTextTheme.mono();
-      expect(mono.fontFamily, 'JetBrainsMono');
+      expect(mono.fontFamily, 'GeistMono');
     });
   });
 

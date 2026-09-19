@@ -116,11 +116,14 @@ void main() {
     unawaited(
       Future<void>.delayed(Duration.zero).then((_) => repo.emit(_testUser)),
     );
-    await tester.pumpAndSettle();
+    // Manual pumps, not pumpAndSettle: the console's ambient atmosphere
+    // animates forever (by design), so settle would time out.
+    await tester.pump(); // session emit + rooms load start
+    await tester.pump(const Duration(milliseconds: 100)); // rooms loaded
+    await tester.pump(const Duration(milliseconds: 100)); // rebuild settle
 
-    expect(find.text('Your case rooms'), findsOneWidget);
-    expect(find.text('No case rooms yet'), findsOneWidget);
-    expect(find.text('Aadi'), findsOneWidget);
+    expect(find.text('Cases'), findsOneWidget);
+    expect(find.text('Open a case to start work'), findsOneWidget);
     expect(find.byKey(const Key('rooms-create')), findsOneWidget);
     expect(find.byKey(const Key('rooms-join')), findsOneWidget);
   });

@@ -28,7 +28,7 @@ ThemeData buildAppTheme() {
     colorScheme: colorScheme,
     scaffoldBackgroundColor: AppColors.bgPrimary,
     textTheme: text,
-    fontFamily: 'Inter',
+    fontFamily: 'Geist',
     splashFactory: NoSplash.splashFactory,
     dividerColor: AppColors.borderSubtle,
     dividerTheme: const DividerThemeData(
@@ -102,7 +102,7 @@ ElevatedButtonThemeData _elevatedButton() {
       minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
       textStyle: const WidgetStatePropertyAll(
         TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'Geist',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -123,7 +123,7 @@ OutlinedButtonThemeData _outlinedButton() {
       side: const BorderSide(color: AppColors.borderSubtle),
       minimumSize: const Size(64, 48),
       textStyle: const TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: 'Geist',
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
@@ -140,7 +140,7 @@ TextButtonThemeData _textButton() {
       foregroundColor: AppColors.accentPrimary,
       minimumSize: const Size(48, 48),
       textStyle: const TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: 'Geist',
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
@@ -165,7 +165,7 @@ SnackBarThemeData _snackBar() {
   return const SnackBarThemeData(
     backgroundColor: AppColors.bgSurfaceRaised,
     contentTextStyle: TextStyle(
-      fontFamily: 'Inter',
+      fontFamily: 'Geist',
       fontSize: 14,
       color: AppColors.textPrimary,
     ),

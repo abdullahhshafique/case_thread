@@ -48,4 +48,38 @@ abstract final class AppColors {
   static const Color statusNeutral = Color(
     0xFF8C99A8,
   ); // slate — closed/insufficient
+
+  // ── v3 console tokens (casethread-v3.html §0) ───────────────────────
+  // Brand gradient: teal → blue → violet (used for active-tab edge bars,
+  // meters, selected-case rails, logo mark).
+  static const Color brandTeal = Color(0xFF08CBD8);
+  static const Color brandBlue = Color(0xFF3D71FF);
+  static const Color brandViolet = Color(0xFFA54EFF);
+  static const Gradient brandGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [brandTeal, brandBlue, brandViolet],
+  );
+
+  // Console semantic surfaces (v3 §3.2 — darker than Design.md navy).
+  static const Color consoleBg = Color(0xFF05060A);
+  static const Color consoleSidebar = Color(0xFF07080C);
+  static const Color consolePanel = Color(0xFF0B0D14);
+  static const Color consolePanel2 = Color(0xFF10131D);
+  static const Color consoleText = Color(0xFFF7F8FC);
+  static const Color consoleTextSecondary = Color(0xFFB7C6DC);
+  static const Color consoleMuted = Color(0xFF9AA2B6);
+  static const Color consoleBorder = Color(0x17FFFFFF); // rgba(255,255,255,.09)
+
+  // v3 §3.6 status pairs — foreground + tinted background, always used
+  // together (label paired with color, never color alone).
+  static const Color v3Ok = Color(0xFF6EE7B7);
+  static const Color v3Warn = Color(0xFFFCD34D);
+  static const Color v3Err = Color(0xFFFDA4AF);
+  static const Color v3Info = Color(0xFFA5B4FC);
+  static const Color v3Violet = Color(0xFFC4B5FD);
+  static const Color v3Cyan = Color(0xFF67E8F9);
+
+  static Color v3StatusBg(Color c) => c.withValues(alpha: 0.10);
+  static Color v3StatusBorder(Color c) => c.withValues(alpha: 0.20);
 }

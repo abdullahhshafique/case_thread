@@ -3,37 +3,44 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart';
-import '../../core/errors/error_mapper.dart';
 import '../../core/errors/app_exceptions.dart';
+import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../auth/auth_providers.dart';
-import '../offline/offline_banner.dart';
 import 'activity_feed.dart';
 import 'ai_pane.dart';
+import 'audit_pane.dart';
 import 'export_report.dart';
 import 'discussion_pane.dart';
+import 'summary_pane.dart';
 import 'tasks_pane.dart';
 import 'timeline_pane.dart';
 import 'vault_pane.dart';
 import 'analysis_pane.dart';
+import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import '../dashboard/dashboard_screen.dart';
 import '../connections/connections_screen.dart';
-import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'rooms_providers.dart';
 
-/// Room detail (Sprint 3–4): Vault tab (evidence) + Members tab
-/// (owner controls: approve/deny, revoke). Timeline/discussion/tasks
-/// arrive Sprint 5. Analysis tab (alibis, contradictions, gaps) +
-/// Quick Actions bar added Phase 5.
+/// Room detail (Phase 6 — v3 console): Overview / Discussion / Evidence /
+/// Timeline / Analysis / Connections / Tasks | AI / Audit Log / Members /
+/// Summary tabs. Rendered embedded inside the console shell (no Scaffold)
+/// or standalone as a route (AppBar chrome).
 class RoomDetailScreen extends ConsumerStatefulWidget {
   const RoomDetailScreen({
     super.key,
     required this.roomId,
     required this.caseType,
+    this.embedded = false,
   });
 
   final String roomId;
   final String caseType;
+
+  /// Embedded in the console shell: no Scaffold/AppBar; the v3
+  /// room-head row is drawn instead.
+  final bool embedded;
 
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -41,7 +48,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 9, vsync: this);
+  late final TabController _tabs = TabController(length: 11, vsync: this);
 
   @override
   void initState() {
@@ -62,8 +69,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           .exportRoom(widget.roomId);
       if (!context.mounted) return;
       final md = report.toMarkdown();
-      // Copy-to-clipboard is the universal "save it somewhere" on all
-      // our platforms for now (Phase 4 adds platform file dialogs).
       await Clipboard.setData(ClipboardData(text: md));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,93 +86,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     }
   }
 
-  /// Quick Actions bar (Phase 5): one-swipe access to the most
-  /// common investigation tasks (PRD §2.1 / §2.3).
-  Widget _quickActions() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final action in _quickActionDefs)
-            _QuickAction(
-              key: Key(action.key),
-              icon: action.icon,
-              label: action.label,
-              onTap: () => _tabs.index = action.tabIndex,
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<_QuickActionDef> get _quickActionDefs => const [
-    _QuickActionDef(
-      key: 'qa-dashboard',
-      icon: Icons.dashboard_outlined,
-      label: 'Dashboard',
-      tabIndex: 0,
-    ),
-    _QuickActionDef(
-      key: 'qa-evidence',
-      icon: Icons.cloud_upload,
-      label: 'Evidence',
-      tabIndex: 1,
-    ),
-    _QuickActionDef(
-      key: 'qa-event',
-      icon: Icons.timeline,
-      label: 'Event',
-      tabIndex: 2,
-    ),
-    _QuickActionDef(
-      key: 'qa-statement',
-      icon: Icons.note,
-      label: 'Statement',
-      tabIndex: 3,
-    ),
-    _QuickActionDef(
-      key: 'qa-task',
-      icon: Icons.add_task,
-      label: 'Task',
-      tabIndex: 4,
-    ),
-    _QuickActionDef(
-      key: 'qa-person',
-      icon: Icons.person_add,
-      label: 'Person',
-      tabIndex: 6,
-    ),
-    _QuickActionDef(
-      key: 'qa-map',
-      icon: Icons.hub_outlined,
-      label: 'Map',
-      tabIndex: 7,
-    ),
-    _QuickActionDef(
-      key: 'qa-alibi',
-      icon: Icons.shield,
-      label: 'Alibi',
-      tabIndex: 8,
-    ),
-    _QuickActionDef(
-      key: 'qa-contradiction',
-      icon: Icons.flag,
-      label: 'Contradiction',
-      tabIndex: 8,
-    ),
-    _QuickActionDef(
-      key: 'qa-gap',
-      icon: Icons.report_problem_outlined,
-      label: 'Gap',
-      tabIndex: 8,
-    ),
-  ];
-
   @override
   void dispose() {
     _tabs.dispose();
@@ -180,91 +98,238 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
         .watch(canExportProvider(widget.roomId))
         .maybeWhen(data: (v) => v, orElse: () => false);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Case room'),
-        actions: [
+    final tabBar = TabBar(
+      controller: _tabs,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      labelColor: AppColors.consoleText,
+      unselectedLabelColor: AppColors.consoleMuted,
+      indicatorColor: AppColors.brandBlue,
+      dividerColor: Colors.transparent,
+      tabs: const [
+        Tab(key: Key('room-tab-dashboard'), text: 'Overview'),
+        Tab(key: Key('room-tab-discussion'), text: 'Discussion'),
+        Tab(key: Key('room-tab-vault'), text: 'Evidence'),
+        Tab(key: Key('room-tab-timeline'), text: 'Timeline'),
+        Tab(key: Key('room-tab-analysis'), text: 'Analysis'),
+        Tab(key: Key('room-tab-map'), text: 'Connections'),
+        Tab(key: Key('room-tab-tasks'), text: 'Tasks'),
+        Tab(key: Key('room-tab-ai'), text: 'AI'),
+        Tab(key: Key('room-tab-audit'), text: 'Audit Log'),
+        Tab(key: Key('room-tab-members'), text: 'Members'),
+        Tab(key: Key('room-tab-summary'), text: 'Summary'),
+      ],
+    );
+
+    final tabViews = [
+      DashboardScreen(roomId: widget.roomId),
+      DiscussionPane(roomId: widget.roomId),
+      VaultPane(roomId: widget.roomId),
+      TimelinePane(roomId: widget.roomId),
+      AnalysisPane(roomId: widget.roomId),
+      ConnectionsScreen(roomId: widget.roomId),
+      TasksPane(roomId: widget.roomId),
+      AiPane(roomId: widget.roomId, caseType: widget.caseType),
+      AuditPane(roomId: widget.roomId),
+      _MembersPane(roomId: widget.roomId),
+      SummaryPane(roomId: widget.roomId),
+    ];
+
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Case room'),
+          actions: [
+            if (canExport)
+              IconButton(
+                tooltip: 'Export case report',
+                icon: const Icon(Icons.ios_share),
+                onPressed: () => _export(context, ref),
+              ),
+          ],
+          bottom: tabBar,
+        ),
+        body: TabBarView(controller: _tabs, children: tabViews),
+      );
+    }
+
+    // Embedded v3 mode: room-head + tab strip + body, console-styled.
+    return Column(
+      children: [
+        _RoomHead(
+          roomId: widget.roomId,
+          canExport: canExport,
+          onExport: () => _export(context, ref),
+        ),
+        Container(color: Colors.transparent, child: tabBar),
+        Expanded(
+          child: TabBarView(controller: _tabs, children: tabViews),
+        ),
+      ],
+    );
+  }
+}
+
+/// v3 room-head: avatar chip + case name + #id + status pill + member
+/// count + export action (v3 §7).
+class _RoomHead extends ConsumerWidget {
+  const _RoomHead({
+    required this.roomId,
+    required this.canExport,
+    required this.onExport,
+  });
+
+  final String roomId;
+  final bool canExport;
+  final VoidCallback onExport;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final roomsState = ref.watch(roomsProvider);
+    final members = ref.watch(roomMembersProvider(roomId));
+    final text = Theme.of(context).textTheme;
+
+    final room = roomsState is RoomsLoaded
+        ? roomsState.rooms.where((r) => r.id == roomId).firstOrNull
+        : null;
+    final approvedCount = members.maybeWhen(
+      data: (m) => m.length,
+      orElse: () => 0,
+    );
+
+    final (statusColor, statusLabel) = room == null
+        ? (AppColors.v3Info, 'LOADING')
+        : switch (room.investigationStatus) {
+            InvestigationStatus.open => (AppColors.statusOpen, 'Open'),
+            InvestigationStatus.underInvestigation => (
+              AppColors.v3Ok,
+              'Under Investigation',
+            ),
+            InvestigationStatus.review => (AppColors.v3Warn, 'Review'),
+            InvestigationStatus.closed => (AppColors.statusNeutral, 'Closed'),
+          };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.consoleBorder)),
+      ),
+      child: Row(
+        children: [
+          _roomAvatar(room?.name),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  room?.name ?? 'Case room',
+                  style: text.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '#${roomId.substring(0, roomId.length > 4 ? 4 : roomId.length)}',
+                      style: text.bodySmall?.copyWith(
+                        color: AppColors.consoleMuted,
+                        fontFamily: 'GeistMono',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _StatusPill(color: statusColor, label: statusLabel),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$approvedCount investigators',
+                      style: text.bodySmall?.copyWith(
+                        color: AppColors.consoleMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           if (canExport)
             IconButton(
-              tooltip: 'Export case report', // a11y: labeled icon button
-              icon: const Icon(Icons.ios_share),
-              onPressed: () => _export(context, ref),
+              tooltip: 'Export case report',
+              icon: const Icon(Icons.ios_share, size: 18),
+              color: AppColors.consoleMuted,
+              onPressed: onExport,
             ),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          isScrollable: true, // five tabs need scroll room on mobile
-          tabs: const [
-            Tab(
-              key: Key('room-tab-dashboard'),
-              icon: Icon(Icons.dashboard_outlined),
-              text: 'Dashboard',
-            ),
-            Tab(
-              key: Key('room-tab-vault'),
-              icon: Icon(Icons.folder_outlined),
-              text: 'Vault',
-            ),
-            Tab(
-              key: Key('room-tab-timeline'),
-              icon: Icon(Icons.timeline),
-              text: 'Timeline',
-            ),
-            Tab(
-              key: Key('room-tab-discussion'),
-              icon: Icon(Icons.forum_outlined),
-              text: 'Discussion',
-            ),
-            Tab(
-              key: Key('room-tab-tasks'),
-              icon: Icon(Icons.checklist),
-              text: 'Tasks',
-            ),
-            Tab(
-              key: Key('room-tab-ai'),
-              icon: Icon(Icons.auto_awesome_outlined),
-              text: 'AI',
-            ),
-            Tab(
-              key: Key('room-tab-members'),
-              icon: Icon(Icons.people_outline),
-              text: 'Members',
-            ),
-            Tab(
-              key: Key('room-tab-map'),
-              icon: Icon(Icons.hub_outlined),
-              text: 'Map',
-            ),
-            Tab(
-              key: Key('room-tab-analysis'),
-              icon: Icon(Icons.analytics),
-              text: 'Analysis',
-            ),
-          ],
+      ),
+    );
+  }
+
+  Widget _roomAvatar(String? name) {
+    final initials = (name == null || name.isEmpty)
+        ? 'CR'
+        : name
+              .split(' ')
+              .take(2)
+              .map((w) => w.isEmpty ? '' : w[0].toUpperCase())
+              .join();
+    return Container(
+      height: 40,
+      width: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF7C3AED)],
+        ),
+        border: Border.all(color: const Color(0x26FFFFFF)),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
         ),
       ),
-      body: Column(
+    );
+  }
+}
+
+/// v3 status pill — dot + label on tinted fill.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: AppColors.v3StatusBg(color),
+        border: Border.all(color: AppColors.v3StatusBorder(color)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Offline banner (policy §2: stale-until-confirmed reads with
-          // a visible "as of" watermark; hidden when online).
-          const OfflineBanner(),
-          // Quick Actions bar (Phase 5: one-swipe access to the most
-          // common investigation tasks — PRD §2.1/§2.3).
-          _quickActions(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabs,
-              children: [
-                DashboardScreen(roomId: widget.roomId),
-                VaultPane(roomId: widget.roomId),
-                TimelinePane(roomId: widget.roomId),
-                DiscussionPane(roomId: widget.roomId),
-                TasksPane(roomId: widget.roomId),
-                AiPane(roomId: widget.roomId, caseType: widget.caseType),
-                _MembersPane(roomId: widget.roomId),
-                ConnectionsScreen(roomId: widget.roomId),
-                AnalysisPane(roomId: widget.roomId),
-              ],
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 5),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
         ],
@@ -408,13 +473,12 @@ class _MemberTile extends ConsumerWidget {
     bool approve,
   ) async {
     try {
-      await ref
-          .read(roomsRepositoryProvider)
-          .decideJoinRequest(
-            roomId: member.roomId,
-            memberId: member.id,
-            approve: approve,
-          );
+      final roomsRepository = ref.read(roomsRepositoryProvider);
+      await roomsRepository.decideJoinRequest(
+        roomId: member.roomId,
+        memberId: member.id,
+        approve: approve,
+      );
       ref.invalidate(roomMembersProvider(member.roomId));
     } on AppException catch (error) {
       if (context.mounted) {
@@ -422,50 +486,5 @@ class _MemberTile extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
-  }
-}
-
-/// Descriptor for a single quick-action chip.
-class _QuickActionDef {
-  const _QuickActionDef({
-    required this.key,
-    required this.icon,
-    required this.label,
-    required this.tabIndex,
-  });
-
-  final String key;
-  final IconData icon;
-  final String label;
-  final int tabIndex;
-}
-
-/// One pill-shaped quick action chip (Design.md §1 — amber
-/// reserved for pending AI only; chips use primary).
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    super.key,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSpacing.xs),
-      child: ActionChip(
-        avatar: Icon(icon, size: 16, color: scheme.onPrimary),
-        label: Text(label),
-        onPressed: onTap,
-        backgroundColor: scheme.primary,
-        labelStyle: TextStyle(color: scheme.onPrimary),
-      ),
-    );
   }
 }
