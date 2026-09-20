@@ -234,29 +234,30 @@ Every component's states use only the §1 token palette — no ad hoc colors at 
 ## 14. Token Quick Reference (CSS-style)
 
 ```css
-/* Backgrounds */
---bg-app: #0A1017;
---bg-panel: #16212E;
---bg-card: #121C28;
+/* Backgrounds — canonical values are the v3 console surfaces (§16.3) */
+--bg-app: #05060A;
+--bg-panel: #10131D;
+--bg-card: #0B0D14;
 --bg-mint-tint: #122C2D;
---border-subtle: #1E2A38;
+--border-subtle: rgba(255,255,255,.09);
 
 /* Brand */
---accent-mint: #4ADE9F;
---accent-mint-hover: #4EE3B8;
+--accent-primary: #3D71FF;    /* v3 brand blue — actions/focus/links   */
+--accent-hover:   #6B8BFF;    /* hover                                  */
+--brand-gradient: #08CBD8 → #3D71FF → #A54EFF; /* chrome only (§16.2)  */
 --chat-bubble-own: #1E4C44;
 
 /* Status */
 --status-confirmed: #4EE3B8;  /* mint  — Under Investigation / Verified / Fact */
---status-attention: #E1A66B;  /* amber — Review / Partially Verified / AI pending */
---status-conflict:  #D5666C;  /* coral — Conflict / Contradiction */
+--status-attention: #FCD34D;  /* amber — Review / Partially Verified / AI pending */
+--status-conflict:  #FDA4AF;  /* coral — Conflict / Contradiction */
 --status-open:      #6193FF;  /* blue  — Open / Finding */
 --status-gap:       #B98AE0;  /* violet — Gaps */
 --status-neutral:   #8C99A8;  /* slate — Closed / Insufficient / Unknown */
 
 /* Text */
---text-primary: #FFFFFF;
---text-secondary: #8A99A9;
+--text-primary: #F7F8FC;
+--text-secondary: #9AA2B6;
 
 /* Shape */
 --radius-card: 12px;
@@ -292,3 +293,5 @@ Phase 6 rebuilt the Flutter shell to the approved v3 HTML console (`casethread-v
 **16.5 Ambient atmosphere.** One shared decorative layer behind the shell: 54px shell grid, slow conic aurora, two breathing glow orbs. Purely decorative (pointer-transparent), and fully disabled under `prefers-reduced-motion` — consistent with §7's motion restraint.
 
 **16.6 What did NOT change:** all §1.3 data-state colors, §9 voice/tone (non-accusatory copy), §11 accessibility rules, and the component semantics of §6. The v3 work is chrome + typography; case-data meaning is still carried by the §1 tokens.
+
+**16.7 Canonicalization (2026-09-19):** the §16.3 console values are now the canonical §1 token *values* in `app_colors.dart` (bg/surface/border/text/base-accent re-pointed; token names unchanged). Every page built on the shared theme — auth, setup, join, search, templates, standalone room chrome, all Material cards — inherits the console look. Amber status pair updated to `#FCD34D` (v3 warn). Mint `#4ADE9F` survives only as `stateSuccess` semantics; §14 reflects the new canonical values.

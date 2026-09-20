@@ -31,7 +31,7 @@ feature/phase-5-investigation-intelligence = alibis/contradictions/gaps/dashboar
 feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild. PUSHED 8d2901e (2026-09-19, history scrubbed of the p6j.txt secret); CI run pending (checkout here)
 ```
 
-**DB migrations: 0001–0034** (all applied to cloud `hxrztoakimebjcibvkaa`).
+**DB migrations: 0001–0039** (0001–0037 applied to cloud; **0038–0039** created 2026-09-20, pending `db push` — 0038 v_timeline regains `conflict_flag`/`conflict_note` (lost in 0033's recreate, 42703), 0039 idempotent join request, 23505 race fix).
 **pgTAP tests: 26 files, 220 tests** (98 were green at the Phase-3 boundary; the Phase-4/5/6 session's new test files introduced fixture-context bugs now mostly fixed).
 **Dart: 116 tests, analyze 0.**
 
@@ -167,6 +167,6 @@ All learned the hard way — details in memory.md §8:
 - **Medical domain fields** — deferred behind the SME gate (PRD §10); generic roles seeded only.
 - **Anon key rotation** — was briefly in a public commit (audited: anon key only); routine hygiene.
 - **Supabase secret key exposure (2026-09-19)** — a service-tier key printed in a pasted CI log (`p6j.txt:594`) was committed in 0093efa. Push protection blocked it from ever reaching GitHub; history was scrubbed (filter-branch + force-push 8d2901e; local backup ref + reflogs expired). The key itself must still be **ROTATED** (Dashboard → Settings → API) — treated as burned.
-- **Windows Developer Mode** — off; needed before Android device builds (both-platform verification is therefore partial: Chrome verified, Android pending).
+- **Windows Developer Mode** — ✅ ON as of 2026-09-19 (was blocking Android builds + plugin symlinks). First `flutter pub get` after enabling creates the skipped symlinks. Both-platform verification still pending its first Android run (Chrome is verified).
 - **Vercel deploy** — configured in docs, not yet connected in this environment.
 - **AI provider** — GROK chosen (user decision); live real-provider run still needs `GROK_API_KEY` secret + one E2E.

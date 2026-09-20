@@ -9,6 +9,7 @@ import '../auth/auth_providers.dart';
 import '../contradictions/contradiction_providers.dart'
     show contradictionListProvider;
 import '../dashboard/dashboard_providers.dart';
+import 'activity_feed.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'data/supabase_rooms_repository.dart';
 import 'domain/room_content_models.dart' show TaskModel;
@@ -162,4 +163,11 @@ final attentionCountsProvider = FutureProvider.family<AttentionCounts, String>((
         .where((a) => a.status != AlibiStatus.verified)
         .length,
   );
+});
+
+/// Global unseen-activity feed (0014 v_activity_feed) — powers the
+/// console notifications sheet and bell badge.
+final activityFeedListProvider = FutureProvider<List<ActivityItem>>((ref) {
+  ref.watch(sessionProvider);
+  return ref.watch(activityFeedRepositoryProvider).getFeed();
 });

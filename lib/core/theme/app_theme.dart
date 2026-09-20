@@ -38,6 +38,32 @@ ThemeData buildAppTheme() {
     // Focus ring: 2px teal, never removed without replacement (Design.md §11).
     focusColor: AppColors.accentPrimary.withValues(alpha: 0.25),
   ).copyWith(
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.bgPrimary,
+      foregroundColor: AppColors.textPrimary,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontFamily: 'Geist',
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppColors.textPrimary,
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.bgSurfaceRaised,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(22)),
+        side: const BorderSide(color: AppColors.borderSubtle),
+      ),
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AppColors.consoleText,
+      unselectedLabelColor: AppColors.consoleMuted,
+      dividerColor: Colors.transparent,
+      indicatorColor: AppColors.brandBlue,
+    ),
     inputDecorationTheme: _inputDecoration(),
     elevatedButtonTheme: _elevatedButton(),
     outlinedButtonTheme: _outlinedButton(),
@@ -154,7 +180,7 @@ CardThemeData _card() {
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
+      borderRadius: BorderRadius.all(Radius.circular(20)),
       side: BorderSide(color: AppColors.borderSubtle),
     ),
     margin: EdgeInsets.zero,
@@ -170,6 +196,9 @@ SnackBarThemeData _snackBar() {
       color: AppColors.textPrimary,
     ),
     behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
   );
 }
 

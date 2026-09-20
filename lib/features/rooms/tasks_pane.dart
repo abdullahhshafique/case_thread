@@ -9,7 +9,7 @@ import '../offline/offline_providers.dart';
 import '../history/version_history_sheet.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
-import '../../core/api/models.dart' show Permission;
+import '../../core/api/models.dart' show Permission, RoomMember;
 import 'room_permissions.dart';
 import 'rooms_providers.dart';
 
@@ -52,7 +52,10 @@ class _TasksPaneState extends ConsumerState<TasksPane> {
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               key: const Key('tasks-new'),
-              onPressed: () => _showCreateSheet(context, members.value ?? []),
+              onPressed: () => _showCreateSheet(
+                context,
+                members.value ?? const <RoomMember>[],
+              ),
               icon: const Icon(Icons.add_task),
               label: const Text('New task'),
             )
@@ -92,7 +95,7 @@ class _TasksPaneState extends ConsumerState<TasksPane> {
     );
   }
 
-  void _showCreateSheet(BuildContext context, dynamic members) {
+  void _showCreateSheet(BuildContext context, List<RoomMember> members) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

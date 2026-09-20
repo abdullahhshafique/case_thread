@@ -53,6 +53,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Center(
+                    child: Container(
+                      height: 56,
+                      width: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF3B82F6),
+                            Color(0xFF6366F1),
+                            Color(0xFF7C3AED),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0x26FFFFFF)),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x456366F1), blurRadius: 30),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.hub_outlined,
+                        size: 26,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     'CaseThread',
                     style: Theme.of(context).textTheme.headlineLarge,

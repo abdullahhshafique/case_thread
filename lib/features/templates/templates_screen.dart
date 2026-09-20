@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../shell/console_page.dart';
 import '../rooms/rooms_providers.dart' show activeCaseTypesProvider;
 import 'template_editor_sheet.dart';
 import 'templates.dart';
@@ -19,8 +20,9 @@ class TemplatesScreen extends ConsumerWidget {
     final mine = ref.watch(myTemplatesProvider);
     final text = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Template marketplace')),
+    return ConsolePageScaffold(
+      title: 'Template marketplace',
+      subtitle: 'Design a case type once — every team can use it',
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('templates-new'),
         onPressed: () => _openEditor(context, ref),

@@ -184,9 +184,10 @@ class _EvidenceTile extends ConsumerWidget {
         ),
         subtitle: Text(
           '${_formatSize(entry.sizeBytes)} · '
-                  '${entry.uploaderName ?? 'Member'} · '
-                  '${entry.uploadedAt.toLocal()}'
-              .substring(0, 60),
+          '${entry.uploaderName ?? 'Member'} · '
+          '${entry.uploadedAt.toLocal()}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: text.bodyMedium?.copyWith(
             color: text.bodyMedium?.color?.withValues(alpha: 0.7),
           ),

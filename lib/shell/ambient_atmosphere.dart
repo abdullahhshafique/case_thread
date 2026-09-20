@@ -32,39 +32,43 @@ class _AmbientAtmosphereState extends State<AmbientAtmosphere>
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) return const SizedBox.shrink();
 
-    return IgnorePointer(
-      child: ClipRect(
-        child: Stack(
-          children: [
-            const _ShellGrid(),
-            const _Aurora(),
-            AnimatedBuilder(
-              animation: _orbs,
-              builder: (context, _) {
-                final t = Curves.easeInOut.transform(_orbs.value);
-                return Stack(
-                  children: [
-                    Positioned(
-                      left: -60,
-                      top: -260,
-                      child: _GlowOrb(
-                        size: 560 + 90 * t,
-                        color: const Color(0xFF2563EB),
+    // RepaintBoundary isolates the constant atmosphere animation so the
+    // console content never repaints on its ticks (web perf).
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: ClipRect(
+          child: Stack(
+            children: [
+              const _ShellGrid(),
+              const _Aurora(),
+              AnimatedBuilder(
+                animation: _orbs,
+                builder: (context, _) {
+                  final t = Curves.easeInOut.transform(_orbs.value);
+                  return Stack(
+                    children: [
+                      Positioned(
+                        left: -60,
+                        top: -260,
+                        child: _GlowOrb(
+                          size: 560 + 90 * t,
+                          color: const Color(0xFF2563EB),
+                        ),
                       ),
-                    ),
-                    Positioned(
-                      right: -200,
-                      top: 120,
-                      child: _GlowOrb(
-                        size: 480 + 70 * (1 - t),
-                        color: const Color(0xFF7C3AED),
+                      Positioned(
+                        right: -200,
+                        top: 120,
+                        child: _GlowOrb(
+                          size: 480 + 70 * (1 - t),
+                          color: const Color(0xFF7C3AED),
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -84,9 +88,12 @@ class _ShellGrid extends StatelessWidget {
         final linePaint = Paint()
           ..color = const Color(0x0B6F82FF)
           ..strokeWidth = 1;
-        return CustomPaint(
-          size: constraints.biggest,
-          painter: _GridPainter(linePaint, cell, cols, rows),
+        return RepaintBoundary(
+          // Static layer — never needs to repaint once laid out.
+          child: CustomPaint(
+            size: constraints.biggest,
+            painter: _GridPainter(linePaint, cell, cols, rows),
+          ),
         );
       },
     );

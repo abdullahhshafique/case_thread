@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart';
-import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_spacing.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
@@ -28,6 +27,7 @@ class CreateRoomDialog extends ConsumerStatefulWidget {
 class _CreateRoomDialogState extends ConsumerState<CreateRoomDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _codeController = TextEditingController();
 
   String? _selectedCaseType;
   bool _submitting = false;
@@ -37,6 +37,7 @@ class _CreateRoomDialogState extends ConsumerState<CreateRoomDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -104,6 +105,28 @@ class _CreateRoomDialogState extends ConsumerState<CreateRoomDialog> {
               child: CircularProgressIndicator(),
             ),
           },
+          TextFormField(
+            key: const Key('create-room-code'),
+            controller: _codeController,
+            maxLength: 16,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(
+              labelText: 'Access code (optional)',
+              hintText: 'Leave empty to auto-generate · e.g. ROBBERY2',
+              counterText: '',
+            ),
+            validator: (value) {
+              // Mirrors the server rule (0037): 6–16 chars from the same
+              // unambiguous alphabet generate_access_code() uses; the
+              // server normalizes to uppercase.
+              final code = value?.trim() ?? '';
+              if (code.isEmpty) return null;
+              if (!RegExp(r'^[A-HJ-NP-Za-hj-np-z2-9]{6,16}$').hasMatch(code)) {
+                return '6–16 characters: A–Z (no I/O) and digits 2–9.';
+              }
+              return null;
+            },
+          ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -194,10 +217,15 @@ class _CreateRoomDialogState extends ConsumerState<CreateRoomDialog> {
           .createRoom(
             name: _nameController.text.trim(),
             caseTypeId: _selectedCaseType!,
+            accessCode: _codeController.text.trim().isEmpty
+                ? null
+                : _codeController.text.trim(),
           );
       setState(() => _created = created);
-    } on AppException catch (error) {
-      setState(() => _error = error.message);
+    } on Exception catch (error) {
+      // Dev posture: show the mapped message AND the raw cause so a
+      // failure screenshot is diagnosable without the console.
+      setState(() => _error = '${toAppException(error).message}\n— $error');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

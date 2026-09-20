@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/models.dart' show CaseRoom, InvestigationStatus;
+import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../shell/ambient_atmosphere.dart';
 import '../auth/auth_providers.dart';
+import 'activity_feed.dart';
 import 'create_room_dialog.dart';
 import 'domain/rooms_repository.dart' show CreatedRoom;
 import 'room_detail_screen.dart';
@@ -22,6 +26,88 @@ class RoomsScreen extends ConsumerStatefulWidget {
 
 class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   String? _selectedRoomId;
+  int _roomTab = 0;
+
+  void _goTab(int index) => setState(() => _roomTab = index.clamp(0, 10));
+
+  void _copyRoomLink() {
+    final id = _selectedRoomId;
+    final link = id == null
+        ? Uri.base.toString()
+        : Uri.base.replace(path: '/rooms/$id').toString();
+    Clipboard.setData(ClipboardData(text: link));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Case link copied.')));
+  }
+
+  /// Account sheet (rail avatar): identity + sign out. The router's
+  /// session listener reroutes to /auth on sign-out.
+  void _showAccountSheet(BuildContext context) {
+    final user = ref.read(sessionProvider).value;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.consolePanel,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  _AvatarChip(initials: _initialsOf(user?.displayName)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user?.displayName ?? 'Investigator',
+                          style: Theme.of(sheetContext).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          user?.email ?? '',
+                          style: Theme.of(sheetContext).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.consoleMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              OutlinedButton.icon(
+                key: const Key('account-signout'),
+                icon: const Icon(Icons.logout),
+                label: const Text('Sign out'),
+                onPressed: () async {
+                  Navigator.of(sheetContext).pop();
+                  try {
+                    await ref.read(authRepositoryProvider).signOut();
+                  } on Exception catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${toAppException(error).message}\n— $error',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,18 +165,21 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
         const Positioned.fill(child: AmbientAtmosphere()),
         Column(
           children: [
-            _TopBar(),
+            _TopBar(onCopyLink: _copyRoomLink, onAskAI: () => _goTab(7)),
             Expanded(
               child: Row(
                 children: [
                   _Rail(
                     selectedRoomId: selectedRoomId,
                     userInitials: userInitials,
+                    onGoTab: _goTab,
+                    onAccount: () => _showAccountSheet(context),
                   ),
                   _CasesPanel(
                     rooms: rooms,
                     selectedRoomId: selectedRoomId,
                     onSelect: (id) => setState(() => _selectedRoomId = id),
+                    onGoTab: _goTab,
                     roomsState: roomsState,
                   ),
                   Expanded(
@@ -100,6 +189,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                             key: ValueKey('room-console-$selectedRoomId'),
                             roomId: selectedRoomId,
                             caseType: _roomType(rooms, selectedRoomId),
+                            initialTab: _roomTab,
                           ),
                   ),
                 ],
@@ -122,6 +212,11 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
 // ═══════════════════════════════════════════════════════════════
 
 class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onCopyLink, required this.onAskAI});
+
+  final VoidCallback onCopyLink;
+  final VoidCallback onAskAI;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -160,12 +255,12 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          _GhostButton(icon: Icons.link, label: 'Copy link', onTap: () {}),
+          _GhostButton(icon: Icons.link, label: 'Copy link', onTap: onCopyLink),
           const SizedBox(width: 8),
           _PrimaryButton(
             icon: Icons.auto_awesome,
             label: 'Ask CaseThread',
-            onTap: () {},
+            onTap: onAskAI,
           ),
           const SizedBox(width: 18),
         ],
@@ -292,10 +387,17 @@ class _PrimaryButton extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 
 class _Rail extends StatelessWidget {
-  const _Rail({required this.selectedRoomId, required this.userInitials});
+  const _Rail({
+    required this.selectedRoomId,
+    required this.userInitials,
+    required this.onGoTab,
+    required this.onAccount,
+  });
 
   final String? selectedRoomId;
   final String userInitials;
+  final void Function(int) onGoTab;
+  final VoidCallback onAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -317,28 +419,27 @@ class _Rail extends StatelessWidget {
             icon: _brandIcon(),
             label: 'Cases',
             selected: true,
-            onTap: () {},
+            onTap: () => onGoTab(0),
           ),
           const SizedBox(height: 8),
           _RailButton(
             icon: const Icon(Icons.checklist, size: 19),
             label: 'Tasks',
             selected: false,
-            badge: '2',
-            onTap: () {},
+            onTap: () => onGoTab(6),
           ),
           _RailButton(
             icon: const Icon(Icons.trending_up, size: 19),
             label: 'Activity',
             selected: false,
-            onTap: () {},
+            onTap: () => onGoTab(8),
           ),
           const Spacer(),
           _RailButton(
             icon: _AvatarChip(initials: userInitials),
             label: userInitials,
             selected: false,
-            onTap: () {},
+            onTap: onAccount,
           ),
           const SizedBox(height: 12),
         ],
@@ -484,12 +585,14 @@ class _CasesPanel extends ConsumerStatefulWidget {
     required this.rooms,
     required this.selectedRoomId,
     required this.onSelect,
+    required this.onGoTab,
     required this.roomsState,
   });
 
   final List<CaseRoom> rooms;
   final String? selectedRoomId;
   final void Function(String) onSelect;
+  final void Function(int) onGoTab;
   final RoomsState roomsState;
 
   @override
@@ -606,28 +709,50 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
           ),
           IconButton(
             tooltip: 'Notifications',
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_outlined, size: 18),
-                Positioned(
-                  right: 3,
-                  top: 3,
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFB7185),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: Color(0x99FB7185), blurRadius: 6),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
             color: const Color(0xFF9AA2B6),
-            onPressed: () {},
+            onPressed: () => _showNotifications(context),
+            icon: Consumer(
+              builder: (context, bellRef, _) {
+                final count = bellRef
+                    .watch(activityFeedListProvider)
+                    .maybeWhen(data: (l) => l.length, orElse: () => 0);
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined, size: 18),
+                    if (count > 0)
+                      Positioned(
+                        right: -5,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(minWidth: 15),
+                          height: 15,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFB7185),
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0x99FB7185),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -706,69 +831,216 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-      child: Container(
-        height: 54,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x338180F8)),
-          gradient: const LinearGradient(
-            colors: [Color(0x1A2563EB), Color(0x0D7C3AED)],
+      // The banner is a shortcut to the selected room's Tasks tab.
+      child: GestureDetector(
+        onTap: () => widget.onGoTab(6),
+        child: Container(
+          height: 54,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0x338180F8)),
+            gradient: const LinearGradient(
+              colors: [Color(0x1A2563EB), Color(0x0D7C3AED)],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              height: 36,
-              width: 36,
-              margin: const EdgeInsets.only(left: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF7C3AED)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: const Color(0x184F70ED), blurRadius: 24),
-                ],
-              ),
-              child: Icon(
-                counts.maybeWhen(
-                  data: (c) => c.isClear ? Icons.done_all : Icons.speed,
-                  orElse: () => Icons.speed,
-                ),
-                size: 16,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Waiting on you',
-                    style: text.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+          child: Row(
+            children: [
+              Container(
+                height: 36,
+                width: 36,
+                margin: const EdgeInsets.only(left: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF7C3AED)],
                   ),
-                  Text(
-                    summary,
-                    style: text.bodySmall?.copyWith(
-                      color: const Color(0xFF9AA2B6),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0x184F70ED), blurRadius: 24),
+                  ],
+                ),
+                child: Icon(
+                  counts.maybeWhen(
+                    data: (c) => c.isClear ? Icons.done_all : Icons.speed,
+                    orElse: () => Icons.speed,
                   ),
-                ],
+                  size: 16,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            const Icon(Icons.chevron_right, size: 15, color: Color(0xFF9AA2B6)),
-            const SizedBox(width: 14),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Waiting on you',
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      summary,
+                      style: text.bodySmall?.copyWith(
+                        color: const Color(0xFF9AA2B6),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Icon(
+                Icons.chevron_right,
+                size: 15,
+                color: Color(0xFF9AA2B6),
+              ),
+              const SizedBox(width: 14),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Console notifications (v3 §6 sheet): the global unseen-activity
+  /// feed (0014). Tapping a row opens that case and marks it seen.
+  void _showNotifications(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.consolePanel,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Consumer(
+        builder: (context, sheetRef, _) {
+          final feed = sheetRef.watch(activityFeedListProvider);
+          final nameOf = {for (final r in widget.rooms) r.id: r.name};
+          return SizedBox(
+            height: 440,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Notifications',
+                          style: Theme.of(sheetContext).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        icon: const Icon(Icons.close, size: 18),
+                        color: AppColors.consoleMuted,
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.consoleBorder),
+                Expanded(
+                  child: feed.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          toAppException(error).message,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    data: (items) => items.isEmpty
+                        ? Center(
+                            child: Text(
+                              'You are all caught up.',
+                              style: Theme.of(sheetContext).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.consoleMuted),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return ListTile(
+                                leading: Icon(
+                                  _feedIcon(item.actionType),
+                                  size: 20,
+                                  color: AppColors.v3Info,
+                                ),
+                                title: Text(
+                                  item.label,
+                                  style: Theme.of(sheetContext)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                subtitle: Text(
+                                  nameOf[item.roomId] ?? 'Case room',
+                                  style: Theme.of(sheetContext)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: AppColors.consoleMuted),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: Text(
+                                  _timeAgo(item.createdAt),
+                                  style: Theme.of(sheetContext)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.consoleMuted,
+                                        fontFamily: 'GeistMono',
+                                      ),
+                                ),
+                                onTap: () {
+                                  sheetRef
+                                      .read(activityFeedRepositoryProvider)
+                                      .markRoomSeen(item.roomId)
+                                      .catchError((_) {});
+                                  sheetRef.invalidate(activityFeedListProvider);
+                                  Navigator.of(sheetContext).pop();
+                                  widget.onSelect(item.roomId);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  IconData _feedIcon(String action) => switch (action) {
+    'evidence_uploaded' => Icons.description_outlined,
+    'code_rotated' => Icons.key_outlined,
+    'join_requested' => Icons.person_add_alt_1_outlined,
+    'join_approved' => Icons.how_to_reg_outlined,
+    'member_revoked' => Icons.person_remove_outlined,
+    'task_created' || 'task_updated' => Icons.checklist,
+    'timeline_event_edited' => Icons.edit_outlined,
+    'room_created' => Icons.hub_outlined,
+    _ => Icons.bolt_outlined,
+  };
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 0) return '${diff.inDays}d';
+    if (diff.inHours > 0) return '${diff.inHours}h';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+    return 'now';
   }
 
   Future<void> _openCreate(BuildContext context) async {

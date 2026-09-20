@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../shell/console_page.dart';
 import 'search_repository.dart';
 
 /// Cross-case search (Phase 4): one field, every case the caller can
@@ -41,11 +42,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final error = state.error;
     final text = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search all cases'),
-        leading: BackButton(onPressed: () => context.pop()),
-      ),
+    return ConsolePageScaffold(
+      title: 'Search all cases',
+      subtitle: 'Rooms, discussion, timeline, tasks and evidence you can read',
       body: Column(
         children: [
           Padding(

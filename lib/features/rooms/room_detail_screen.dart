@@ -33,6 +33,7 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
     required this.roomId,
     required this.caseType,
     this.embedded = false,
+    this.initialTab = 0,
   });
 
   final String roomId;
@@ -42,13 +43,22 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
   /// room-head row is drawn instead.
   final bool embedded;
 
+  /// Tab the console shell wants active (rail buttons, Ask CaseThread,
+  /// attention banner). Changes animate the controller via
+  /// [didUpdateWidget]; manual tab switches are never overridden.
+  final int initialTab;
+
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
 }
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 11, vsync: this);
+  late final TabController _tabs = TabController(
+    length: 11,
+    vsync: this,
+    initialIndex: widget.initialTab.clamp(0, 10),
+  );
 
   @override
   void initState() {
@@ -60,6 +70,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
           .markRoomSeen(widget.roomId)
           .catchError((_) {}); // best-effort; the feed refetches anyway
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant RoomDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab &&
+        widget.initialTab != _tabs.index) {
+      _tabs.animateTo(widget.initialTab.clamp(0, 10));
+    }
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {

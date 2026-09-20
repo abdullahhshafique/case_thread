@@ -174,10 +174,13 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
             classification: classification,
           );
       ref.invalidate(_timelineStreamProvider(widget.roomId));
-    } on AppException catch (error) {
+    } on Exception catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+        // Dev posture: raw cause accompanies the calm message so a
+        // failure screenshot is diagnosable without the console.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${toAppException(error).message}\n— $error')),
+        );
       }
     }
   }
@@ -193,7 +196,7 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Text(
-            toAppException(error).message,
+            '${toAppException(error).message}\n— $error',
             style: text.bodyMedium,
             textAlign: TextAlign.center,
           ),

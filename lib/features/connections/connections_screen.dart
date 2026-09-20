@@ -360,13 +360,18 @@ class _GraphViewState extends State<_GraphView>
           child: Stack(
             children: [
               Positioned.fill(
-                child: CustomPaint(
-                  size: size,
-                  painter: _GraphPainter(
-                    data: widget.data,
-                    positions: positions,
-                    nodeRadius: _nodeRadius,
-                    t: reduceMotion ? 0 : _flow.value,
+                // Isolate the 60fps graph painter from the rest of the
+                // tree — without this every animation tick repaints the
+                // whole pane stack.
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    size: size,
+                    painter: _GraphPainter(
+                      data: widget.data,
+                      positions: positions,
+                      nodeRadius: _nodeRadius,
+                      t: reduceMotion ? 0 : _flow.value,
+                    ),
                   ),
                 ),
               ),

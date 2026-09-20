@@ -25,11 +25,29 @@ class DiscussionPane extends ConsumerStatefulWidget {
 
 class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   bool _sending = false;
+
+  /// True while the user is reading at (or near) the bottom — new
+  /// messages auto-scroll. Scrolling up to read history unpins.
+  bool _pinnedToBottom = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final pos = _scrollController.position;
+      final nearBottom = pos.maxScrollExtent - pos.pixels < 120;
+      if (nearBottom != _pinnedToBottom) {
+        setState(() => _pinnedToBottom = nearBottom);
+      }
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -39,6 +57,13 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
     final canComment = ref
         .watch(myRoomPermissionsProvider(widget.roomId))
         .maybeWhen(data: (p) => p.can(Permission.comment), orElse: () => false);
+    // Member identity: the realtime stream's rows carry no embed, so
+    // author names resolve from the member list (works for live rows too).
+    final members = ref.watch(roomMembersProvider(widget.roomId));
+    final nameByUser = members.maybeWhen(
+      data: (m) => {for (final x in m) x.userId: x.displayName ?? ''},
+      orElse: () => const <String, String>{},
+    );
     // Members resolve lazily via membersNameMap() when sending.
     final text = Theme.of(context).textTheme;
 
@@ -49,21 +74,67 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) =>
                 Center(child: Text(toAppException(error).message)),
-            data: (list) => list.isEmpty
-                ? Center(
-                    child: Text(
-                      'No messages yet — start the discussion.',
-                      style: text.bodyMedium,
-                    ),
-                  )
-                : ListView.builder(
-                    reverse: true, // chat-style: newest at the bottom
-                    itemCount: list.length,
-                    itemBuilder: (context, index) =>
-                        _MessageTile(message: list[list.length - 1 - index]),
+            data: (list) {
+              if (list.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No messages yet — start the discussion.',
+                    style: text.bodyMedium,
                   ),
+                );
+              }
+              // Discord order: oldest at top, newest at bottom, view
+              // pinned to the bottom unless the user scrolled up to
+              // read history. Sorted client-side — the realtime
+              // snapshot order is not guaranteed.
+              final ordered = [...list]
+                ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+              if (_pinnedToBottom) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(
+                      _scrollController.position.maxScrollExtent,
+                    );
+                  }
+                });
+              }
+              return ListView.builder(
+                controller: _scrollController,
+                itemCount: ordered.length,
+                itemBuilder: (context, index) => _MessageTile(
+                  message: ordered[index],
+                  nameByUser: nameByUser,
+                ),
+              );
+            },
           ),
         ),
+        // Tap-to-mention: inserts @DisplayName so the notification path
+        // (PRD §6.6) triggers without guessing exact names.
+        if (canComment)
+          SizedBox(
+            height: 36,
+            child: members.maybeWhen(
+              data: (m) => ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                children: [
+                  for (final member in m)
+                    if (member.displayName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpacing.xs),
+                        child: ActionChip(
+                          label: Text('@${member.displayName}'),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () =>
+                              _controller.text += '@${member.displayName} ',
+                        ),
+                      ),
+                ],
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          ),
         if (canComment)
           SafeArea(
             child: Padding(
@@ -162,9 +233,10 @@ final _discussionStreamProvider =
     });
 
 class _MessageTile extends StatelessWidget {
-  const _MessageTile({required this.message});
+  const _MessageTile({required this.message, required this.nameByUser});
 
   final DiscussionMessage message;
+  final Map<String, String> nameByUser;
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +258,7 @@ class _MessageTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              message.authorName ?? 'Member',
+              nameByUser[message.authorId] ?? message.authorName ?? 'Member',
               style: text.labelMedium?.copyWith(
                 color: Theme.of(context).colorScheme.primary,
               ),

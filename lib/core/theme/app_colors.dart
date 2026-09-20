@@ -9,22 +9,25 @@ import 'package:flutter/material.dart';
 /// from them), never hardcode a hex value — this is what keeps the Phase 2+
 /// light theme (Design.md §10) a value swap rather than a refactor.
 abstract final class AppColors {
-  // Backgrounds (dark navy layers, calm canvas).
-  static const Color bgPrimary = Color(0xFF0A1017); // bg-app
-  static const Color bgSurface = Color(0xFF121C28); // bg-card
-  static const Color bgSurfaceRaised = Color(0xFF16212E); // bg-panel
+  // Backgrounds — canonical values are the v3 console surfaces
+  // (Design.md §16.3); token NAMES are unchanged so no component moves.
+  static const Color bgPrimary = Color(0xFF05060A); // bg-app = consoleBg
+  static const Color bgSurface = Color(0xFF0B0D14); // bg-card = consolePanel
+  static const Color bgSurfaceRaised = Color(0xFF10131D); // bg-panel
   static const Color bgMintTint = Color(0xFF122C2D); // accent-mint-bg pill fill
 
-  // Borders / dividers.
-  static const Color borderSubtle = Color(0xFF1E2A38);
+  // Borders / dividers — white @ 9% (v3 §3.2 consoleBorder).
+  static const Color borderSubtle = Color(0x17FFFFFF);
 
   // Text.
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF8A99A9);
+  static const Color textPrimary = Color(0xFFF7F8FC);
+  static const Color textSecondary = Color(0xFF9AA2B6);
 
-  // Accents (mint is the single brand accent).
-  static const Color accentPrimary = Color(0xFF4ADE9F);
-  static const Color accentPrimaryHover = Color(0xFF4EE3B8);
+  // Accents — v3 brand blue for actions/focus/links (the teal→blue→violet
+  // brandGradient is separate decorative chrome). Mint remains the
+  // confirmed/verified case-data color (stateSuccess).
+  static const Color accentPrimary = Color(0xFF3D71FF);
+  static const Color accentPrimaryHover = Color(0xFF6B8BFF);
 
   // Own chat bubble (discussion).
   static const Color chatBubbleOwn = Color(0xFF1E4C44);

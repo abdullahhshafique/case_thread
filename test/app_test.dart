@@ -22,6 +22,7 @@ class FakeRoomsRepository implements RoomsRepository {
   Future<CreatedRoom> createRoom({
     required String name,
     required String caseTypeId,
+    String? accessCode,
   }) async {
     throw UnimplementedError();
   }

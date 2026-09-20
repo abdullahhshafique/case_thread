@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart';
-import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../shell/console_page.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
 import 'domain/rooms_repository.dart';
 import 'rooms_providers.dart';
@@ -36,8 +36,9 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Join a case room')),
+    return ConsolePageScaffold(
+      title: 'Join a case room',
+      subtitle: "Enter the owner's 8-character code to request access",
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -223,9 +224,10 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           .read(roomsRepositoryProvider)
           .previewRoomByCode(code);
       setState(() => _roomPreview = preview);
-    } on AppException catch (error) {
-      // Invalid code: same message whether it never existed (PRD §6.2).
-      setState(() => _error = error.message);
+    } on Exception catch (error) {
+      // Invalid code: same message whether it never existed (PRD §6.2) —
+      // but surface the raw cause for anything else.
+      setState(() => _error = '${toAppException(error).message}\n— $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -242,8 +244,8 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
           .requestJoin(_codeController.text.trim(), _selectedRole!.id);
       setState(() => _resultStatus = result.status);
       ref.read(roomsProvider.notifier).refresh();
-    } on AppException catch (error) {
-      setState(() => _error = error.message);
+    } on Exception catch (error) {
+      setState(() => _error = '${toAppException(error).message}\n— $error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

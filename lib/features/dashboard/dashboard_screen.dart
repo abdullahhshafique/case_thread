@@ -344,32 +344,39 @@ class _AvatarStack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shown = members.take(4).toList(growable: false);
+    if (shown.isEmpty) return const SizedBox(height: 26);
+    // Overlapping stack via Positioned offsets — Container's margin
+    // assertion rejects the negative margins an overlap would need.
+    const size = 26.0;
+    const overlap = 9.0;
     return SizedBox(
-      height: 26,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      height: size,
+      width: size * shown.length - overlap * (shown.length - 1),
+      child: Stack(
         children: [
           for (var i = 0; i < shown.length; i++)
-            Container(
-              margin: EdgeInsets.only(right: i == shown.length - 1 ? 0 : -9),
-              height: 26,
-              width: 26,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: _gradients[i % _gradients.length],
+            Positioned(
+              left: i * (size - overlap),
+              child: Container(
+                height: size,
+                width: size,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _gradients[i % _gradients.length],
+                  ),
+                  border: Border.all(color: const Color(0xFF0A0D16), width: 2),
                 ),
-                border: Border.all(color: const Color(0xFF0A0D16), width: 2),
-              ),
-              child: Text(
-                (shown[i].displayName ?? '?').substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+                child: Text(
+                  (shown[i].displayName ?? '?').substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ),
@@ -530,7 +537,7 @@ class _EvidenceChart extends StatelessWidget {
     final max = byType.values.reduce((a, b) => a > b ? a : b);
     final entries = byType.entries.toList(growable: false);
     return Container(
-      height: 190,
+      height: 204, // value text + 110 bar slot + label + paddings (no overflow)
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.lg,
@@ -651,14 +658,20 @@ class _EventsChart extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    FractionallySizedBox(
-                      widthFactor: 1,
+                    SizedBox(
+                      // Bounded slot: FractionallySizedBox(heightFactor)
+                      // requires finite incoming height — a bare Column
+                      // child here would be unbounded.
+                      height: 64,
+                      width: double.infinity,
                       child: TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0, end: perDay[key]! / max),
                         duration: const Duration(milliseconds: 900),
                         curve: Curves.easeOutCubic,
                         builder: (context, t, _) => FractionallySizedBox(
+                          widthFactor: 1,
                           heightFactor: t.clamp(0.04, 1.0),
+                          alignment: Alignment.bottomCenter,
                           child: Container(
                             decoration: const BoxDecoration(
                               borderRadius: BorderRadius.vertical(
