@@ -154,7 +154,7 @@ class AlibiScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     key: const Key('alibi-entity'),
-                    value: entityId,
+                    initialValue: entityId,
                     decoration: const InputDecoration(
                       labelText: 'Person claiming the alibi',
                     ),

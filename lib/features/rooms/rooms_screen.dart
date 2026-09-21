@@ -469,8 +469,7 @@ class _RailButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.badge,
-  });
+  }) : badge = null;
 
   final Widget icon;
   final String label;
