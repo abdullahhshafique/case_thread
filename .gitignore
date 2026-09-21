@@ -62,9 +62,8 @@ supabase/.temp/
 node_modules/
 # Flutter DevTools
 /devtools_options.yaml
+# Local CI/debug log captures — never commit (a pasted log once
+# carried a secret key; Rules.md §10)
 p2*.txt
 p[0-9]log*.txt
-p6l.txt
-p6g.txt
-
-p6j.txt
+p6*.txt
