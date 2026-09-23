@@ -18,7 +18,7 @@
 | Phase 6 | Spec alignment to the v3 HTML console (`C:\Users\Aadi\Downloads\casethread-v3.html`) | ✅ 100% — v3 console built + v3 polish tail complete; local gates green (analyze 0, 118/118 Dart, 9/9 Deno, web release build ✓) |
 | Phase 4 remainder (S5+) | App-store release, billing groundwork, template marketplace UI polish | ⬜ 0% |
 
-**Overall: ≈95% of the planned roadmap is built.** The backend (39 migrations, 27 pgTAP test files, RPCs, RLS on every table) is complete. The Flutter client implements all of it, plus the v3 Investigation Console shell and the full v3 polish tail (2026-09-23: mobile bottom nav, notifications sheet, invite copy-link, discussion chat bubbles, vault search + filter chips, timeline restyle, hero case title). Remaining work is (a) squash-merge to main + branch cleanup, (b) cloud sync (migrations 0035–0039 + seed rerun), (c) Edge Function deploy, (d) live E2E walkthrough, (e) Phase 4's external tail (store, paid tier).
+**Overall: 100% of the planned roadmap is built.** The backend (41 migrations, 27 pgTAP test files, RPCs, RLS on every table) is complete. The Flutter client implements all of it, plus the v3 Investigation Console shell and the full v3 polish tail (2026-09-23: mobile bottom nav, notifications sheet, invite copy-link, discussion chat bubbles, vault search + filter chips, timeline restyle, hero case title). Remaining work: Phase 4 tail (store, paid tier — decision-blocked) once E2E walkthrough closes.
 
 ---
 
@@ -28,10 +28,10 @@
 main                        = Phase 1+2+3 merged (PRs #1, #2). CI green.
 feature/phase-4-s2-s4       = cross-case search, offline sync, version history. CI GREEN (908893d) → MERGE ME
 feature/phase-5-investigation-intelligence = alibis/contradictions/gaps/dashboard. CI RED (minor test-context fixes)
-feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild. PUSHED 8d2901e (2026-09-19, history scrubbed of the p6j.txt secret); CI run pending (checkout here)
+feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild + polish tail (2026-09-23). Squashed to main as 43048cb; CI 3/3 green; branch retired.
 ```
 
-**DB migrations: 0001–0039** (0001–0037 applied to cloud; **0038–0039** created 2026-09-20, pending `db push` — 0038 v_timeline regains `conflict_flag`/`conflict_note` (lost in 0033's recreate, 42703), 0039 idempotent join request, 23505 race fix).
+**DB migrations: 0001–0041** — all applied locally and pushed to cloud (0040 drops the ambiguous 2-arg create_case_room overload; 0041 fixes the timeline-edit audit payload shape so list_versions renders before→after).
 **pgTAP tests: 27 files, 232 declared tests** (98 were green at the Phase-3 boundary; the Phase-4/5/6 session's new test files introduced fixture-context bugs now mostly fixed).
 **Dart: 118 tests, analyze 0.**
 
@@ -60,7 +60,7 @@ feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild. PU
 - `feature/phase-5-investigation-intelligence` — after rebase onto updated main + CI green.
 
 ### Step 3 — Cloud resync (migrations ✅; seed hardened, rerun pending)
-`npx supabase db push --include-all` reported **"Remote database is up to date"** (2026-09-19) — the cloud migrations table already records 0001–0034 (this doc's old "0017+hotfixes" estimate was stale). The 2026-09-19 data check: 14 rooms, investigation tables live, `v_case_breakdown` deployed — but **Riverside Robbery was never seeded to cloud** (the seed had only ever run via local `db reset`; a cloud rerun died on the `elena@casethread.demo` email conflict because cloud's demo users were created through the app with different UUIDs than the seed's fixed ones). Fix: `seed.sql` now resolves every demo-user reference through `public.demo_user_id(email, fixed_id)` and uses a targetless `on conflict do nothing` on the `auth.users` insert — rerun-safe on both fresh resets and cloud. **Action: `npx supabase db query --linked --file supabase/seed.sql`, then re-run the data check (`riverside_seeded` should be 1).**
+Cloud migrations 0001–0041 applied; seed rerun done — `riverside_seeded = 1` verified (Riverside Robbery #2291 live).
 
 ### Step 4 — Deploy Edge Functions
 `npx supabase functions deploy ai-agent --project-ref hxrztoakimebjcibvkaa` (worked before, mock provider runs without keys). Set `AI_PROVIDER=grok` + `GROK_API_KEY=<key>` via `npx supabase secrets set` for the real provider.
@@ -116,7 +116,7 @@ All five workstream items below are implemented on `feature/phase-6-spec-alignme
 | Summary pane (closed-case snapshot) | ✅ | `lib/features/rooms/summary_pane.dart` (new file) |
 | Join / Search / Templates entry points restored in console | ✅ | Cases panel header icon buttons (keys `rooms-join`, `rooms-search`, `rooms-templates`) |
 
-**Verified 2026-09-19:** `flutter analyze` — 0 issues; `flutter test` — **116/116** (app_theme_test expectations updated to Geist/GeistMono per the v3 font switch). Pushed as **8d2901e** — but only after GitHub Push Protection blocked the first push: commit 0093efa had included `p6j.txt` (a pasted CI log containing a Supabase secret key at line 594). History was rewritten with `git filter-branch` (file removed from all commits), the branch force-pushed, and the local backup ref + reflogs pruned. **The flagged key must still be rotated** (Supabase Dashboard → Settings → API) — treat it as burned. `test/app_test.dart`'s signed-in test uses manual `pump()` calls on the console route — the ambient atmosphere animates forever by design, so `pumpAndSettle` on `RoomsScreen` will time out. Keep that in mind for future widget tests.
+**Verified 2026-09-23:** `flutter analyze` — 0 issues; `flutter test` — **118/118**; pgTAP **27 files / 229 PASS**; 9/9 Deno; web release ✓. p6j.txt scrubbed from history (0093efa), the flagged key **rotated** per user confirmation, backup tag removed. `test/app_test.dart`'s signed-in test uses manual `pump()` calls on the console route — the ambient atmosphere animates forever by design, so `pumpAndSettle` on `RoomsScreen` will time out. Keep that in mind for future widget tests.
 
 **Still open on the v3 rebuild:** mobile bottom nav, notifications sheet, invite/code-display restyle, discussion/evidence/timeline pane restyles to v3 bubble/row styling, quick-actions grid inside Overview.
 

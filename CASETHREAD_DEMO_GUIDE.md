@@ -163,7 +163,7 @@ This is the **primary local development path** — all migrations and tests run 
 # 1. Start Supabase local stack (exclude pg_meta — it's chronically unhealthy)
 npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta
 
-# 2. Reset database (applies all 39 migrations in order, seeds demo data)
+# 2. Reset database (applies all 41 migrations in order, seeds demo data
 npx supabase db reset
 
 # 3. Run pgTAP test suite (27 files, 232 declared tests — should show all PASS)
@@ -674,7 +674,7 @@ flutter build web --release
 | Cross-Table Leak (P5) | 8 | new | ✅ |
 | Statistics View (P5) | 11 | new | ✅ |
 | Investigation Status (P5) | 9 | new | ✅ |
-| **Phase 5 Exit** | **224** | **82+ (4 new model suites)** | **✅ ALL GREEN** |
+| **Phase 5 Exit** | **229 (final: 27 files)** | **118** | **✅ ALL GREEN** |
 
 ### Key Test Files
 
