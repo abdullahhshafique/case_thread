@@ -160,6 +160,42 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
     required RoomsState roomsState,
     required String userInitials,
   }) {
+    // Design.md §4 breakpoint: below 600px the left rail + cases panel
+    // give way to a bottom navigation bar (v3 §12 mobile shell); room
+    // switching moves into a bottom-sheet case switcher.
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final detail = selectedRoomId == null
+        ? const _EmptyConsole()
+        : RoomDetailScreen(
+            key: ValueKey('room-console-$selectedRoomId'),
+            roomId: selectedRoomId,
+            caseType: _roomType(rooms, selectedRoomId),
+            initialTab: _roomTab,
+          );
+    if (isMobile) {
+      return Stack(
+        children: [
+          const Positioned.fill(child: AmbientAtmosphere()),
+          Column(
+            children: [
+              _TopBar(
+                compact: true,
+                onCopyLink: _copyRoomLink,
+                onAskAI: () => _goTab(7),
+                onNotifications: () => _openNotifications(rooms),
+              ),
+              Expanded(child: detail),
+              _BottomNav(
+                onCases: () =>
+                    _showCaseSwitcher(rooms, selectedRoomId, roomsState),
+                onGoTab: _goTab,
+                onAccount: () => _showAccountSheet(context),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
     return Stack(
       children: [
         const Positioned.fill(child: AmbientAtmosphere()),
@@ -182,22 +218,69 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                     onGoTab: _goTab,
                     roomsState: roomsState,
                   ),
-                  Expanded(
-                    child: selectedRoomId == null
-                        ? const _EmptyConsole()
-                        : RoomDetailScreen(
-                            key: ValueKey('room-console-$selectedRoomId'),
-                            roomId: selectedRoomId,
-                            caseType: _roomType(rooms, selectedRoomId),
-                            initialTab: _roomTab,
-                          ),
-                  ),
+                  Expanded(child: detail),
                 ],
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  /// Mobile case switcher (v3 §12): the cases panel's list + actions
+  /// presented as a bottom sheet when the sidebar cannot fit.
+  void _showCaseSwitcher(
+    List<CaseRoom> rooms,
+    String? selectedRoomId,
+    RoomsState roomsState,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.consolePanel,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _CaseSwitcherSheet(
+        rooms: rooms,
+        selectedRoomId: selectedRoomId,
+        roomsState: roomsState,
+        onSelect: (id) {
+          Navigator.of(sheetContext).pop();
+          setState(() => _selectedRoomId = id);
+        },
+        onGoTab: (tab) {
+          Navigator.of(sheetContext).pop();
+          _goTab(tab);
+        },
+        onSearch: () => context.push('/search'),
+        onTemplates: () => context.push('/templates'),
+        onJoin: () => context.push('/join'),
+        onCreate: () async {
+          final navigator = Navigator.of(sheetContext);
+          final created = await showDialog<CreatedRoom>(
+            context: context,
+            builder: (_) => const CreateRoomDialog(),
+          );
+          if (created != null) {
+            navigator.pop();
+            ref.read(roomsProvider.notifier).refresh();
+            setState(() => _selectedRoomId = created.roomId);
+          }
+        },
+      ),
+    );
+  }
+
+  /// Notifications sheet entry point for the mobile topbar — delegates
+  /// to the same sheet the desktop cases panel uses.
+  void _openNotifications(List<CaseRoom> rooms) {
+    _openNotificationsSheet(
+      context,
+      ref,
+      rooms: rooms,
+      onSelect: (id) => setState(() => _selectedRoomId = id),
     );
   }
 
@@ -212,10 +295,17 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
 // ═══════════════════════════════════════════════════════════════
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onCopyLink, required this.onAskAI});
+  const _TopBar({
+    required this.onCopyLink,
+    required this.onAskAI,
+    this.compact = false,
+    this.onNotifications,
+  });
 
   final VoidCallback onCopyLink;
   final VoidCallback onAskAI;
+  final bool compact;
+  final VoidCallback? onNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +317,7 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 18),
+          SizedBox(width: compact ? 12 : 18),
           _LogoMark(),
           const SizedBox(width: 10),
           Column(
@@ -243,26 +333,90 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.consoleText,
                 ),
               ),
-              Text(
-                'INVESTIGATION CONSOLE',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2.7,
-                  color: AppColors.consoleMuted,
+              if (!compact)
+                Text(
+                  'INVESTIGATION CONSOLE',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2.7,
+                    color: AppColors.consoleMuted,
+                  ),
                 ),
-              ),
             ],
           ),
           const Spacer(),
-          _GhostButton(icon: Icons.link, label: 'Copy link', onTap: onCopyLink),
-          const SizedBox(width: 8),
-          _PrimaryButton(
-            icon: Icons.auto_awesome,
-            label: 'Ask CaseThread',
-            onTap: onAskAI,
-          ),
-          const SizedBox(width: 18),
+          // Mobile topbar: notifications bell + icon-only actions.
+          if (compact) ...[
+            if (onNotifications != null)
+              IconButton(
+                key: const Key('mobile-notifications'),
+                tooltip: 'Notifications',
+                color: const Color(0xFF9AA2B6),
+                onPressed: onNotifications,
+                icon: Consumer(
+                  builder: (context, bellRef, _) {
+                    final count = bellRef
+                        .watch(activityFeedListProvider)
+                        .maybeWhen(data: (l) => l.length, orElse: () => 0);
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_outlined, size: 20),
+                        if (count > 0)
+                          Positioned(
+                            right: -5,
+                            top: -4,
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              constraints: const BoxConstraints(minWidth: 15),
+                              height: 15,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFB7185),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            _GhostButton(
+              key: const Key('topbar-copy-link'),
+              icon: Icons.link,
+              label: '',
+              iconOnly: true,
+              onTap: onCopyLink,
+            ),
+            const SizedBox(width: 6),
+            _PrimaryButton(
+              key: const Key('topbar-ask-ai'),
+              icon: Icons.auto_awesome,
+              label: '',
+              iconOnly: true,
+              onTap: onAskAI,
+            ),
+          ] else ...[
+            _GhostButton(icon: Icons.link, label: 'Copy link', onTap: onCopyLink),
+            const SizedBox(width: 8),
+            _PrimaryButton(
+              icon: Icons.auto_awesome,
+              label: 'Ask CaseThread',
+              onTap: onAskAI,
+            ),
+          ],
+          SizedBox(width: compact ? 8 : 18),
         ],
       ),
     );
@@ -291,11 +445,18 @@ class _LogoMark extends StatelessWidget {
 }
 
 class _GhostButton extends StatelessWidget {
-  const _GhostButton({required this.icon, required this.label, this.onTap});
+  const _GhostButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.iconOnly = false,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +468,7 @@ class _GhostButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: EdgeInsets.symmetric(horizontal: iconOnly ? 14 : 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0x26FFFFFF)),
@@ -316,15 +477,17 @@ class _GhostButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 15, color: AppColors.consoleText),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.consoleText,
+              if (!iconOnly) ...[
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.consoleText,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -334,11 +497,18 @@ class _GhostButton extends StatelessWidget {
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.icon, required this.label, this.onTap});
+  const _PrimaryButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.iconOnly = false,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +520,7 @@ class _PrimaryButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: EdgeInsets.symmetric(horizontal: iconOnly ? 14 : 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: const LinearGradient(
@@ -365,15 +535,17 @@ class _PrimaryButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 15, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+              if (!iconOnly) ...[
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -903,143 +1075,15 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
     );
   }
 
-  /// Console notifications (v3 §6 sheet): the global unseen-activity
-  /// feed (0014). Tapping a row opens that case and marks it seen.
+  /// Console notifications (v3 §6 sheet). Delegates to the shared
+  /// sheet opener also used by the mobile topbar.
   void _showNotifications(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.consolePanel,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => Consumer(
-        builder: (context, sheetRef, _) {
-          final feed = sheetRef.watch(activityFeedListProvider);
-          final nameOf = {for (final r in widget.rooms) r.id: r.name};
-          return SizedBox(
-            height: 440,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Notifications',
-                          style: Theme.of(sheetContext).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        icon: const Icon(Icons.close, size: 18),
-                        color: AppColors.consoleMuted,
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1, color: AppColors.consoleBorder),
-                Expanded(
-                  child: feed.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          toAppException(error).message,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                    data: (items) => items.isEmpty
-                        ? Center(
-                            child: Text(
-                              'You are all caught up.',
-                              style: Theme.of(sheetContext).textTheme.bodyMedium
-                                  ?.copyWith(color: AppColors.consoleMuted),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: items.length,
-                            itemBuilder: (context, index) {
-                              final item = items[index];
-                              return ListTile(
-                                leading: Icon(
-                                  _feedIcon(item.actionType),
-                                  size: 20,
-                                  color: AppColors.v3Info,
-                                ),
-                                title: Text(
-                                  item.label,
-                                  style: Theme.of(sheetContext)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                subtitle: Text(
-                                  nameOf[item.roomId] ?? 'Case room',
-                                  style: Theme.of(sheetContext)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(color: AppColors.consoleMuted),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: Text(
-                                  _timeAgo(item.createdAt),
-                                  style: Theme.of(sheetContext)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: AppColors.consoleMuted,
-                                        fontFamily: 'GeistMono',
-                                      ),
-                                ),
-                                onTap: () {
-                                  sheetRef
-                                      .read(activityFeedRepositoryProvider)
-                                      .markRoomSeen(item.roomId)
-                                      .catchError((_) {});
-                                  sheetRef.invalidate(activityFeedListProvider);
-                                  Navigator.of(sheetContext).pop();
-                                  widget.onSelect(item.roomId);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    _openNotificationsSheet(
+      context,
+      ref,
+      rooms: widget.rooms,
+      onSelect: widget.onSelect,
     );
-  }
-
-  IconData _feedIcon(String action) => switch (action) {
-    'evidence_uploaded' => Icons.description_outlined,
-    'code_rotated' => Icons.key_outlined,
-    'join_requested' => Icons.person_add_alt_1_outlined,
-    'join_approved' => Icons.how_to_reg_outlined,
-    'member_revoked' => Icons.person_remove_outlined,
-    'task_created' || 'task_updated' => Icons.checklist,
-    'timeline_event_edited' => Icons.edit_outlined,
-    'room_created' => Icons.hub_outlined,
-    _ => Icons.bolt_outlined,
-  };
-
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0) return '${diff.inDays}d';
-    if (diff.inHours > 0) return '${diff.inHours}h';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
-    return 'now';
   }
 
   Future<void> _openCreate(BuildContext context) async {
@@ -1363,5 +1407,376 @@ class _EmptyConsole extends ConsumerWidget {
       ref.read(roomsProvider.notifier).refresh();
       context.push('/rooms/${created.roomId}');
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SHARED NOTIFICATIONS SHEET (v3 §6)
+// ═══════════════════════════════════════════════════════════════
+
+/// The global unseen-activity feed (0014). Shared by the desktop
+/// cases panel and the mobile topbar so both entry points stay in
+/// sync; tapping a row opens that case and marks it seen.
+void _openNotificationsSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required List<CaseRoom> rooms,
+  required ValueChanged<String> onSelect,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.consolePanel,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) => Consumer(
+      builder: (context, sheetRef, _) {
+        final feed = sheetRef.watch(activityFeedListProvider);
+        final nameOf = {for (final r in rooms) r.id: r.name};
+        return SizedBox(
+          height: 440,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Notifications',
+                        style: Theme.of(sheetContext).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      icon: const Icon(Icons.close, size: 18),
+                      color: AppColors.consoleMuted,
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.consoleBorder),
+              Expanded(
+                child: feed.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        toAppException(error).message,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  data: (items) => items.isEmpty
+                      ? Center(
+                          child: Text(
+                            'You are all caught up.',
+                            style: Theme.of(sheetContext).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.consoleMuted),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            return ListTile(
+                              leading: Icon(
+                                feedIconFor(item.actionType),
+                                size: 20,
+                                color: AppColors.v3Info,
+                              ),
+                              title: Text(
+                                item.label,
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              subtitle: Text(
+                                nameOf[item.roomId] ?? 'Case room',
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.consoleMuted),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Text(
+                                timeAgoShort(item.createdAt),
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.consoleMuted,
+                                      fontFamily: 'GeistMono',
+                                    ),
+                              ),
+                              onTap: () {
+                                sheetRef
+                                    .read(activityFeedRepositoryProvider)
+                                    .markRoomSeen(item.roomId)
+                                    .catchError((_) {});
+                                sheetRef.invalidate(activityFeedListProvider);
+                                Navigator.of(sheetContext).pop();
+                                onSelect(item.roomId);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+IconData feedIconFor(String action) => switch (action) {
+  'evidence_uploaded' => Icons.description_outlined,
+  'code_rotated' => Icons.key_outlined,
+  'join_requested' => Icons.person_add_alt_1_outlined,
+  'join_approved' => Icons.how_to_reg_outlined,
+  'member_revoked' => Icons.person_remove_outlined,
+  'task_created' || 'task_updated' => Icons.checklist,
+  'timeline_event_edited' => Icons.edit_outlined,
+  'room_created' => Icons.hub_outlined,
+  _ => Icons.bolt_outlined,
+};
+
+String timeAgoShort(DateTime dt) {
+  final diff = DateTime.now().difference(dt);
+  if (diff.inDays > 0) return '${diff.inDays}d';
+  if (diff.inHours > 0) return '${diff.inHours}h';
+  if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+  return 'now';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MOBILE CASE SWITCHER + BOTTOM NAV (v3 §12)
+// ═══════════════════════════════════════════════════════════════
+
+/// Bottom-sheet case switcher for the mobile shell: the cases panel's
+/// action row + room list in a sheet, since the 340px sidebar cannot
+/// fit below the 600px breakpoint.
+class _CaseSwitcherSheet extends StatelessWidget {
+  const _CaseSwitcherSheet({
+    required this.rooms,
+    required this.selectedRoomId,
+    required this.roomsState,
+    required this.onSelect,
+    required this.onGoTab,
+    required this.onSearch,
+    required this.onTemplates,
+    required this.onJoin,
+    required this.onCreate,
+  });
+
+  final List<CaseRoom> rooms;
+  final String? selectedRoomId;
+  final RoomsState roomsState;
+  final ValueChanged<String> onSelect;
+  final void Function(int) onGoTab;
+  final VoidCallback onSearch;
+  final VoidCallback onTemplates;
+  final VoidCallback onJoin;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Cases',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(fontSize: 22),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('switcher-search'),
+                    tooltip: 'Search across cases',
+                    icon: const Icon(Icons.search, size: 18),
+                    color: const Color(0xFF9AA2B6),
+                    onPressed: onSearch,
+                  ),
+                  IconButton(
+                    key: const Key('switcher-templates'),
+                    tooltip: 'Template marketplace',
+                    icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                    color: const Color(0xFF9AA2B6),
+                    onPressed: onTemplates,
+                  ),
+                  IconButton(
+                    key: const Key('switcher-join'),
+                    tooltip: 'Join with a code',
+                    icon: const Icon(Icons.key_outlined, size: 18),
+                    color: const Color(0xFF9AA2B6),
+                    onPressed: onJoin,
+                  ),
+                  IconButton(
+                    key: const Key('switcher-create'),
+                    tooltip: 'Create a new case room',
+                    icon: const Icon(Icons.add, size: 18),
+                    color: const Color(0xFF9AA2B6),
+                    onPressed: onCreate,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: rooms.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No case rooms yet — create one to start.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.consoleMuted,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      itemCount: rooms.length,
+                      itemBuilder: (context, index) {
+                        final room = rooms[index];
+                        return _CaseRow(
+                          room: room,
+                          selected: room.id == selectedRoomId,
+                          onTap: () => onSelect(room.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Mobile bottom navigation (v3 §12): replaces the left rail below
+/// the 600px breakpoint. 56px-tall touch targets; icon + label pair
+/// so color is never the only signal (Rules.md §8).
+class _BottomNav extends StatelessWidget {
+  const _BottomNav({
+    required this.onCases,
+    required this.onGoTab,
+    required this.onAccount,
+  });
+
+  final VoidCallback onCases;
+  final void Function(int) onGoTab;
+  final VoidCallback onAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF07080C),
+        border: Border(
+          top: BorderSide(color: Color(0x1AFFFFFF)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            _NavDest(
+              key: const Key('mobile-nav-cases'),
+              icon: Icons.dashboard_outlined,
+              label: 'Cases',
+              onTap: onCases,
+            ),
+            _NavDest(
+              key: const Key('mobile-nav-tasks'),
+              icon: Icons.checklist,
+              label: 'Tasks',
+              onTap: () => onGoTab(6),
+            ),
+            _NavDest(
+              key: const Key('mobile-nav-ai'),
+              icon: Icons.auto_awesome,
+              label: 'AI',
+              onTap: () => onGoTab(7),
+            ),
+            _NavDest(
+              key: const Key('mobile-nav-activity'),
+              icon: Icons.trending_up,
+              label: 'Activity',
+              onTap: () => onGoTab(8),
+            ),
+            _NavDest(
+              key: const Key('mobile-nav-account'),
+              icon: Icons.person_outline,
+              label: 'Account',
+              onTap: onAccount,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavDest extends StatelessWidget {
+  const _NavDest({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 58,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 21, color: const Color(0xFF9AA2B6)),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF9AA2B6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

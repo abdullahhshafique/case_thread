@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/app_exceptions.dart';
 import '../../core/errors/error_mapper.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../offline/offline_providers.dart';
 import 'rooms_providers.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'domain/room_content_models.dart';
 import '../../core/api/models.dart' show Permission;
+import '../auth/auth_providers.dart' show sessionProvider;
 import 'room_permissions.dart';
 
 /// Discussion pane (Sprint 5): realtime thread with @mentions
@@ -104,6 +106,8 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
                 itemBuilder: (context, index) => _MessageTile(
                   message: ordered[index],
                   nameByUser: nameByUser,
+                  currentUserId:
+                      ref.watch(sessionProvider).value?.id,
                 ),
               );
             },
@@ -233,39 +237,137 @@ final _discussionStreamProvider =
     });
 
 class _MessageTile extends StatelessWidget {
-  const _MessageTile({required this.message, required this.nameByUser});
+  const _MessageTile({
+    required this.message,
+    required this.nameByUser,
+    required this.currentUserId,
+  });
 
   final DiscussionMessage message;
   final Map<String, String> nameByUser;
+  final String? currentUserId;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final name = nameByUser[message.authorId] ??
+        message.authorName ??
+        'Member';
+    final isOwn = message.authorId == currentUserId;
+    // v3 §8 chat bubbles: own messages anchor right on the teal fill,
+    // others stay left on the card surface; avatar chip + timestamp.
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.xxs,
         ),
-        padding: const EdgeInsets.all(AppSpacing.md),
         constraints: const BoxConstraints(maxWidth: 560),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisAlignment:
+              isOwn ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              nameByUser[message.authorId] ?? message.authorName ?? 'Member',
-              style: text.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+            if (!isOwn) ...[
+              _AvatarChipMini(initials: _initialsOf(name)),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isOwn
+                      ? AppColors.chatBubbleOwn
+                      : Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(14),
+                    topRight: Radius.circular(14),
+                    bottomLeft: Radius.circular(isOwn ? 14 : 4),
+                    bottomRight: Radius.circular(isOwn ? 4 : 14),
+                  ),
+                  border: isOwn
+                      ? null
+                      : Border.all(color: AppColors.consoleBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!isOwn)
+                      Text(
+                        name,
+                        style: text.labelMedium?.copyWith(
+                          color: AppColors.v3Info,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    if (!isOwn) const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      message.body,
+                      style: text.bodyLarge?.copyWith(
+                        color: isOwn ? Colors.white : null,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      _clock(message.createdAt),
+                      style: text.labelSmall?.copyWith(
+                        color: isOwn
+                            ? Colors.white70
+                            : AppColors.consoleMuted,
+                        fontFamily: 'GeistMono',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(message.body, style: text.bodyLarge),
           ],
+        ),
+      ),
+    );
+  }
+
+  static String _initialsOf(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return 'CT';
+    return parts
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+  }
+
+  static String _clock(DateTime dt) {
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final am = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $am';
+  }
+}
+
+/// Tiny v3 avatar chip (Design.md §1.5 palette — first tint).
+class _AvatarChipMini extends StatelessWidget {
+  const _AvatarChipMini({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 28,
+      width: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF28433A),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x28FFFFFF)),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Color(0xFF3E8F71),
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );

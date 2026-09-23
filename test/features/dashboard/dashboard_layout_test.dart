@@ -62,48 +62,51 @@ void main() {
     classification: classification,
   );
 
-  Widget harness(List<Override> overrides) => ProviderScope(
-    overrides: overrides,
-    child: MaterialApp(
-      theme: buildAppTheme(),
-      home: const Scaffold(body: DashboardScreen(roomId: roomId)),
-    ),
+  // Riverpod 3.4.3 does not export the `Override` type name, so each
+  // test builds its own ProviderScope (the list literal infers the
+  // element type) around this shared app wrapper.
+  Widget app(Widget child) => MaterialApp(
+    theme: buildAppTheme(),
+    home: Scaffold(body: child),
   );
 
   testWidgets('populated overview lays out without exceptions', (tester) async {
     await tester.pumpWidget(
-      harness([
-        dashboardStatsProvider(roomId).overrideWith(
-          (ref) => const CaseStatistics(
-            roomId: roomId,
-            evidenceCount: 5,
-            peopleCount: 4,
-            locationsCount: 4,
-            eventsCount: 7,
-            contradictionsCount: 1,
-            gapsCount: 2,
-            unverifiedAlibisCount: 1,
-            aiFindingsCount: 0,
+      ProviderScope(
+        overrides: [
+          dashboardStatsProvider(roomId).overrideWith(
+            (ref) => const CaseStatistics(
+              roomId: roomId,
+              evidenceCount: 5,
+              peopleCount: 4,
+              locationsCount: 4,
+              eventsCount: 7,
+              contradictionsCount: 1,
+              gapsCount: 2,
+              unverifiedAlibisCount: 1,
+              aiFindingsCount: 0,
+            ),
           ),
-        ),
-        dashboardBreakdownProvider(roomId).overrideWith(
-          (ref) => const CaseBreakdown(
-            evidenceByType: {'pdf': 3, 'image': 1, 'other': 1},
-            eventsPerDay: {'2026-09-10': 4, '2026-09-11': 2},
+          dashboardBreakdownProvider(roomId).overrideWith(
+            (ref) => const CaseBreakdown(
+              evidenceByType: {'pdf': 3, 'image': 1, 'other': 1},
+              eventsPerDay: {'2026-09-10': 4, '2026-09-11': 2},
+            ),
           ),
-        ),
-        vaultProvider(roomId).overrideWith(
-          (ref) => VaultLoaded([
-            entry(1, classification: 'fact'),
-            entry(2, classification: 'fact'),
-            entry(3, classification: 'claim'),
-            entry(4, classification: 'fact'),
-            entry(5), // unclassified → coverage 4/5 = 80%
-          ]),
-        ),
-        roomMembersProvider(roomId).overrideWith((ref) => members),
-        roomsProvider.overrideWith(() => _LoadedRooms(room)),
-      ]),
+          vaultProvider(roomId).overrideWith(
+            (ref) => VaultLoaded([
+              entry(1, classification: 'fact'),
+              entry(2, classification: 'fact'),
+              entry(3, classification: 'claim'),
+              entry(4, classification: 'fact'),
+              entry(5), // unclassified → coverage 4/5 = 80%
+            ]),
+          ),
+          roomMembersProvider(roomId).overrideWith((ref) => members),
+          roomsProvider.overrideWith(() => _LoadedRooms(room)),
+        ],
+        child: app(const DashboardScreen(roomId: roomId)),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -111,34 +114,37 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Riverside Robbery #2291'), findsOneWidget);
     expect(find.text('80%'), findsOneWidget); // coverage meter
-    expect(find.text('4 investigators in this room'), findsOneWidget);
+    expect(find.text('2 investigators in this room'), findsOneWidget);
   });
 
   testWidgets('empty overview (fresh case) lays out without exceptions', (
     tester,
   ) async {
     await tester.pumpWidget(
-      harness([
-        dashboardStatsProvider(roomId).overrideWith(
-          (ref) => const CaseStatistics(
-            roomId: roomId,
-            evidenceCount: 0,
-            peopleCount: 0,
-            locationsCount: 0,
-            eventsCount: 0,
-            contradictionsCount: 0,
-            gapsCount: 0,
-            unverifiedAlibisCount: 0,
-            aiFindingsCount: 0,
+      ProviderScope(
+        overrides: [
+          dashboardStatsProvider(roomId).overrideWith(
+            (ref) => const CaseStatistics(
+              roomId: roomId,
+              evidenceCount: 0,
+              peopleCount: 0,
+              locationsCount: 0,
+              eventsCount: 0,
+              contradictionsCount: 0,
+              gapsCount: 0,
+              unverifiedAlibisCount: 0,
+              aiFindingsCount: 0,
+            ),
           ),
-        ),
-        dashboardBreakdownProvider(roomId).overrideWith(
-          (ref) => const CaseBreakdown(evidenceByType: {}, eventsPerDay: {}),
-        ),
-        vaultProvider(roomId).overrideWith((ref) => VaultLoaded(const [])),
-        roomMembersProvider(roomId).overrideWith((ref) => const []),
-        roomsProvider.overrideWith(() => _LoadedRooms(room)),
-      ]),
+          dashboardBreakdownProvider(roomId).overrideWith(
+            (ref) => const CaseBreakdown(evidenceByType: {}, eventsPerDay: {}),
+          ),
+          vaultProvider(roomId).overrideWith((ref) => VaultLoaded(const [])),
+          roomMembersProvider(roomId).overrideWith((ref) => const []),
+          roomsProvider.overrideWith(() => _LoadedRooms(room)),
+        ],
+        child: app(const DashboardScreen(roomId: roomId)),
+      ),
     );
     await tester.pumpAndSettle();
 

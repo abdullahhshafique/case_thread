@@ -19,6 +19,7 @@ import 'timeline_pane.dart';
 import 'vault_pane.dart';
 import 'analysis_pane.dart';
 import 'data/supabase_rooms_repository.dart' show roomsRepositoryProvider;
+import 'room_permissions.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../connections/connections_screen.dart';
 import 'rooms_providers.dart';
@@ -273,6 +274,13 @@ class _RoomHead extends ConsumerWidget {
               ],
             ),
           ),
+          IconButton(
+            key: const Key('room-invite'),
+            tooltip: 'Invite teammates',
+            icon: const Icon(Icons.person_add_alt_1, size: 18),
+            color: AppColors.consoleMuted,
+            onPressed: () => _showInviteSheet(context),
+          ),
           if (canExport)
             IconButton(
               tooltip: 'Export case report',
@@ -282,6 +290,18 @@ class _RoomHead extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  void _showInviteSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.consolePanel,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _InviteSheet(roomId: roomId),
     );
   }
 
@@ -318,9 +338,196 @@ class _RoomHead extends ConsumerWidget {
   }
 }
 
+/// v3 invite sheet (§13): share the join code. Codes are stored
+/// hashed server-side (0007) — the plaintext is shown exactly once,
+/// when generated, so the sheet centers on generating a fresh code
+/// rather than pretending the current one is retrievable.
+class _InviteSheet extends ConsumerStatefulWidget {
+  const _InviteSheet({required this.roomId});
+
+  final String roomId;
+
+  @override
+  ConsumerState<_InviteSheet> createState() => _InviteSheetState();
+}
+
+class _InviteSheetState extends ConsumerState<_InviteSheet> {
+  String? _newCode;
+  bool _rotating = false;
+  String? _error;
+
+  Future<void> _rotate() async {
+    setState(() {
+      _rotating = true;
+      _error = null;
+    });
+    try {
+      final code = await ref
+          .read(roomsRepositoryProvider)
+          .rotateCode(widget.roomId);
+      if (!mounted) return;
+      setState(() {
+        _newCode = code;
+        _rotating = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = toAppException(error).message;
+        _rotating = false;
+      });
+    }
+  }
+
+  void _copy(String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invite code copied.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final canManage = ref
+        .watch(myRoomPermissionsProvider(widget.roomId))
+        .maybeWhen(
+          data: (p) => p.can(Permission.manageMembers),
+          orElse: () => false,
+        );
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Invite to this case',
+                    style: text.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close, size: 18),
+                  color: AppColors.consoleMuted,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Teammates join from “Join Room” with an access code. '
+              'Codes are stored hashed — a code is shown once, when '
+              'it is generated.',
+              style: text.bodySmall?.copyWith(color: AppColors.consoleMuted),
+            ),
+            const SizedBox(height: 18),
+            if (!canManage)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.v3StatusBg(AppColors.statusNeutral),
+                  border: Border.all(
+                    color: AppColors.v3StatusBorder(AppColors.statusNeutral),
+                  ),
+                ),
+                child: Text(
+                  'Only the owner (or a role with manage_members) can '
+                  'generate an invite code.',
+                  style: text.bodyMedium,
+                ),
+              )
+            else if (_rotating)
+              const Padding(
+                padding: EdgeInsets.all(18),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_newCode == null) ...[
+              FilledButton.icon(
+                key: const Key('invite-rotate'),
+                icon: const Icon(Icons.key_outlined, size: 18),
+                label: const Text('Generate invite code'),
+                onPressed: _rotate,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'The previous code stops working for new joins the moment '
+                'a new one is generated. Existing members keep access.',
+                style: text.bodySmall?.copyWith(
+                  color: AppColors.consoleMuted,
+                ),
+              ),
+            ] else ...[
+              Container(
+                key: const Key('invite-code'),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFF0B0D14),
+                  border: Border.all(color: const Color(0x338180F8)),
+                ),
+                child: Text(
+                  _newCode!,
+                  style: text.headlineMedium?.copyWith(
+                    fontFamily: 'GeistMono',
+                    letterSpacing: 6,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const Key('invite-copy'),
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Copy'),
+                      onPressed: () => _copy(_newCode!),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Done'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Share it out-of-band (verbally or chat) — it is valid for '
+                'new join requests only.',
+                style: text.bodySmall?.copyWith(
+                  color: AppColors.consoleMuted,
+                ),
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: text.bodySmall?.copyWith(color: AppColors.stateError),
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// v3 status pill — dot + label on tinted fill.
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.color, required this.label});
+class _StatusPill extends StatelessWidget {  const _StatusPill({required this.color, required this.label});
 
   final Color color;
   final String label;

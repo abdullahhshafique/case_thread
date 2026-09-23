@@ -205,6 +205,15 @@ class _HeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm + 2),
+          // Case title (v3 §7: the hero card names the case).
+          Text(
+            room?.name ?? 'Case overview',
+            style: text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           // Lead line
           Text(
             room == null

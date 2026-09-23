@@ -103,6 +103,7 @@ class AlibiScreen extends ConsumerWidget {
         lastDate: now,
       );
       if (date == null) return;
+      if (!context.mounted) return;
       final time = await showTimePicker(
         context: context,
         initialTime: const TimeOfDay(hour: 20, minute: 0),
