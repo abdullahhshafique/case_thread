@@ -368,8 +368,9 @@ class _TopBar extends StatelessWidget {
                             right: -5,
                             top: -4,
                             child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               constraints: const BoxConstraints(minWidth: 15),
                               height: 15,
                               alignment: Alignment.center,
@@ -408,7 +409,11 @@ class _TopBar extends StatelessWidget {
               onTap: onAskAI,
             ),
           ] else ...[
-            _GhostButton(icon: Icons.link, label: 'Copy link', onTap: onCopyLink),
+            _GhostButton(
+              icon: Icons.link,
+              label: 'Copy link',
+              onTap: onCopyLink,
+            ),
             const SizedBox(width: 8),
             _PrimaryButton(
               icon: Icons.auto_awesome,
@@ -1646,9 +1651,8 @@ class _CaseSwitcherSheet extends StatelessWidget {
                   ? Center(
                       child: Text(
                         'No case rooms yet — create one to start.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.consoleMuted,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.consoleMuted),
                       ),
                     )
                   : ListView.builder(
@@ -1693,9 +1697,7 @@ class _BottomNav extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF07080C),
-        border: Border(
-          top: BorderSide(color: Color(0x1AFFFFFF)),
-        ),
+        border: Border(top: BorderSide(color: Color(0x1AFFFFFF))),
       ),
       child: SafeArea(
         top: false,

@@ -381,9 +381,8 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
 
   void _copy(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite code copied.')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Invite code copied.')));
   }
 
   @override
@@ -408,7 +407,9 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
                 Expanded(
                   child: Text(
                     'Invite to this case',
-                    style: text.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                    style: text.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -459,9 +460,7 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
               Text(
                 'The previous code stops working for new joins the moment '
                 'a new one is generated. Existing members keep access.',
-                style: text.bodySmall?.copyWith(
-                  color: AppColors.consoleMuted,
-                ),
+                style: text.bodySmall?.copyWith(color: AppColors.consoleMuted),
               ),
             ] else ...[
               Container(
@@ -506,9 +505,7 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
               Text(
                 'Share it out-of-band (verbally or chat) — it is valid for '
                 'new join requests only.',
-                style: text.bodySmall?.copyWith(
-                  color: AppColors.consoleMuted,
-                ),
+                style: text.bodySmall?.copyWith(color: AppColors.consoleMuted),
               ),
             ],
             if (_error != null) ...[
@@ -527,7 +524,8 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
 }
 
 /// v3 status pill — dot + label on tinted fill.
-class _StatusPill extends StatelessWidget {  const _StatusPill({required this.color, required this.label});
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.color, required this.label});
 
   final Color color;
   final String label;

@@ -106,8 +106,7 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
                 itemBuilder: (context, index) => _MessageTile(
                   message: ordered[index],
                   nameByUser: nameByUser,
-                  currentUserId:
-                      ref.watch(sessionProvider).value?.id,
+                  currentUserId: ref.watch(sessionProvider).value?.id,
                 ),
               );
             },
@@ -250,9 +249,7 @@ class _MessageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final name = nameByUser[message.authorId] ??
-        message.authorName ??
-        'Member';
+    final name = nameByUser[message.authorId] ?? message.authorName ?? 'Member';
     final isOwn = message.authorId == currentUserId;
     // v3 §8 chat bubbles: own messages anchor right on the teal fill,
     // others stay left on the card surface; avatar chip + timestamp.
@@ -265,8 +262,9 @@ class _MessageTile extends StatelessWidget {
         ),
         constraints: const BoxConstraints(maxWidth: 560),
         child: Row(
-          mainAxisAlignment:
-              isOwn ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: isOwn
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (!isOwn) ...[
@@ -312,9 +310,7 @@ class _MessageTile extends StatelessWidget {
                     Text(
                       _clock(message.createdAt),
                       style: text.labelSmall?.copyWith(
-                        color: isOwn
-                            ? Colors.white70
-                            : AppColors.consoleMuted,
+                        color: isOwn ? Colors.white70 : AppColors.consoleMuted,
                         fontFamily: 'GeistMono',
                       ),
                     ),
@@ -331,10 +327,7 @@ class _MessageTile extends StatelessWidget {
   static String _initialsOf(String name) {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     if (parts.isEmpty) return 'CT';
-    return parts
-        .take(2)
-        .map((p) => p[0].toUpperCase())
-        .join();
+    return parts.take(2).map((p) => p[0].toUpperCase()).join();
   }
 
   static String _clock(DateTime dt) {
