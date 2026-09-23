@@ -77,7 +77,7 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
 
   static const _timelineSelect =
       'id, room_id, event_type, actor_id, occurred_at, payload, '
-      'classification, conflict_flag, profiles(actor_id)(display_name)';
+      'classification, conflict_flag, profiles(display_name)';
 
   @override
   Future<List<TimelineEventModel>> getTimeline(String roomId) async {
@@ -93,13 +93,22 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
   }
 
   @override
-  Stream<List<TimelineEventModel>> watchTimeline(String roomId) {
-    return _client
-        .from('v_timeline')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('occurred_at')
-        .map(_rowsToTimeline);
+  Stream<List<TimelineEventModel>> watchTimeline(String roomId) async* {
+    // v_timeline is a VIEW (0013 redaction) — postgres_changes cannot
+    // stream views. Stream the base table purely as a change signal
+    // (timeline_events is in the realtime publication since 0023) and
+    // refetch the redacted view on every tick, so privileged payload
+    // fields never reach the client.
+    final initial = await getTimeline(roomId);
+    yield initial.reversed.toList(); // newest first, matching the pane
+    await for (final _
+        in _client
+            .from('timeline_events')
+            .stream(primaryKey: ['id'])
+            .eq('room_id', roomId)) {
+      final rows = await getTimeline(roomId);
+      yield rows.reversed.toList();
+    }
   }
 
   List<TimelineEventModel> _rowsToTimeline(List rows) {
@@ -154,7 +163,7 @@ class SupabaseRoomContentRepository implements RoomContentRepository {
     final rows = await _client
         .from('tasks')
         .select(
-          'id, room_id, title, assignee_id, assignee:profiles(assignee_id)(display_name), '
+          'id, room_id, title, assignee_id, assignee:profiles(display_name), '
           'due_date, status, created_by, linked_evidence_id, created_at, '
           'conflict_flag, conflict_note',
         )

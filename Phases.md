@@ -16,6 +16,8 @@
 | Phase 2 | Full template library + redaction + notifications + export | Months 3–5 | ✅ Complete |
 | Phase 3 | AI agent workflows | Months 5–7 | ✅ Complete |
 | Phase 4 | SaaS polish — marketplace, cross-case search, offline mode, mobile store release | Months 7–12 | ✅ Complete (S1–S4); mobile store + paid tier deferred |
+| Phase 5 | Investigation intelligence — alibis, contradictions, gaps, dashboard, case status/closed summary | — | ✅ Complete (2026-09-17) |
+| Phase 6 | Spec alignment to instructor doc + v3 Investigation Console rebuild | — | 🟢 Code complete (2026-09-19); CI validation pending |
 
 ---
 
@@ -183,7 +185,7 @@
 
 ## 6. Phase Retrospective Log
 
-*(Updated after each phase closes. All phases through Phase 4 complete.)*
+*(Updated after each phase closes. Phases 0–5 complete; Phase 6 code-complete, awaiting CI validation.)*
 
 | Phase | What went well | What went poorly | Changes for next phase |
 |---|---|---|---|
@@ -192,6 +194,8 @@
 | Phase 2 | Five case types shipped as pure config (zero core-schema deviation — the Sprint-6 architecture proof held); redaction enforced server-side via security-barrier views and live-proven in a single session; phase-boundary CI pass caught 9 real bugs before they could ship | Recorded-migration hotfixes needed for cloud (policy patches outside files); export testing required careful privileged-field scoping; recursive-CTE entity queries took several iterations to bound | Contract-test-first applied beyond RLS (redaction, export scoping); phase-boundary full verification pass is now standing policy; view-based redaction (security_invoker) is the pattern for any future field-level gating |
 | Phase 3 | Full human-in-the-loop pipeline shipped as data + one Edge Function: agent registry, review RPC, provider adapter with 5 providers behind one interface; workflow builder (0018) reused the case-types-as-config pattern; Deno contract tests with stubbed fetch machine-prove provider-swap-is-config (DoD); realtime publication closed the Architecture §7 push gap | Realtime publication was never wired in Sprint 5 — `.stream()` panes silently no-oped, caught only while wiring suggestions live; UPDATE/DELETE RLS denials are silent no-ops (test asserts state, not throws — cost a test rewrite); local Docker stack start failed twice (pg_meta unhealthy) before a working exclude list | Tables added to `supabase_realtime` publication in the same migration that introduces them, with a pgTAP assertion; deny-contract tests for UPDATE/DELETE assert state-change absence; keep `postgres-meta` excluded from local stack starts |
 | Phase 4 | All four P2 epics shipped as committed code with contract tests: template marketplace (draft→publish materialization, per-role validation), cross-case search (RLS-scoped, redaction-aware), offline sync (LWW conflicts, append-only replay, security-gated writes), version history (audit-derived, no new writes). Policy-first approach: conflict-resolution design doc written before any code; every write path uses the same LWW RPCs for live + replay. | Append-only streams (discussion messages) proved trivially replay-safe; manual-event/timeline edits required careful LWW+conflict-flag implementation. RLS scoping for search required verifying no privileged-field leakage (redaction boundary test). | Mobile store submission moves to Phase 5 (external dependency); paid-tier groundwork deferred pending Go/No-Go. All 4 epic items shipped on schedule — no carries. |
+| Phase 5 | Investigation layer shipped additively on the config-driven core — contradictions elevated to first-class, status/summary lifecycle automated server-side, classification exposed through the redacted view without touching 0013's shape | The 0027 CHECK-constraint add without dropping the old named constraint bit twice (0027/0034 lesson); impersonated-session fixtures caused a whole class of pgTAP failures that only surfaced in CI | Fixture SQL always `unimpersonate()` first; scalar-subquery pgTAP assertions; CHECK changes drop the old constraint by name |
+| Phase 6 | Spec-epic pass closed the instructor-doc gaps (dashboard header+graphs, classification UI, connections map, Riverside seed), then the v3 HTML console was rebuilt in the Flutter shell (Geist + gradient + atmosphere, topbar/rail/cases shell, overview hero + stat tiles + charts, live-count attention card, animated connections graph, audit/summary panes) — zero backend changes, 116/116 Dart green. GitHub Push Protection caught a committed secret (p6j.txt) before it ever reached the remote | A pasted CI log was ever committed (p6j.txt with a live Supabase key — history scrubbed, key must rotate); doc/state drift between sessions left HANDOFF claiming fixes CI had never validated | Never commit pasted logs; sync progress docs (HANDOFF/memory/Phases) at the end of every session; treat push-protection blocks as a full history-audit trigger |
 
 ---
 
@@ -290,9 +294,9 @@ team actually trusted with sensitive case data? Would love to hear it.
 
 **Hashtag notes:** swap `#ProductDevelopment` for something more specific to the milestone if useful (`#LegalTech`, `#EdTech`, `#AIAgents`) — keep to 3–5 total per the original brief.
 
-## 6. Phase 6 — Spec Alignment (COMPLETE 2026-09-17)
+## 11. Phase 6 — Spec Alignment & v3 Console (2026-09-17 → 2026-09-19)
 
-Closes the gaps against the instructor's "Complete Project Understanding" doc.
+Closes the gaps against the instructor's "Complete Project Understanding" doc, then rebuilds the Flutter shell to the approved v3 HTML console (`casethread-v3.html`).
 
 | Epic | What shipped |
 |---|---|
@@ -300,7 +304,22 @@ Closes the gaps against the instructor's "Complete Project Understanding" doc.
 | Fact/Claim/Finding/Unknown (doc §7) | Classification badges on Timeline + Vault tiles, filter chips on Timeline, classification picker in the Add-Event sheet, v_timeline exposes the 0027 column |
 | Connections map (doc §13) | New Map tab: circular entity graph (person/location/vehicle/evidence/org colors), tap node/edge for "Why connected?" sheets, add-relationship flow for edit_case holders |
 | Coherent mock case (doc §30) | Riverside Robbery #2291 seed: full cast, relationships, classified evidence, the doc's timeline sequence, alibi-in-conflict, contradiction, gaps — access code ROBBERY2 |
-| Tests | case_breakdown pgTAP suite (6), CaseBreakdown + EntityMapData Dart suites; flutter analyze clean, 115/115 pass |
+| Tests | case_breakdown pgTAP suite (6), CaseBreakdown + EntityMapData Dart suites |
 
 Key decisions: charts hand-drawn (no fl_chart — pinned-deps rule); Dashboard mounted as tab 0 (doc §32 main-nav); seed added alongside existing rooms (back-compat).
 Migrations: 0033_case_breakdown.sql (v_case_breakdown security-invoker fn + v_timeline gains classification).
+
+### 11.1 v3 Investigation Console rebuild (2026-09-19 — code complete, CI pending)
+
+Presentation-layer rebuild of the Flutter shell to the approved v3 design — zero backend changes; every existing provider/RPC reused:
+
+| v3 element | Where it lives |
+|---|---|
+| Geist + GeistMono fonts, brand gradient (teal→blue→violet), console surface/status tokens, ambient atmosphere (shell grid + aurora + glow orbs; reduced-motion aware) | `pubspec.yaml`, `assets/fonts/Geist*`, `lib/core/theme/app_colors.dart`, `lib/shell/ambient_atmosphere.dart`, `app_text_theme.dart` |
+| Topbar + icon rail + cases-panel shell; room detail embedded with 11 v3 tabs (Overview / Discussion / Evidence / Timeline / Analysis / Connections / Tasks / AI / Audit Log / Members / Summary) | `rooms_screen.dart`, `room_detail_screen.dart` |
+| Overview hero, 6 stat tiles, evidence-by-type + 14-day event charts, classification coverage meter | `features/dashboard/dashboard_screen.dart` (v_case_statistics 0026 + v_case_breakdown 0033) |
+| "Waiting on you" attention card with live counts (open tasks, open contradictions, unverified alibis) | `attentionCountsProvider` + `roomTasksStreamProvider` in `rooms_providers.dart` |
+| Animated connections graph — pulsing orbs, flowing dashed edges, dashed ring for unknown types, type legend | `features/connections/connections_screen.dart` |
+| Audit Log + Summary panes (were imported but missing — the build blocker this phase fixed) | `audit_pane.dart`, `summary_pane.dart` |
+
+**Gates:** flutter analyze 0 issues; 116/116 Dart tests. Pushed **8d2901e** (after GitHub Push Protection forced a history scrub of `p6j.txt` — see HANDOFF §4b). **CI run pending** — the pgTAP suite's first validation of the 0093efa fixes. Remaining v3 polish: discussion/evidence/timeline pane restyles, notifications sheet, invite/code restyle, mobile bottom nav.

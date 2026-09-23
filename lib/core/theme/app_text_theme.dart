@@ -5,8 +5,11 @@ import 'app_colors.dart';
 /// Design.md §2 typography. Base 16px; every named style maps to a usage
 /// role defined there. Body text never uses weight below 400.
 abstract final class AppTextTheme {
-  static const String _inter = 'Inter';
-  static const String _mono = 'JetBrainsMono';
+  // v3 console (casethread-v3.html §0): Geist for UI, GeistMono for
+  // tabular/monospace data. Inter/JetBrainsMono remain as bundle
+  // fallbacks for any style not yet migrated.
+  static const String _inter = 'Geist';
+  static const String _mono = 'GeistMono';
 
   static TextTheme build() {
     return TextTheme(

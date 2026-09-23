@@ -312,10 +312,11 @@ class ConnectionsScreen extends ConsumerWidget {
   }
 }
 
-/// Circular layout: nodes evenly spaced on an ellipse; edges drawn
-/// straight between centers with hit-testing for taps. Deterministic,
-/// dependency-free, and readable for case-sized graphs (< ~40 nodes).
-class _GraphView extends StatelessWidget {
+/// Animated v3-style graph (v3 §9 connections): nodes as pulsing orbs,
+/// edges as flowing dashed lines, legend pill at the bottom. Circular
+/// layout + tap hit-testing preserved; deterministic and readable for
+/// case-sized graphs (< ~40 nodes). Reduced-motion renders it static.
+class _GraphView extends StatefulWidget {
   const _GraphView({
     required this.data,
     required this.onNodeTap,
@@ -326,24 +327,62 @@ class _GraphView extends StatelessWidget {
   final void Function(MapNode) onNodeTap;
   final void Function(MapEdge) onEdgeTap;
 
-  static const double _nodeRadius = 22;
+  @override
+  State<_GraphView> createState() => _GraphViewState();
+}
+
+class _GraphViewState extends State<_GraphView>
+    with SingleTickerProviderStateMixin {
+  static const double _nodeRadius = 26;
+
+  late final AnimationController _flow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _flow.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final positions = _layout(size);
+        final legendTypes = _legendTypes();
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapUp: (details) => _handleTap(details.localPosition, positions),
-          child: CustomPaint(
-            size: size,
-            painter: _GraphPainter(
-              data: data,
-              positions: positions,
-              nodeRadius: _nodeRadius,
-            ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                // Isolate the 60fps graph painter from the rest of the
+                // tree — without this every animation tick repaints the
+                // whole pane stack.
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    size: size,
+                    painter: _GraphPainter(
+                      data: widget.data,
+                      positions: positions,
+                      nodeRadius: _nodeRadius,
+                      t: reduceMotion ? 0 : _flow.value,
+                    ),
+                  ),
+                ),
+              ),
+              if (legendTypes.isNotEmpty)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 16,
+                  child: Center(child: _Legend(types: legendTypes)),
+                ),
+            ],
           ),
         );
       },
@@ -354,11 +393,11 @@ class _GraphView extends StatelessWidget {
     final center = Offset(size.width / 2, size.height / 2);
     final radiusX = math.max(0.0, size.width / 2 - _nodeRadius * 2);
     final radiusY = math.max(0.0, size.height / 2 - _nodeRadius * 2);
-    final n = data.nodes.length;
+    final n = widget.data.nodes.length;
     final out = <String, Offset>{};
     for (var i = 0; i < n; i++) {
       final angle = -math.pi / 2 + (2 * math.pi * i / n);
-      out[data.nodes[i].id] = n == 1
+      out[widget.data.nodes[i].id] = n == 1
           ? center
           : center +
                 Offset(radiusX * math.cos(angle), radiusY * math.sin(angle));
@@ -368,20 +407,20 @@ class _GraphView extends StatelessWidget {
 
   void _handleTap(Offset tap, Map<String, Offset> positions) {
     // Nodes first (closer targets win).
-    for (final node in data.nodes) {
+    for (final node in widget.data.nodes) {
       final p = positions[node.id];
       if (p != null && (tap - p).distance <= _nodeRadius) {
-        onNodeTap(node);
+        widget.onNodeTap(node);
         return;
       }
     }
     // Then edges: distance to the segment < 12px.
-    for (final edge in data.edges) {
+    for (final edge in widget.data.edges) {
       final a = positions[edge.fromId];
       final b = positions[edge.toId];
       if (a == null || b == null) continue;
       if (_distanceToSegment(tap, a, b) <= 12) {
-        onEdgeTap(edge);
+        widget.onEdgeTap(edge);
         return;
       }
     }
@@ -397,6 +436,79 @@ class _GraphView extends StatelessWidget {
     final proj = Offset(a.dx + ab.dx * clamped, a.dy + ab.dy * clamped);
     return (p - proj).distance;
   }
+
+  /// Legend entries for the types actually present, in stable order.
+  List<(String, Color)> _legendTypes() {
+    const order = [
+      ('person', 'Person'),
+      ('location', 'Location'),
+      ('vehicle', 'Vehicle'),
+      ('evidence', 'Evidence'),
+      ('org', 'Org'),
+    ];
+    final present = widget.data.nodes.map((n) => n.type).toSet();
+    final out = <(String, Color)>[
+      for (final (type, label) in order)
+        if (present.contains(type)) (label, _GraphPainter.nodeColor(type)),
+    ];
+    if (present.where((t) => !order.any((o) => o.$1 == t)).isNotEmpty) {
+      out.add(('Other', _GraphPainter.nodeColor('other')));
+    }
+    return out;
+  }
+}
+
+/// Bottom legend pill (v3 §9 .legend): colored dot + label per type.
+class _Legend extends StatelessWidget {
+  const _Legend({required this.types});
+
+  final List<(String, Color)> types;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.consoleBorder),
+        color: const Color(0xE60B0D14),
+      ),
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 4,
+        children: [
+          for (final (label, color) in types)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.6),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.consoleMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _GraphPainter extends CustomPainter {
@@ -404,13 +516,17 @@ class _GraphPainter extends CustomPainter {
     required this.data,
     required this.positions,
     required this.nodeRadius,
+    required this.t,
   });
 
   final EntityMapData data;
   final Map<String, Offset> positions;
   final double nodeRadius;
 
-  Color _nodeColor(String type) => switch (type) {
+  /// Animation phase 0..1 — drives edge dash flow + node pulse.
+  final double t;
+
+  static Color nodeColor(String type) => switch (type) {
     'person' => AppColors.statusOpen,
     'location' => AppColors.stateSuccess,
     'vehicle' => AppColors.statePending,
@@ -419,47 +535,130 @@ class _GraphPainter extends CustomPainter {
     _ => AppColors.statusNeutral,
   };
 
+  static const _knownTypes = {
+    'person',
+    'location',
+    'vehicle',
+    'evidence',
+    'org',
+  };
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Edges first (under nodes).
+    // -- Edges: flowing dashes (under nodes) --------------------------
+    final edgePaint = Paint()
+      ..color = const Color(0x4D8180F8)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    const dash = 5.0;
+    const period = 11.0; // dash + gap
+    final flow = -t * period;
+
     for (final edge in data.edges) {
       final a = positions[edge.fromId];
       final b = positions[edge.toId];
       if (a == null || b == null) continue;
-      canvas.drawLine(
-        a,
-        b,
-        Paint()
-          ..color = AppColors.textSecondary.withValues(alpha: 0.6)
-          ..strokeWidth = 2,
-      );
+      final delta = b - a;
+      final len = delta.distance;
+      if (len == 0) continue;
+      final unit = delta / len;
+      for (var d = flow; d < len; d += period) {
+        final s = d.clamp(0.0, len);
+        final e = (d + dash).clamp(0.0, len);
+        if (e > s) {
+          canvas.drawLine(a + unit * s, a + unit * e, edgePaint);
+        }
+      }
       final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
-      _drawLabel(canvas, edge.type.replaceAll('_', ' '), mid);
+      _drawLabel(
+        canvas,
+        edge.type.replaceAll('_', ' '),
+        mid,
+        AppColors.textSecondary.withValues(alpha: 0.75),
+        fontSize: 9.5,
+      );
     }
-    // Nodes.
+
+    // -- Nodes: orbs with pulse ring + glowing core --------------------
     for (final node in data.nodes) {
       final p = positions[node.id];
       if (p == null) continue;
-      final color = _nodeColor(node.type);
-      canvas.drawCircle(p, nodeRadius, Paint()..color = color);
+      final color = nodeColor(node.type);
+      final unknown = !_knownTypes.contains(node.type);
+
+      // Pulse ring (known types only — unknown is dashed, quiet).
+      if (!unknown) {
+        canvas.drawCircle(
+          p,
+          nodeRadius * (1.0 + 0.55 * t),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..color = color.withValues(alpha: (1 - t) * 0.45),
+        );
+      }
+
+      // Dark disc body.
       canvas.drawCircle(
         p,
         nodeRadius,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = AppColors.bgPrimary,
+        Paint()..color = const Color(0xE60B0D14),
       );
-      _drawIcon(canvas, node.type, p, color);
-      _drawLabel(canvas, node.name, p + Offset(0, nodeRadius + 12));
+
+      // Ring — solid for known types, dashed for unknown.
+      final ringPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = color;
+      if (unknown) {
+        final circle = Path()
+          ..addOval(Rect.fromCircle(center: p, radius: nodeRadius));
+        for (final metric in circle.computeMetrics()) {
+          for (var d = 0.0; d < metric.length; d += 8) {
+            canvas.drawPath(
+              metric.extractPath(d, (d + 4).clamp(0.0, metric.length)),
+              ringPaint,
+            );
+          }
+        }
+      } else {
+        canvas.drawCircle(p, nodeRadius, ringPaint);
+      }
+
+      // Glowing core dot.
+      canvas.drawCircle(
+        p,
+        5,
+        Paint()
+          ..color = color
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+      canvas.drawCircle(p, 5, Paint()..color = color);
+
+      _drawLabel(
+        canvas,
+        node.name,
+        p + Offset(0, nodeRadius + 10),
+        AppColors.consoleText,
+      );
     }
   }
 
-  void _drawLabel(Canvas canvas, String text, Offset at) {
+  void _drawLabel(
+    Canvas canvas,
+    String text,
+    Offset at,
+    Color color, {
+    double fontSize = 10.5,
+  }) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
@@ -467,30 +666,7 @@ class _GraphPainter extends CustomPainter {
     tp.paint(canvas, at - Offset(tp.width / 2, tp.height));
   }
 
-  void _drawIcon(Canvas canvas, String type, Offset center, Color color) {
-    final icon = switch (type) {
-      'person' => Icons.person,
-      'location' => Icons.location_on,
-      'vehicle' => Icons.directions_car,
-      'evidence' => Icons.description,
-      'org' => Icons.business,
-      _ => Icons.circle,
-    };
-    final tp = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(icon.codePoint),
-        style: TextStyle(
-          fontFamily: icon.fontFamily,
-          fontSize: 20,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
-  }
-
   @override
   bool shouldRepaint(covariant _GraphPainter oldDelegate) =>
-      oldDelegate.data != data;
+      oldDelegate.data != data || oldDelegate.t != t;
 }

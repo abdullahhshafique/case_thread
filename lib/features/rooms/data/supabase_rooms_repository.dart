@@ -33,13 +33,24 @@ class SupabaseRoomsRepository implements RoomsRepository {
   Future<CreatedRoom> createRoom({
     required String name,
     required String caseTypeId,
+    String? accessCode,
   }) async {
     final result = await _guard(() async {
       final response = await _client.rpc(
         'create_case_room',
-        params: {'room_name': name, 'type_id': caseTypeId},
+        params: {
+          'room_name': name,
+          'type_id': caseTypeId,
+          'p_access_code': accessCode,
+        },
       );
-      return (response as Map<String, dynamic>);
+      // Set-returning RPCs arrive as a JSON array — the sibling calls
+      // already handled this; createRoom was the one that didn't
+      // (the `as Map` cast threw before the RPC result was used).
+      if (response is List && response.isNotEmpty) {
+        return Map<String, dynamic>.from(response.first as Map);
+      }
+      return Map<String, dynamic>.from(response as Map);
     });
     return CreatedRoom(
       roomId: result['room_id'] as String,
@@ -80,8 +91,11 @@ class SupabaseRoomsRepository implements RoomsRepository {
       return Map<String, dynamic>.from(response as Map);
     });
     return JoinRequestResult(
-      memberId: result['member_id'] as String,
-      status: result['status'] as String,
+      // The RPC's OUT param is deliberately named member_status (0007 —
+      // avoids a SQL ambiguity), so the row key is member_status, and
+      // the already-a-member path returns a null id by design.
+      memberId: (result['member_id'] as String?) ?? '',
+      status: (result['member_status'] as String?) ?? 'pending',
     );
   }
 

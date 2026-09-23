@@ -2,7 +2,7 @@
 
 > **Purpose:** Walk a teammate through every step of setting up, logging in, and demonstrating CaseThread on Chrome (Windows + VS Code). Includes all accounts, room codes, case details, and the full demo flow.
 
-**Last updated:** 2026-09-17 · **Version:** 1.2 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case)
+**Last updated:** 2026-09-19 · **Version:** 1.3 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case) plus the v3 Investigation Console rebuild — Geist typography, topbar/rail/cases shell, Overview hero with stat cards + charts, live "Waiting on you" counts, animated Connections graph, Audit Log + Summary panes
 
 ---
 
@@ -163,10 +163,10 @@ This is the **primary local development path** — all migrations and tests run 
 # 1. Start Supabase local stack (exclude pg_meta — it's chronically unhealthy)
 npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta
 
-# 2. Reset database (applies all 31 migrations in order, seeds demo data)
+# 2. Reset database (applies all 39 migrations in order, seeds demo data)
 npx supabase db reset
 
-# 3. Run pgTAP test suite (should show 224/224 PASS — 166 through Phase 4 + 58 Phase 5)
+# 3. Run pgTAP test suite (27 files, 232 declared tests — should show all PASS)
 npx supabase test db
 ```
 
@@ -337,7 +337,7 @@ flutter build web --release
 
 1. **Setup screen** (if no Supabase config detected) — shows instructions
 2. **Rooms hub** (after sign-in) — your list of case rooms, search icon, marketplace icon
-3. **Room detail** (after selecting a room) — 7 tabs: Vault, Timeline, Discussion, Tasks, AI, Members, Analysis — plus a Quick Actions bar above the tabs
+3. **Room detail** (after selecting a room) — 11 tabs: Overview, Discussion, Evidence, Timeline, Analysis, Connections, Tasks, AI, Audit Log, Members, Summary (the v3 Investigation Console)
 
 ---
 
@@ -362,12 +362,12 @@ flutter build web --release
 #### Step 2: View the Room
 
 1. Click on **"Contract Dispute — Riverbend Ltd"**
-2. You see 7 tabs: **Vault**, **Timeline**, **Discussion**, **Tasks**, **AI**, **Members**, **Analysis**
-3. Above the tabs is the **Quick Actions bar** — pill-shaped chips (Evidence, Event, Statement, Task, Person, Alibi, Contradiction, Gap) that jump straight to the matching tab
+2. You see 11 tabs: **Overview**, **Discussion**, **Evidence**, **Timeline**, **Analysis**, **Connections**, **Tasks**, **AI**, **Audit Log**, **Members**, **Summary**
+3. The **Analysis** tab holds the Quick Actions chips (Evidence, Event, Statement, Task, Person, Alibi, Contradiction, Gap) that open the matching creation flow; the **Overview** tab shows the case hero card, stat tiles, and graphs
 
 #### Step 3: Explore Pre-Seeded Data
 
-**Vault tab:**
+**Evidence tab:**
 - Evidence file: **`riverbend-contract.pdf`** (482 KB, version 1)
 - Click it to see details — all metadata is tracked
 
@@ -644,7 +644,7 @@ flutter test
 
 # 4. Local database tests (Docker stack required)
 npx supabase test db
-# Expected: 224/224 pgTAP PASS (166 through Phase 4 + 58 Phase 5)
+# Expected: all pgTAP tests PASS (27 files, 232 declared tests)
 
 # 5. AI adapter contract tests (Deno)
 deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts

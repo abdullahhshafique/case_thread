@@ -95,7 +95,7 @@ select is(
 select tests.impersonate('kai@example.com');
 -- 4. Non-member gets empty breakdowns (no leak).
 select is(
-  bd.evidence_by_type,
+  (bd -> 'evidence_by_type'),
   '{}'::jsonb,
   'non-member evidence_by_type is empty'
 ) from public.v_case_breakdown(

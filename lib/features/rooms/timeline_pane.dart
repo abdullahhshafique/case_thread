@@ -31,6 +31,9 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
   /// Client-side classification filter (doc §7): null = All.
   String? _filter;
 
+  /// Source filter (v3 §7): null = All; manual | system | ai_suggestion.
+  String? _sourceFilter;
+
   @override
   Widget build(BuildContext context) {
     final roomId = widget.roomId;
@@ -74,6 +77,7 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
             ],
           ),
         ),
+        _sourceChips(),
         Expanded(
           child: Stack(
             children: [
@@ -93,6 +97,63 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Source filter chips (v3 §7): manual / system / AI provenance.
+  Widget _sourceChips() {
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        children: [
+          for (final f in const [
+            ('all', 'All sources'),
+            ('manual', 'Manual'),
+            ('system', 'System'),
+            ('ai_suggestion', 'AI'),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: ChoiceChip(
+                key: Key('tl-source-${f.$1}'),
+                label: Text(
+                  f.$2,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color:
+                        (f.$1 == 'all'
+                            ? _sourceFilter == null
+                            : _sourceFilter == f.$1)
+                        ? const Color(0xFFA5B4FC)
+                        : const Color(0xFF9AA2B6),
+                  ),
+                ),
+                selected: f.$1 == 'all'
+                    ? _sourceFilter == null
+                    : _sourceFilter == f.$1,
+                onSelected: (_) => setState(() {
+                  _sourceFilter = (f.$1 == 'all') ? null : f.$1;
+                }),
+                selectedColor: const Color(0x1A6366F1),
+                side: BorderSide(
+                  color:
+                      (f.$1 == 'all'
+                          ? _sourceFilter == null
+                          : _sourceFilter == f.$1)
+                      ? const Color(0x4D8180F8)
+                      : AppColors.consoleBorder,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -174,10 +235,13 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
             classification: classification,
           );
       ref.invalidate(_timelineStreamProvider(widget.roomId));
-    } on AppException catch (error) {
+    } on Exception catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+        // Dev posture: raw cause accompanies the calm message so a
+        // failure screenshot is diagnosable without the console.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${toAppException(error).message}\n— $error')),
+        );
       }
     }
   }
@@ -193,16 +257,17 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Text(
-            toAppException(error).message,
+            '${toAppException(error).message}\n— $error',
             style: text.bodyMedium,
             textAlign: TextAlign.center,
           ),
         ),
       ),
       data: (events) {
-        final filtered = (_filter == null)
-            ? events
-            : events.where((e) => e.classification == _filter).toList();
+        final filtered = events
+            .where((e) => _filter == null || e.classification == _filter)
+            .where((e) => _sourceFilter == null || e.eventType == _sourceFilter)
+            .toList();
         if (filtered.isEmpty) return _empty(context, text);
         return ListView.builder(
           // Rules.md §9: lazy list — timelines grow unbounded.
@@ -267,127 +332,182 @@ class _TimelineTile extends ConsumerWidget {
     final myManualEvent =
         canEdit && event.eventType == 'manual' && event.actorId == me?.id;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(
+    return Padding(
+      padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isAi
-            ? const BorderSide(color: AppColors.statePending, width: 1.5)
-            : BorderSide.none,
-      ),
-      child: InkWell(
-        // a11y: the affordance exists only where the policy allows it.
-        onLongPress: myManualEvent ? () => _edit(context, ref) : null,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                isSystem
-                    ? switch (event.actionType) {
-                        'evidence_uploaded' => Icons.description_outlined,
-                        'code_rotated' => Icons.key_outlined,
-                        'join_requested' ||
-                        'join_approved' ||
-                        'member_revoked' => Icons.person_outline,
-                        'task_created' || 'task_updated' => Icons.checklist,
-                        _ => Icons.autorenew,
-                      }
-                    : isAi
-                    ? Icons.auto_awesome
-                    : Icons.event_note,
-                color: isSystem
-                    ? Theme.of(context).colorScheme.onSurface
-                          .withValues(alpha: 0.5)
-                    : isAi
-                    ? AppColors.statePending
-                    : Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            event.displaySummary,
-                            style: text.bodyLarge,
-                          ),
-                        ),
-                        if (event.classification != null)
-                          _ClassificationBadge(
-                            classification: event.classification!,
-                          ),
-                        if (isAi)
-                          // AI badge (Design.md §1: amber = AI suggestion,
-                          // exclusively; label pairs with color — never
-                          // color alone).
-                          Padding(
-                            padding: const EdgeInsets.only(left: AppSpacing.sm),
-                            child: Text(
-                              'AI · reviewed',
-                              style: text.labelMedium?.copyWith(
-                                color: AppColors.statePending,
-                              ),
+      // v3 §7 timeline: a spine node per row, colored by source
+      // (manual = blue, system = neutral, AI = amber), connected by a
+      // hairline down the case's chronology.
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Column(
+              children: [
+                const SizedBox(height: 14),
+                Container(
+                  height: 10,
+                  width: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isAi
+                        ? AppColors.statePending
+                        : isSystem
+                        ? AppColors.statusNeutral
+                        : AppColors.statusOpen,
+                    border: Border.all(
+                      color: isAi
+                          ? AppColors.statePending
+                          : isSystem
+                          ? AppColors.statusNeutral
+                          : AppColors.statusOpen,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(width: 2, color: AppColors.consoleBorder),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: Theme.of(context).colorScheme.surface,
+                  border: isAi
+                      ? Border.all(color: AppColors.statePending, width: 1.5)
+                      : Border.all(color: AppColors.consoleBorder),
+                ),
+                child: InkWell(
+                  // a11y: the affordance exists only where the policy
+                  // allows it. The card Container already pads the row.
+                  onLongPress: myManualEvent ? () => _edit(context, ref) : null,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        isSystem
+                            ? switch (event.actionType) {
+                                'evidence_uploaded' =>
+                                  Icons.description_outlined,
+                                'code_rotated' => Icons.key_outlined,
+                                'join_requested' ||
+                                'join_approved' ||
+                                'member_revoked' => Icons.person_outline,
+                                'task_created' ||
+                                'task_updated' => Icons.checklist,
+                                _ => Icons.autorenew,
+                              }
+                            : isAi
+                            ? Icons.auto_awesome
+                            : Icons.event_note,
+                        color: isSystem
+                            ? Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.5)
+                            : isAi
+                            ? AppColors.statePending
+                            : Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    event.displaySummary,
+                                    style: text.bodyLarge,
+                                  ),
+                                ),
+                                if (event.classification != null)
+                                  _ClassificationBadge(
+                                    classification: event.classification!,
+                                  ),
+                                if (isAi)
+                                  // AI badge (Design.md §1: amber = AI suggestion,
+                                  // exclusively; label pairs with color — never
+                                  // color alone).
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: AppSpacing.sm,
+                                    ),
+                                    child: Text(
+                                      'AI · reviewed',
+                                      style: text.labelMedium?.copyWith(
+                                        color: AppColors.statePending,
+                                      ),
+                                    ),
+                                  ),
+                                // Version history (0024) — manual events only
+                                // (system/AI rows have no edit trail).
+                                if (event.eventType == 'manual')
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: AppSpacing.sm,
+                                    ),
+                                    child: InkWell(
+                                      onTap: () => showVersionHistory(
+                                        context,
+                                        objectKind: 'timeline_event',
+                                        objectId: event.id,
+                                        title: event.displaySummary,
+                                      ),
+                                      child: Text(
+                                        'History',
+                                        style: text.labelMedium?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                          ),
-                        // Version history (0024) — manual events only
-                        // (system/AI rows have no edit trail).
-                        if (event.eventType == 'manual')
-                          Padding(
-                            padding: const EdgeInsets.only(left: AppSpacing.sm),
-                            child: InkWell(
-                              onTap: () => showVersionHistory(
-                                context,
-                                objectKind: 'timeline_event',
-                                objectId: event.id,
-                                title: event.displaySummary,
-                              ),
-                              child: Text(
-                                'History',
-                                style: text.labelMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
+                            const SizedBox(height: AppSpacing.xxs),
+                            if (isAi && event.details?['finding'] is String)
+                              Text(
+                                event.details!['finding'] as String,
+                                style: text.bodyMedium?.copyWith(
+                                  color: text.bodyMedium?.color?.withValues(
+                                    alpha: 0.8,
+                                  ),
                                 ),
                               ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              '${event.actorName ?? 'System'} · '
+                                      '${event.occurredAt.toLocal()}'
+                                  .split('.')
+                                  .first,
+                              style: text.labelSmall?.copyWith(
+                                color: AppColors.consoleMuted,
+                                fontFamily: 'GeistMono',
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    if (isAi && event.details?['finding'] is String)
-                      Text(
-                        event.details!['finding'] as String,
-                        style: text.bodyMedium?.copyWith(
-                          color: text.bodyMedium?.color?.withValues(alpha: 0.8),
+                            // Offline LWW loser: visible conflict chip (policy §4).
+                            if (event.conflictFlag)
+                              ConflictChip(
+                                objectKind: 'timeline_event',
+                                objectId: event.id,
+                              ),
+                          ],
                         ),
                       ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      '${event.actorName ?? 'System'} · '
-                              '${event.occurredAt.toLocal()}'
-                          .split('.')
-                          .first,
-                      style: text.bodyMedium?.copyWith(
-                        color: text.bodyMedium?.color?.withValues(alpha: 0.7),
-                      ),
-                    ),
-                    // Offline LWW loser: visible conflict chip (policy §4).
-                    if (event.conflictFlag)
-                      ConflictChip(
-                        objectKind: 'timeline_event',
-                        objectId: event.id,
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

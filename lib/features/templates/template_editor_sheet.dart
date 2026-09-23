@@ -83,103 +83,107 @@ class _TemplateEditorSheetState extends ConsumerState<TemplateEditorSheet> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.existing == null ? 'New template' : 'Edit template',
-              style: text.headlineSmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              key: const Key('tpl-name'),
-              controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Template name',
-                hintText: 'e.g. Journalism Room',
+        // The roles grid grows with content — scroll instead of overflow.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.existing == null ? 'New template' : 'Edit template',
+                style: text.headlineSmall,
               ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name it.' : null,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              key: const Key('tpl-slug'),
-              controller: _slug,
-              enabled: widget.existing?.isPublished != true,
-              decoration: const InputDecoration(
-                labelText: 'Template id',
-                hintText: 'lowercase_letters_underscores (3-31)',
-                helperText: 'Becomes the case type id when published.',
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                key: const Key('tpl-name'),
+                controller: _name,
+                decoration: const InputDecoration(
+                  labelText: 'Template name',
+                  hintText: 'e.g. Journalism Room',
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Name it.' : null,
               ),
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (!RegExp(r'^[a-z][a-z0-9_]{2,30}$').hasMatch(s)) {
-                  return '3-31 chars: lowercase first, then letters/digits/underscores.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              key: const Key('tpl-description'),
-              controller: _description,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Roles & permissions', style: text.labelLarge),
-            const SizedBox(height: AppSpacing.xs),
-            for (var i = 0; i < _roles.length; i++)
-              _RoleEditor(
-                role: _roles[i],
-                isOwnerRole: _roles[i].slug == _ownerRoleSlug,
-                canDelete: _roles.length > 1,
-                onChanged: (role) => setState(() {
-                  if (_ownerRoleSlug == _roles[i].slug &&
-                      role.slug != _roles[i].slug) {
-                    _ownerRoleSlug = role.slug;
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                key: const Key('tpl-slug'),
+                controller: _slug,
+                enabled: widget.existing?.isPublished != true,
+                decoration: const InputDecoration(
+                  labelText: 'Template id',
+                  hintText: 'lowercase_letters_underscores (3-31)',
+                  helperText: 'Becomes the case type id when published.',
+                ),
+                validator: (v) {
+                  final s = v?.trim() ?? '';
+                  if (!RegExp(r'^[a-z][a-z0-9_]{2,30}$').hasMatch(s)) {
+                    return '3-31 chars: lowercase first, then letters/digits/underscores.';
                   }
-                  _roles[i] = role;
-                }),
-                onOwnerChanged: (slug) => setState(() => _ownerRoleSlug = slug),
-                onDelete: () => setState(() {
-                  if (_ownerRoleSlug == _roles[i].slug && _roles.length > 1) {
-                    _ownerRoleSlug = _roles
-                        .firstWhere((r) => r != _roles[i])
-                        .slug;
-                  }
-                  _roles.removeAt(i);
-                }),
+                  return null;
+                },
               ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              key: const Key('tpl-add-role'),
-              onPressed: _roles.length >= 8
-                  ? null
-                  : () => setState(() => _roles.add(_contributorDefault())),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(_roles.length >= 8 ? 'Max 8 roles' : 'Add role'),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('tpl-save'),
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save draft'),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                key: const Key('tpl-description'),
+                controller: _description,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  alignLabelWithHint: true,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.lg),
+              Text('Roles & permissions', style: text.labelLarge),
+              const SizedBox(height: AppSpacing.xs),
+              for (var i = 0; i < _roles.length; i++)
+                _RoleEditor(
+                  role: _roles[i],
+                  isOwnerRole: _roles[i].slug == _ownerRoleSlug,
+                  canDelete: _roles.length > 1,
+                  onChanged: (role) => setState(() {
+                    if (_ownerRoleSlug == _roles[i].slug &&
+                        role.slug != _roles[i].slug) {
+                      _ownerRoleSlug = role.slug;
+                    }
+                    _roles[i] = role;
+                  }),
+                  onOwnerChanged: (slug) =>
+                      setState(() => _ownerRoleSlug = slug),
+                  onDelete: () => setState(() {
+                    if (_ownerRoleSlug == _roles[i].slug && _roles.length > 1) {
+                      _ownerRoleSlug = _roles
+                          .firstWhere((r) => r != _roles[i])
+                          .slug;
+                    }
+                    _roles.removeAt(i);
+                  }),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                key: const Key('tpl-add-role'),
+                onPressed: _roles.length >= 8
+                    ? null
+                    : () => setState(() => _roles.add(_contributorDefault())),
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(_roles.length >= 8 ? 'Max 8 roles' : 'Add role'),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const Key('tpl-save'),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save draft'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

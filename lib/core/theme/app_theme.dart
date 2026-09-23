@@ -28,7 +28,7 @@ ThemeData buildAppTheme() {
     colorScheme: colorScheme,
     scaffoldBackgroundColor: AppColors.bgPrimary,
     textTheme: text,
-    fontFamily: 'Inter',
+    fontFamily: 'Geist',
     splashFactory: NoSplash.splashFactory,
     dividerColor: AppColors.borderSubtle,
     dividerTheme: const DividerThemeData(
@@ -38,6 +38,32 @@ ThemeData buildAppTheme() {
     // Focus ring: 2px teal, never removed without replacement (Design.md §11).
     focusColor: AppColors.accentPrimary.withValues(alpha: 0.25),
   ).copyWith(
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.bgPrimary,
+      foregroundColor: AppColors.textPrimary,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontFamily: 'Geist',
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppColors.textPrimary,
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.bgSurfaceRaised,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(22)),
+        side: const BorderSide(color: AppColors.borderSubtle),
+      ),
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AppColors.consoleText,
+      unselectedLabelColor: AppColors.consoleMuted,
+      dividerColor: Colors.transparent,
+      indicatorColor: AppColors.brandBlue,
+    ),
     inputDecorationTheme: _inputDecoration(),
     elevatedButtonTheme: _elevatedButton(),
     outlinedButtonTheme: _outlinedButton(),
@@ -102,7 +128,7 @@ ElevatedButtonThemeData _elevatedButton() {
       minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
       textStyle: const WidgetStatePropertyAll(
         TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'Geist',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -123,7 +149,7 @@ OutlinedButtonThemeData _outlinedButton() {
       side: const BorderSide(color: AppColors.borderSubtle),
       minimumSize: const Size(64, 48),
       textStyle: const TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: 'Geist',
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
@@ -140,7 +166,7 @@ TextButtonThemeData _textButton() {
       foregroundColor: AppColors.accentPrimary,
       minimumSize: const Size(48, 48),
       textStyle: const TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: 'Geist',
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
@@ -154,7 +180,7 @@ CardThemeData _card() {
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
+      borderRadius: BorderRadius.all(Radius.circular(20)),
       side: BorderSide(color: AppColors.borderSubtle),
     ),
     margin: EdgeInsets.zero,
@@ -165,11 +191,14 @@ SnackBarThemeData _snackBar() {
   return const SnackBarThemeData(
     backgroundColor: AppColors.bgSurfaceRaised,
     contentTextStyle: TextStyle(
-      fontFamily: 'Inter',
+      fontFamily: 'Geist',
       fontSize: 14,
       color: AppColors.textPrimary,
     ),
     behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
   );
 }
 

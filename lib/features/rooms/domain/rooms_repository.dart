@@ -41,10 +41,13 @@ abstract class RoomsRepository {
   Future<List<CaseRoom>> getMyRooms();
 
   /// Creates a room; caller becomes owner with the case type's
-  /// owner-default role. Returns the plaintext access code ONCE.
+  /// owner-default role. Returns the plaintext access code ONCE —
+  /// server-generated, or the creator's chosen code (normalized +
+  /// validated server-side, 0037).
   Future<CreatedRoom> createRoom({
     required String name,
     required String caseTypeId,
+    String? accessCode,
   });
 
   /// Validates a code and returns the room's name/case type for the

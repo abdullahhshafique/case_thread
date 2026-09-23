@@ -41,7 +41,10 @@ final vaultProvider = FutureProvider.family<VaultState, String>((
         .listForRoom(roomId);
     return VaultLoaded(entries);
   } catch (error) {
-    return VaultError(toAppException(error).message);
+    // Dev posture: carry the raw cause into the pane so a failure
+    // screenshot is diagnosable without the console.
+    final mapped = toAppException(error);
+    return VaultError('${mapped.message}\n— $error');
   }
 });
 
