@@ -18,7 +18,7 @@ Dark-first design (see §10). All values live in `lib/core/theme/app_colors.dart
 
 | Token | Hex | Usage |
 |---|---|---|
-| `bg/primary` (bg-app) | `#0A1017` | App background, deepest layer, icon rail |
+| `bg/primary` (bg-app) | `#0A1017` | App background, deepest layer, icon rail — **superseded by §16.3 v3 surfaces (`#05060A`); §1.1/§1.2 hexes are the pre-v3 palette and no longer match `app_colors.dart`** |
 | `bg/surface` (bg-card) | `#121C28` | Cards, stat tiles, evidence/task rows |
 | `bg/surface-raised` (bg-panel) | `#16212E` | Panels, modals, popovers, snackbars |
 | `bg/mint-tint` | `#122C2D` | Pill fill behind mint text (status badges, active tiles) |

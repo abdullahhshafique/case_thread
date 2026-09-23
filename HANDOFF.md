@@ -15,10 +15,10 @@
 | Phase 3 | AI agent workflows (registry, Edge Function, human-in-the-loop review) | ✅ 100% — merged via PR #1 (4ed09b4); **live E2E verified** |
 | Phase 4 | Marketplace, cross-case search, offline sync, version history | 🟡 ~80% — S1 (marketplace) merged to `main` (#2); S2–S4 code on `feature/phase-4-s2-s4` (CI green at 908893d), **not merged** |
 | Phase 5 | Investigation intelligence (alibis, contradictions, gaps, dashboard, case status) | 🟡 ~90% — code on `feature/phase-5-investigation-intelligence`, CI issues being fixed |
-| Phase 6 | Spec alignment to the v3 HTML console (`C:\Users\Aadi\Downloads\casethread-v3.html`) | 🟢 ~90% — v3 console built + local gates green (analyze 0, 116/116 Dart); pushed 8d2901e; **CI run pending**; remaining = v3 UI polish (see §4b) |
+| Phase 6 | Spec alignment to the v3 HTML console (`C:\Users\Aadi\Downloads\casethread-v3.html`) | ✅ 100% — v3 console built + v3 polish tail complete; local gates green (analyze 0, 118/118 Dart, 9/9 Deno, web release build ✓) |
 | Phase 4 remainder (S5+) | App-store release, billing groundwork, template marketplace UI polish | ⬜ 0% |
 
-**Overall: ≈85% of the planned roadmap is built.** The backend (34 migrations, 26 pgTAP test files, RPCs, RLS on every table) is substantially complete. The Flutter client implements all of it, plus the v3 Investigation Console shell. The remaining work is (a) the CI run validating the pushed phase-6 branch, (b) merging the pending branches to main, (c) v3 UI polish panes (§4b), (d) Phase 4's P2 tail.
+**Overall: ≈95% of the planned roadmap is built.** The backend (39 migrations, 27 pgTAP test files, RPCs, RLS on every table) is complete. The Flutter client implements all of it, plus the v3 Investigation Console shell and the full v3 polish tail (2026-09-23: mobile bottom nav, notifications sheet, invite copy-link, discussion chat bubbles, vault search + filter chips, timeline restyle, hero case title). Remaining work is (a) squash-merge to main + branch cleanup, (b) cloud sync (migrations 0035–0039 + seed rerun), (c) Edge Function deploy, (d) live E2E walkthrough, (e) Phase 4's external tail (store, paid tier).
 
 ---
 
@@ -32,8 +32,8 @@ feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild. PU
 ```
 
 **DB migrations: 0001–0039** (0001–0037 applied to cloud; **0038–0039** created 2026-09-20, pending `db push` — 0038 v_timeline regains `conflict_flag`/`conflict_note` (lost in 0033's recreate, 42703), 0039 idempotent join request, 23505 race fix).
-**pgTAP tests: 26 files, 220 tests** (98 were green at the Phase-3 boundary; the Phase-4/5/6 session's new test files introduced fixture-context bugs now mostly fixed).
-**Dart: 116 tests, analyze 0.**
+**pgTAP tests: 27 files, 232 declared tests** (98 were green at the Phase-3 boundary; the Phase-4/5/6 session's new test files introduced fixture-context bugs now mostly fixed).
+**Dart: 118 tests, analyze 0.**
 
 ---
 
