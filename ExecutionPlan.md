@@ -252,3 +252,20 @@ Condensed from Architecture.md §13 + Phases.md per-phase risks; each risk has a
 4. **Flutter eng:** restructure `lib/` to the feature-based layout; add pinned deps; implement Design.md dark-theme tokens.
 5. **PM:** start the §6 decision log in memory.md; schedule Sprint 0 planning.
 6. **Everyone:** read Rules.md before the first PR — it's binding (Rules.md header).
+
+## 11. UX Parity PRD (client request — `CaseThread-UX-Parity-PRD.md`)
+
+Phases 1–7, strictly ordered; Phase 7 optional. No backend migration/RPC/RLS changes unless a phase explicitly says so.
+
+| Phase | Content | Status |
+|---|---|---|
+| Phase 1 — Light Theme + Debug Tools | Light variant of `buildAppTheme()`, theme toggle (shared_preferences), debug role switcher + demo investigator button | ⬜ Not started |
+| Phase 2 — Case Room Overview Enrichment | Briefing card, 3 alert cards (contradictions/gaps/alibi), task donut, sub-tab jumping | ⬜ Not started |
+| Phase 3 — Export Overhaul | Export sheet (PDF via `pdf` package / TXT / Print), counts preview, generation spinner | ⬜ Not started |
+| Phase 4 — Evidence AI + Verify-Alibi | Two-tab evidence detail (Details / AI Analysis), Verify alibi deep-link | ⬜ Not started |
+| Phase 5 — Discussion Enhancements | Pinned bar, starred messages (shared_preferences), Extract to Case as claim timeline event | ⬜ Not started |
+| Phase 6 — Demo Seeding + Briefing Editor | 2 new demo rooms (Harbor Bay Bank Fraud #2188, Mill Street Vehicle Theft #2104), `briefing` column + editor sheet | ⬜ Not started |
+| Phase 7 — OPTIONAL | Voice notes, read receipts, chat media drawer, role-colored avatar dots — each behind a `ENABLE_*` build flag | ⬜ Not started |
+
+Migration numbering note: `0040`/`0041` are already taken by shipped bugfixes — Phase 6 demo seed uses `0042_demo_seed_expansion.sql`, Phase 7.1 chat-media bucket uses `0043` (if needed).
+

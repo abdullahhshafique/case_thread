@@ -295,3 +295,11 @@ Phase 6 rebuilt the Flutter shell to the approved v3 HTML console (`casethread-v
 **16.6 What did NOT change:** all §1.3 data-state colors, §9 voice/tone (non-accusatory copy), §11 accessibility rules, and the component semantics of §6. The v3 work is chrome + typography; case-data meaning is still carried by the §1 tokens.
 
 **16.7 Canonicalization (2026-09-19):** the §16.3 console values are now the canonical §1 token *values* in `app_colors.dart` (bg/surface/border/text/base-accent re-pointed; token names unchanged). Every page built on the shared theme — auth, setup, join, search, templates, standalone room chrome, all Material cards — inherits the console look. Amber status pair updated to `#FCD34D` (v3 warn). Mint `#4ADE9F` survives only as `stateSuccess` semantics; §14 reflects the new canonical values.
+
+## 17. Light-theme extension (Phase 1)
+
+- Parallel palette `AppColorsLight` with the same field names as `AppColors` — white/very-light blue-gray backgrounds, navy text, cyan/mint/amber accents darkened ~15% for contrast; light blue-gray borders; flat cards (no elevation shadow).
+- Toggle: sun/moon icon in `_TopBar` + auth screen; persisted via `shared_preferences`; instant re-theme; survives hot restart.
+- WCAG AA contrast on all text/background pairs in light mode; never color-alone signals (labels paired).
+- Do NOT add `ThemeMode.system` — light/dark toggle only.
+

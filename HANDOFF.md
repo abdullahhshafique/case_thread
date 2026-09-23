@@ -62,6 +62,8 @@ feature/phase-6-spec-alignment = Phase-6 spec alignment + v3 console rebuild + p
 ### Step 3 — Cloud resync (migrations ✅; seed hardened, rerun pending)
 Cloud migrations 0001–0041 applied; seed rerun done — `riverside_seeded = 1` verified (Riverside Robbery #2291 live).
 
+**Incoming client work:** UX Parity PRD (`CaseThread-UX-Parity-PRD.md`) phases 1–7 — light theme + debug tools, overview enrichment, export overhaul, evidence AI tab + verify-alibi, discussion enhancements, demo seeding + briefing editor, optional chat media. None started yet. Migration numbering: 0042 = demo seed expansion, 0043 = chat-media bucket.
+
 ### Step 4 — Deploy Edge Functions
 `npx supabase functions deploy ai-agent --project-ref hxrztoakimebjcibvkaa` (worked before, mock provider runs without keys). Set `AI_PROVIDER=grok` + `GROK_API_KEY=<key>` via `npx supabase secrets set` for the real provider.
 

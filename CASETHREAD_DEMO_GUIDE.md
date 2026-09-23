@@ -794,3 +794,11 @@ flutter run -d windows
 ---
 
 > **For teammates:** If anything doesn't work as described, check `memory.md` for known issues and gotchas. The local Docker loop (`npx supabase start` → `npx supabase db reset` → `npx supabase test db`) is the fastest way to verify database changes.
+
+## 12. UX Parity demo notes
+
+- **Phase 6 demo rooms** (after `supabase db reset` or cloud seed with `0042`): **Harbor Bay Bank Fraud (#2188)** — under investigation, 5 evidence, 4 people, 6 events, 4 locations, 2 contradictions, 3 gaps, 4 tasks; **Mill Street Vehicle Theft (#2104)** — closed, 6 evidence, 3 people, 7 events, 0 contradictions, 0 gaps, 4 completed tasks.
+- **Briefing editor** (Phase 6): ⋮ menu → "Edit briefing…" (owner only, `edit_case`); multiline ≤1200 chars; saves via `update_case_briefing` RPC (or direct updatable-by-owner PostgREST — see code comment).
+- **Light theme toggle** (Phase 1): sun/moon icon top-right of console shell; persists across restarts.
+- **Demo role switcher** (Phase 1): debug-only pill top-left; Owner / Investigator / Analyst / Observer overrides `myRoomPermissionsProvider`.
+

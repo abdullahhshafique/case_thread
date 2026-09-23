@@ -240,3 +240,15 @@ CaseThread is greenfield — no existing system to migrate from. Forward-compati
 - Schema changes are additive by default (new columns/tables, not destructive renames) so that rolling deploys don't break in-flight clients.
 - The AI Adapter Layer's provider-agnostic interface is designed explicitly so that no core logic depends on a single LLM vendor's API shape — swapping/adding a provider should never require touching room/permission/audit logic.
 - Domain modules are config, not code, specifically so new case types (insurance fraud, incident response, etc.) never require a schema migration for the core tables — only new rows in the case-type/role-definition config tables.
+
+## 15. UX Parity PRD extension (client request)
+
+- Light theme: `AppColorsLight` class (same field names as `AppColors`, never rename existing tokens) — Phase 1. `app.dart` switches `theme:`/`darkTheme:`/`themeMode:` via a `theme_mode_provider` (shared_preferences).
+- Demo role switcher (debug only): `demoRoleOverrideProvider` read by `myRoomPermissionsProvider`; permission grids per PRD §1.
+- Briefing card: nullable `CaseRoom.briefing` field (no migration in Phase 2 — read via `fromMap`; absent → null).
+- Export: `CaseReport.toPdf()` / `export_sheet.dart`; RPC contract unchanged; `pdf` + `printing` packages.
+- Evidence detail sheet: two tabs (Details / AI Analysis); `suggestionsForEvidence(roomId, evidenceId, filename)` filter helper; `showAlibiVerificationSheet()` reusable.
+- Discussion: pinned/starred in `shared_preferences`; "Extract to Case" inserts manual timeline event `classification: 'claim'` via `addManualEvent`.
+- Demo seed expansion: `0042_demo_seed_expansion.sql` (Harbor Bay Bank Fraud #2188, Mill Street Vehicle Theft #2104) + `briefing` column on `case_rooms`.
+- Optional chat media: voice notes (`chat_media` payload in `discussion_messages`), read receipts via `room_last_seen` watermark, media drawer, role dots — all behind feature flags; bucket migration `0043` only if 7.1 needs a `chat_media` bucket.
+

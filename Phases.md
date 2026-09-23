@@ -17,7 +17,9 @@
 | Phase 3 | AI agent workflows | Months 5–7 | ✅ Complete |
 | Phase 4 | SaaS polish — marketplace, cross-case search, offline mode, mobile store release | Months 7–12 | ✅ Complete (S1–S4); mobile store + paid tier deferred |
 | Phase 5 | Investigation intelligence — alibis, contradictions, gaps, dashboard, case status/closed summary | — | ✅ Complete (2026-09-17) |
-| Phase 6 | Spec alignment to instructor doc + v3 Investigation Console rebuild | — | 🟢 Code complete (2026-09-19); CI validation pending |
+| Phase 6 — UX Parity PRD (client request) | Light theme, overview enrichment, export overhaul, evidence AI tab + verify-alibi, discussion enhancements, demo seeding + briefing editor, optional chat media | — | ⬜ Not started — see `CaseThread-UX-Parity-PRD.md` |
+| Phase 7 — OPTIONAL | Voice notes, read receipts, chat media drawer, role-colored avatar dots | — | ⬜ Not started — behind feature flags; skippable |
+| Phase 6 | Spec alignment + v3 Investigation Console + polish tail | — | ✅ Complete (2026-09-23); CI 3/3 green; main tagged `v0.1.0` |
 
 ---
 
