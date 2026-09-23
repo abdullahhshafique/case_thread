@@ -4,7 +4,7 @@
 -- rooms the caller is not a member of.
 
 begin;
-select plan(11);
+select plan(6);
 
 select tests.unimpersonate();
 select tests.create_test_user('alex@example.com');
@@ -27,6 +27,14 @@ select is(
   'owner sees both rooms'
 ) from public.v_case_statistics() s;
 
+-- Sam is an approved analyst in Room X (and only Room X). The helper
+-- inserts directly, so it must run unimpersonated (RLS).
+select tests.unimpersonate();
+select tests.add_approved_member(
+  (select room_id from tests.fixtures where key = 'stats-x'),
+  'sam@example.com', 'analyst'
+);
+
 select tests.impersonate('sam@example.com');
 -- 7. Sam sees Room X only.
 select is(
@@ -35,7 +43,19 @@ select is(
   'sam sees only Room X'
 ) from public.v_case_statistics() s;
 
--- 8. Evidence count is correct.
+-- 8. Evidence count is correct. First evidence fixture as postgres
+-- (direct evidence inserts are RPC-only for clients — 0009).
+select tests.unimpersonate();
+insert into public.evidence_items (
+  room_id, uploader_id, filename, storage_path, file_hash,
+  mime_type, file_size_bytes, version
+)
+select cr.id, (select user_id from tests.fixtures where key = 'alex@example.com'),
+  'doc_a.pdf', 'rooms/x/doc_a.pdf', 'hash-a',
+  'application/pdf', 400, 1
+from public.case_rooms cr where cr.name = 'Stats Room X';
+select tests.impersonate('sam@example.com');
+
 select is(
   s.evidence_count,
   1::bigint,

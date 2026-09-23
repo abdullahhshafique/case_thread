@@ -4,7 +4,7 @@
 -- ordering is untouched, and clear_conflict is permission-gated.
 
 begin;
-select plan(12);
+select plan(14);
 
 select tests.unimpersonate();
 select tests.create_test_user('off-lead@example.com');
