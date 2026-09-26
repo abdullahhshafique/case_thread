@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,12 +8,14 @@ import '../../core/api/models.dart' show CaseRoom, InvestigationStatus;
 import '../../core/errors/error_mapper.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/theme_mode_provider.dart';
 import '../../shell/ambient_atmosphere.dart';
 import '../auth/auth_providers.dart';
 import 'activity_feed.dart';
 import 'create_room_dialog.dart';
 import 'domain/rooms_repository.dart' show CreatedRoom;
 import 'room_detail_screen.dart';
+import '../rooms/room_permissions.dart' show demoRoleOverrideProvider;
 import 'rooms_providers.dart';
 
 // ── Console shell (v3: topbar + rail + cases list + main) ──
@@ -311,8 +314,8 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 58,
-      decoration: const BoxDecoration(
-        color: Color(0xCC05060A),
+      decoration: BoxDecoration(
+        color: AppColors.consoleBg.withValues(alpha: 0.80),
         border: Border(bottom: BorderSide(color: AppColors.consoleBorder)),
       ),
       child: Row(
@@ -320,107 +323,129 @@ class _TopBar extends StatelessWidget {
           SizedBox(width: compact ? 12 : 18),
           _LogoMark(),
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CaseThread',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                  color: AppColors.consoleText,
-                ),
-              ),
-              if (!compact)
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'INVESTIGATION CONSOLE',
+                  'CaseThread',
                   style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.7,
-                    color: AppColors.consoleMuted,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                    color: AppColors.consoleText,
                   ),
                 ),
-            ],
+                if (!compact)
+                  Text(
+                    'INVESTIGATION CONSOLE',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.7,
+                      color: AppColors.consoleMuted,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          const Spacer(),
-          // Mobile topbar: notifications bell + icon-only actions.
-          if (compact) ...[
-            if (onNotifications != null)
-              IconButton(
-                key: const Key('mobile-notifications'),
-                tooltip: 'Notifications',
-                color: const Color(0xFF9AA2B6),
-                onPressed: onNotifications,
-                icon: Consumer(
-                  builder: (context, bellRef, _) {
-                    final count = bellRef
-                        .watch(activityFeedListProvider)
-                        .maybeWhen(data: (l) => l.length, orElse: () => 0);
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.notifications_outlined, size: 20),
-                        if (count > 0)
-                          Positioned(
-                            right: -5,
-                            top: -4,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
+          // Theme toggle + debug controls.
+          _ThemeToggle(),
+          if (kDebugMode) ...[const SizedBox(width: 8), _DebugRolePill()],
+          // Action buttons.
+          Flexible(
+            fit: FlexFit.loose,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (compact) ...[
+                  if (onNotifications != null)
+                    IconButton(
+                      key: const Key('mobile-notifications'),
+                      tooltip: 'Notifications',
+                      color: AppColors.consoleMuted,
+                      onPressed: onNotifications,
+                      icon: Consumer(
+                        builder: (context, bellRef, _) {
+                          final count = bellRef
+                              .watch(activityFeedListProvider)
+                              .maybeWhen(
+                                data: (l) => l.length,
+                                orElse: () => 0,
+                              );
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Icon(
+                                Icons.notifications_outlined,
+                                size: 20,
                               ),
-                              constraints: const BoxConstraints(minWidth: 15),
-                              height: 15,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFB7185),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                '$count',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
+                              if (count > 0)
+                                Positioned(
+                                  right: -5,
+                                  top: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 15,
+                                    ),
+                                    height: 15,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentRose,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            _GhostButton(
-              key: const Key('topbar-copy-link'),
-              icon: Icons.link,
-              label: '',
-              iconOnly: true,
-              onTap: onCopyLink,
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  _GhostButton(
+                    key: const Key('topbar-copy-link'),
+                    icon: Icons.link,
+                    label: '',
+                    iconOnly: true,
+                    onTap: onCopyLink,
+                  ),
+                  const SizedBox(width: 6),
+                  _PrimaryButton(
+                    key: const Key('topbar-ask-ai'),
+                    icon: Icons.auto_awesome,
+                    label: '',
+                    iconOnly: true,
+                    onTap: onAskAI,
+                  ),
+                ] else ...[
+                  _GhostButton(
+                    icon: Icons.link,
+                    label: '',
+                    iconOnly: true,
+                    onTap: onCopyLink,
+                  ),
+                  const SizedBox(width: 8),
+                  _PrimaryButton(
+                    icon: Icons.auto_awesome,
+                    label: '',
+                    iconOnly: true,
+                    onTap: onAskAI,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(width: 6),
-            _PrimaryButton(
-              key: const Key('topbar-ask-ai'),
-              icon: Icons.auto_awesome,
-              label: '',
-              iconOnly: true,
-              onTap: onAskAI,
-            ),
-          ] else ...[
-            _GhostButton(
-              icon: Icons.link,
-              label: 'Copy link',
-              onTap: onCopyLink,
-            ),
-            const SizedBox(width: 8),
-            _PrimaryButton(
-              icon: Icons.auto_awesome,
-              label: 'Ask CaseThread',
-              onTap: onAskAI,
-            ),
-          ],
+          ),
           SizedBox(width: compact ? 8 : 18),
         ],
       ),
@@ -438,11 +463,11 @@ class _LogoMark extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF7C3AED)],
+          colors: [AppColors.accentSky, AppColors.v3Indigo, AppColors.v3DeepViolet],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x26FFFFFF)),
-        boxShadow: [BoxShadow(color: const Color(0x456366F1), blurRadius: 30)],
+        border: Border.all(color: AppColors.borderStrong),
+        boxShadow: [BoxShadow(color: AppColors.v3Indigo.withValues(alpha: 0.27), blurRadius: 30)],
       ),
       child: const Icon(Icons.hub_outlined, size: 18, color: Colors.white),
     );
@@ -466,7 +491,7 @@ class _GhostButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xB30E0E1B),
+      color: AppColors.veilNavy.withValues(alpha: 0.70),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -476,7 +501,7 @@ class _GhostButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: iconOnly ? 14 : 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x26FFFFFF)),
+            border: Border.all(color: AppColors.borderStrong),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -529,11 +554,11 @@ class _PrimaryButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: const LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+              colors: [AppColors.heroBlue, AppColors.v3DeepViolet],
             ),
-            border: Border.all(color: const Color(0x6BB4C0FF)),
+            border: Border.all(color: AppColors.brandBlue.withValues(alpha: 0.42)),
             boxShadow: [
-              BoxShadow(color: const Color(0x4D4F46E5), blurRadius: 28),
+              BoxShadow(color: AppColorsLight.v3Indigo.withValues(alpha: 0.30), blurRadius: 28),
             ],
           ),
           child: Row(
@@ -560,8 +585,67 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  RAIL
-// ═══════════════════════════════════════════════════════════════
+//  THEME TOGGLE + DEBUG PILL
+// ═══════════════════════════════════════════════════════════
+
+/// Sun/moon icon button that cycles theme: system → dark → light → system.
+class _ThemeToggle extends ConsumerWidget {
+  const _ThemeToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    final icon = switch (mode) {
+      ThemeMode.dark => Icons.light_mode,
+      ThemeMode.light => Icons.dark_mode,
+      ThemeMode.system => Icons.brightness_auto_outlined,
+    };
+    final tooltip = switch (mode) {
+      ThemeMode.dark => 'Switch to light theme',
+      ThemeMode.light => 'Switch to dark theme',
+      ThemeMode.system => 'Follow system theme',
+    };
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        key: const Key('theme-toggle'),
+        icon: Icon(icon, size: 20),
+        color: AppColors.consoleMuted,
+        onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+        splashRadius: 22,
+      ),
+    );
+  }
+}
+
+/// Debug-only pill showing the active demo role (PRD §Phase 1).
+class _DebugRolePill extends ConsumerWidget {
+  const _DebugRolePill();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final role = ref.watch(demoRoleOverrideProvider);
+    if (role == null) return const SizedBox.shrink();
+    return Container(
+      key: const Key('debug-role-pill'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.brandViolet.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.brandViolet.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        'DEMO',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: AppColors.brandViolet,
+          fontFamily: 'GeistMono',
+        ),
+      ),
+    );
+  }
+}
 
 class _Rail extends StatelessWidget {
   const _Rail({
@@ -581,7 +665,7 @@ class _Rail extends StatelessWidget {
     return Container(
       width: 72,
       decoration: BoxDecoration(
-        color: const Color(0xFF07080C),
+        color: AppColors.consoleSidebar,
         border: Border(
           right: BorderSide(
             color: Color.fromARGB(0x1A, 0xFF, 0xFF, 0xFF),
@@ -630,10 +714,10 @@ class _Rail extends StatelessWidget {
       width: 36,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF7C3AED)],
+          colors: [AppColors.accentSky, AppColors.v3Indigo, AppColors.v3DeepViolet],
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: const Color(0x446366F1), blurRadius: 30)],
+        boxShadow: [BoxShadow(color: AppColors.v3Indigo.withValues(alpha: 0.27), blurRadius: 30)],
       ),
       child: const Icon(Icons.dashboard, size: 18, color: Colors.white),
     );
@@ -666,10 +750,10 @@ class _RailButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: selected
-                ? const Color(0x176366F1).withValues(alpha: 0.14)
+                ? AppColors.v3Indigo.withValues(alpha: 0.14)
                 : Colors.transparent,
             border: selected
-                ? Border.all(color: const Color(0x308180F8), width: 1)
+                ? Border.all(color: AppColors.graphEdge.withValues(alpha: 0.19), width: 1)
                 : null,
           ),
           child: Stack(
@@ -678,8 +762,8 @@ class _RailButton extends StatelessWidget {
                 child: IconTheme(
                   data: IconThemeData(
                     color: selected
-                        ? const Color(0xFFA5B4FC)
-                        : const Color(0xFF9AA2B6),
+                        ? AppColors.v3Info
+                        : AppColors.consoleMuted,
                     size: 19,
                   ),
                   child: icon,
@@ -694,10 +778,10 @@ class _RailButton extends StatelessWidget {
                     height: 18,
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xF2F46394),
+                      color: AppColors.accentRose.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: const Color(0xFF07080C),
+                        color: AppColors.consoleSidebar,
                         width: 2,
                       ),
                     ),
@@ -733,10 +817,10 @@ class _AvatarChip extends StatelessWidget {
       width: 36,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF7C3AED)],
+          colors: [AppColors.accentSky, AppColors.v3Indigo, AppColors.v3DeepViolet],
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x28FFFFFF)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Center(
         child: Text(
@@ -793,7 +877,7 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
     return Container(
       width: 340,
       decoration: BoxDecoration(
-        color: const Color(0xFF07080C),
+        color: AppColors.consoleSidebar,
         border: Border(
           right: BorderSide(
             color: Color.fromARGB(0x1A, 0xFF, 0xFF, 0xFF),
@@ -859,33 +943,33 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
             key: const Key('rooms-search'),
             tooltip: 'Search across cases',
             icon: const Icon(Icons.search, size: 18),
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => context.push('/search'),
           ),
           IconButton(
             key: const Key('rooms-templates'),
             tooltip: 'Template marketplace',
             icon: const Icon(Icons.inventory_2_outlined, size: 18),
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => context.push('/templates'),
           ),
           IconButton(
             key: const Key('rooms-join'),
             tooltip: 'Join with a code',
             icon: const Icon(Icons.key_outlined, size: 18),
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => context.push('/join'),
           ),
           IconButton(
             key: const Key('rooms-create'),
             tooltip: 'Create a new case room',
             icon: const Icon(Icons.add, size: 18),
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => _openCreate(context),
           ),
           IconButton(
             tooltip: 'Notifications',
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => _showNotifications(context),
             icon: Consumer(
               builder: (context, bellRef, _) {
@@ -906,11 +990,11 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
                           height: 15,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFB7185),
+                            color: AppColors.accentRose,
                             borderRadius: BorderRadius.circular(999),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0x99FB7185),
+                                color: AppColors.accentRose.withValues(alpha: 0.60),
                                 blurRadius: 6,
                               ),
                             ],
@@ -943,19 +1027,19 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Color.fromARGB(0x1A, 0xFF, 0xFF, 0xFF)),
-          color: const Color(0xFF0B0D14),
+          color: AppColors.consolePanel,
         ),
         child: Row(
           children: [
             const SizedBox(width: 14),
-            const Icon(Icons.search, size: 15, color: Color(0xFF9AA2B6)),
+            const Icon(Icons.search, size: 15, color: AppColors.consoleMuted),
             Expanded(
               child: TextField(
                 controller: _searchController,
-                style: const TextStyle(color: Color(0xFFF7F8FC), fontSize: 13),
+                style: const TextStyle(color: AppColors.consoleText, fontSize: 13),
                 decoration: const InputDecoration(
                   hintText: 'Search cases, people or evidence',
-                  hintStyle: TextStyle(color: Color(0xFF9AA2B6), fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.consoleMuted, fontSize: 13),
                   border: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   errorBorder: InputBorder.none,
@@ -1014,9 +1098,9 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
           height: 54,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x338180F8)),
-            gradient: const LinearGradient(
-              colors: [Color(0x1A2563EB), Color(0x0D7C3AED)],
+            border: Border.all(color: AppColors.graphEdge.withValues(alpha: 0.20)),
+            gradient: LinearGradient(
+              colors: [AppColors.heroBlue.withValues(alpha: 0.10), AppColors.v3DeepViolet.withValues(alpha: 0.05)],
             ),
           ),
           child: Row(
@@ -1027,11 +1111,11 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
                 margin: const EdgeInsets.only(left: 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF7C3AED)],
+                    colors: [AppColors.accentSky, AppColors.v3DeepViolet],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
-                    BoxShadow(color: const Color(0x184F70ED), blurRadius: 24),
+                    BoxShadow(color: AppColors.v3Indigo.withValues(alpha: 0.09), blurRadius: 24),
                   ],
                 ),
                 child: Icon(
@@ -1058,7 +1142,7 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
                     Text(
                       summary,
                       style: text.bodySmall?.copyWith(
-                        color: const Color(0xFF9AA2B6),
+                        color: AppColors.consoleMuted,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1070,7 +1154,7 @@ class _CasesPanelState extends ConsumerState<_CasesPanel> {
               const Icon(
                 Icons.chevron_right,
                 size: 15,
-                color: Color(0xFF9AA2B6),
+                color: AppColors.consoleMuted,
               ),
               const SizedBox(width: 14),
             ],
@@ -1126,15 +1210,15 @@ class _FilterChip extends ConsumerWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: pressed ? const Color(0xFFA5B4FC) : const Color(0xFF9AA2B6),
+            color: pressed ? AppColors.v3Info : AppColors.consoleMuted,
           ),
         ),
         selected: pressed,
         onSelected: (_) => onPressed(),
-        selectedColor: const Color(0x1A6366F1),
+        selectedColor: AppColors.v3IndigoTint,
         side: BorderSide(
           color: pressed
-              ? const Color(0x4D8180F8)
+              ? AppColors.graphEdge
               : Color.fromARGB(0x1A, 0xFF, 0xFF, 0xFF),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
@@ -1172,13 +1256,13 @@ class _CaseRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: selected
-                ? Border.all(color: const Color(0x2D8180F8), width: 1)
+                ? Border.all(color: AppColors.graphEdge.withValues(alpha: 0.18), width: 1)
                 : null,
             gradient: selected
-                ? const LinearGradient(
+                ? LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
-                    colors: [Color(0x176366F1), Color(0x0D8B5CF6)],
+                    colors: [AppColors.v3Indigo.withValues(alpha: 0.09), AppColors.v3DeepViolet.withValues(alpha: 0.05)],
                   )
                 : null,
           ),
@@ -1211,7 +1295,7 @@ class _CaseRow extends StatelessWidget {
                         Text(
                           _relativeTime(room.createdAt),
                           style: text.bodySmall?.copyWith(
-                            color: const Color(0xFF9AA2B6),
+                            color: AppColors.consoleMuted,
                             fontFamily: 'JetBrainsMono',
                           ),
                         ),
@@ -1221,7 +1305,7 @@ class _CaseRow extends StatelessWidget {
                     Text(
                       '${room.caseType} · ${room.status}',
                       style: text.bodySmall?.copyWith(
-                        color: const Color(0xFF9AA2B6),
+                        color: AppColors.consoleMuted,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1236,7 +1320,7 @@ class _CaseRow extends StatelessWidget {
                         Text(
                           '#${room.id.substring(0, room.id.length > 4 ? 4 : room.id.length)}',
                           style: text.bodySmall?.copyWith(
-                            color: const Color(0xFF9AA2B6),
+                            color: AppColors.consoleMuted,
                             fontFamily: 'JetBrainsMono',
                           ),
                         ),
@@ -1254,10 +1338,10 @@ class _CaseRow extends StatelessWidget {
 
   Color _statusColor(InvestigationStatus status) {
     return switch (status) {
-      InvestigationStatus.open => const Color(0xFF6193FF),
-      InvestigationStatus.underInvestigation => const Color(0xFF4EE3B8),
-      InvestigationStatus.review => const Color(0xFFE1A66B),
-      InvestigationStatus.closed => const Color(0xFF8C99A8),
+      InvestigationStatus.open => AppColors.statusOpen,
+      InvestigationStatus.underInvestigation => AppColors.stateSuccess,
+      InvestigationStatus.review => AppColors.statePending,
+      InvestigationStatus.closed => AppColors.statusNeutral,
     };
   }
 
@@ -1340,9 +1424,9 @@ class _EmptyConsole extends ConsumerWidget {
               borderRadius: BorderRadius.circular(26),
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFF4FE0FF),
-                  Color(0xFF816CFF),
-                  Color(0xFFFF65CE),
+                  AppColors.skyGlow,
+                  AppColors.accentPeriwinkle,
+                  AppColors.accentPink,
                 ],
               ),
               boxShadow: [
@@ -1350,7 +1434,7 @@ class _EmptyConsole extends ConsumerWidget {
                   color: Colors.black.withValues(alpha: 0.34),
                   blurRadius: 100,
                 ),
-                BoxShadow(color: const Color(0x446366F1), blurRadius: 40),
+                BoxShadow(color: AppColors.v3Indigo.withValues(alpha: 0.27), blurRadius: 40),
               ],
             ),
             child: Stack(
@@ -1385,7 +1469,7 @@ class _EmptyConsole extends ConsumerWidget {
             'single case room.',
             style: TextStyle(
               fontSize: 14,
-              color: Color(0xFFB7C6DC),
+              color: AppColors.consoleTextSecondary,
               height: 1.65,
             ),
             textAlign: TextAlign.center,
@@ -1619,28 +1703,28 @@ class _CaseSwitcherSheet extends StatelessWidget {
                     key: const Key('switcher-search'),
                     tooltip: 'Search across cases',
                     icon: const Icon(Icons.search, size: 18),
-                    color: const Color(0xFF9AA2B6),
+                    color: AppColors.consoleMuted,
                     onPressed: onSearch,
                   ),
                   IconButton(
                     key: const Key('switcher-templates'),
                     tooltip: 'Template marketplace',
                     icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                    color: const Color(0xFF9AA2B6),
+                    color: AppColors.consoleMuted,
                     onPressed: onTemplates,
                   ),
                   IconButton(
                     key: const Key('switcher-join'),
                     tooltip: 'Join with a code',
                     icon: const Icon(Icons.key_outlined, size: 18),
-                    color: const Color(0xFF9AA2B6),
+                    color: AppColors.consoleMuted,
                     onPressed: onJoin,
                   ),
                   IconButton(
                     key: const Key('switcher-create'),
                     tooltip: 'Create a new case room',
                     icon: const Icon(Icons.add, size: 18),
-                    color: const Color(0xFF9AA2B6),
+                    color: AppColors.consoleMuted,
                     onPressed: onCreate,
                   ),
                 ],
@@ -1695,9 +1779,9 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF07080C),
-        border: Border(top: BorderSide(color: Color(0x1AFFFFFF))),
+      decoration: BoxDecoration(
+        color: AppColors.consoleSidebar,
+        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.10))),
       ),
       child: SafeArea(
         top: false,
@@ -1764,14 +1848,14 @@ class _NavDest extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 21, color: const Color(0xFF9AA2B6)),
+                Icon(icon, size: 21, color: AppColors.consoleMuted),
                 const SizedBox(height: 3),
                 Text(
                   label,
                   style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF9AA2B6),
+                    color: AppColors.consoleMuted,
                   ),
                 ),
               ],

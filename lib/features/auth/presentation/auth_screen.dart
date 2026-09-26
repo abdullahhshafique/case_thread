@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../auth_providers.dart';
 import 'auth_controller.dart';
@@ -62,15 +64,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFF3B82F6),
-                            Color(0xFF6366F1),
-                            Color(0xFF7C3AED),
+                            AppColors.accentSky,
+                            AppColors.v3Indigo,
+                            AppColors.v3DeepViolet,
                           ],
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0x26FFFFFF)),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x456366F1), blurRadius: 30),
+                        border: Border.all(color: AppColors.borderStrong),
+                        boxShadow: [
+                          BoxShadow(color: AppColors.v3Indigo.withValues(alpha: 0.27), blurRadius: 30),
                         ],
                       ),
                       child: const Icon(
@@ -113,6 +115,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   _submitButton(state),
                   const SizedBox(height: AppSpacing.md),
                   _modeSwitch(isSignUp),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _demoButton(),
+                  ],
                 ],
               ),
             ),
@@ -255,6 +261,38 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     AuthSubmitting(mode: final m) => m == AuthMode.signUp,
     AuthError(mode: final m) => m == AuthMode.signUp,
   };
+
+  /// Debug-only: sign in as demo investigator and set full permissions.
+  Future<void> _demoSignIn() async {
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .signIn(email: 'demo@casethread.test', password: 'demo1234');
+    } on Exception {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Demo account not found — sign in with valid credentials '
+            'or enable anonymous auth in Supabase.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _demoButton() {
+    return OutlinedButton.icon(
+      key: const Key('auth-demo'),
+      icon: const Icon(Icons.bug_report, size: 18),
+      label: const Text('Continue as Demo Investigator'),
+      onPressed: _demoSignIn,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.statePending,
+        side: BorderSide(color: AppColors.statePending),
+      ),
+    );
+  }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;

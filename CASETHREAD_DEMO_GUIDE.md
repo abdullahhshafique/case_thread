@@ -2,7 +2,7 @@
 
 > **Purpose:** Walk a teammate through every step of setting up, logging in, and demonstrating CaseThread on Chrome (Windows + VS Code). Includes all accounts, room codes, case details, and the full demo flow.
 
-**Last updated:** 2026-09-19 · **Version:** 1.3 · **Covers:** All features through Phase 6 (dashboard graphs, Fact/Claim/Finding/Unknown labels, Connections map, Riverside Robbery demo case) plus the v3 Investigation Console rebuild — Geist typography, topbar/rail/cases shell, Overview hero with stat cards + charts, live "Waiting on you" counts, animated Connections graph, Audit Log + Summary panes
+**Last updated:** 2026-09-24 · **Version:** 1.4 · **Covers:** All features through Phase 6 plus the v3 Investigation Console rebuild, AND the UX Parity update (2026-09-24): light theme + theme toggle, debug demo sign-in + role-override pill, case-briefing card + editor, attention alert cards with Analysis deep-links, verified-alibi donut, PDF/Markdown export sheet, evidence detail sheet (metadata + per-item AI analysis + verify-alibi), discussion star/pin/extract-to-case, role-colored presence dots + "Active Xm ago", and the idempotent demo seed (`supabase/seed_demo.sql`, code DEMO1234)
 
 ---
 
@@ -19,6 +19,7 @@
 - [9. Running the App on Chrome](#9-running-the-app-on-chrome)
 - [10. Full Demo Flow (Two-Device Walkthrough)](#10-full-demo-flow-two-device-walkthrough)
 - [11. Feature Deep-Dive](#11-feature-deep-dive)
+- [11b. UX Parity Features (added 2026-09-24)](#11b-ux-parity-features-added-2026-09-24)
 - [12. Testing & Verification Commands](#12-testing--verification-commands)
 - [13. Troubleshooting](#13-troubleshooting)
 - [14. Quick Reference Card](#14-quick-reference-card)
@@ -42,6 +43,12 @@ CaseThread is a **case-room collaboration platform** where teams (legal, academi
 - **View case dashboard statistics** — live counts of evidence, people, events, contradictions, gaps, AI findings (Phase 5)
 - **Manage the investigation status lifecycle** — open → under investigation → review → closed, with auto-generated closed summary (Phase 5)
 - **AI consent step** — every agent run asks for explicit consent showing what data will be accessed (Phase 5)
+- **Switch between light and dark themes** — persisted across restarts, follows the OS by default (UX Parity P1)
+- **Edit a shared case briefing** on the Overview tab (UX Parity P6)
+- **Export a formatted PDF report** (save/share/download) or copy it as Markdown (UX Parity P3)
+- **Open any evidence item for full detail** — chain-of-custody metadata, per-item AI analysis, and verify-alibi with evidence attachment (UX Parity P4)
+- **Star, pin, and extract discussion messages** to the case timeline (UX Parity P5)
+- **See team presence** — role-colored dots and "Active 5m ago" per member (UX Parity P7)
 
 **Architecture:** Flutter (Web + Android + iOS) → Supabase (Postgres + RLS + Auth + Realtime + Storage) → Vercel (CI/CD)
 
@@ -163,7 +170,7 @@ This is the **primary local development path** — all migrations and tests run 
 # 1. Start Supabase local stack (exclude pg_meta — it's chronically unhealthy)
 npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta
 
-# 2. Reset database (applies all 41 migrations in order, seeds demo data
+# 2. Reset database (applies all 43 migrations in order, seeds demo data
 npx supabase db reset
 
 # 3. Run pgTAP test suite (27 files, 232 declared tests — should show all PASS)
@@ -623,8 +630,26 @@ unverified alibis, AI findings → no cross-room leaks →
 Investigation status: open → under_investigation → review → closed →
 transition_investigation_status() RPC (owner-only) →
 on →closed: case_closed_summaries row auto-inserted (immutable snapshot) →
-export_case_report v2 includes status + contradictions + alibis + gaps
+export_case_report v2 includes status + contradictions + alibis + gaps; the export sheet renders it as a formatted PDF (Printing.sharePdf = save/share/download) or copies Markdown
 ```
+
+---
+
+## 11b. UX Parity Features (added 2026-09-24) — Demo Walkthrough
+
+These features ship in the same build; demo them after the core flow:
+
+1. **Light/dark theme** — sun/moon/auto toggle on the console shell. Choice persists across restarts (SharedPreferences); "auto" follows the OS.
+2. **Debug tools (debug builds only)** — "Continue as Demo Investigator" on the sign-in screen (`demo@casethread.test`), and a DEMO pill on the console that overrides your role permissions for instant role testing.
+3. **Overview tab** — Case Briefing card (pencil icon opens the editor for edit_case holders); three alert cards (Contradictions / Gaps / Alibis) that deep-link straight into the matching Analysis sub-tab; a donut ring showing the verified-alibi ratio.
+4. **Export** — share icon on the room header opens the export sheet: **PDF report** (OS save/share; a download on Chrome) or **Markdown copy** to clipboard.
+5. **Evidence detail** — tap any vault tile: metadata incl. sha256, "Analyze this evidence" (approve_ai_findings holders; runs the agent scoped to that item), and Verify-Alibi tiles (choose a status, give the required reason — the evidence id is attached to the verification).
+6. **Discussion** — long-press any message: Star, Pin to top (pinned strip above the thread), or Extract to case timeline (edit_case holders; lands as a `claim` event).
+7. **Presence** — Members tab shows role-colored dots and "Active Xm ago"; the Overview avatar stack is role-colored too (needs migration `0043`).
+
+### Demo seed (cloud or local)
+
+`supabase/seed_demo.sql` seeds the full **Riverside Robbery #2291** case (briefing, 4 entities, 3 classified evidence items, 2 tasks, 1 open contradiction, 2 alibis, 2 gaps, 3 timeline events), idempotent, access code **`DEMO1234`**. Run it in the Supabase SQL editor after replacing `demo_user_id` inside the `config` CTE with your `auth.users` id. Note the migration numbering: `0042` = briefing column, `0043` = presence policy.
 
 ---
 

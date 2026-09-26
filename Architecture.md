@@ -1,7 +1,7 @@
 # CaseThread — Architecture
 
-**Status:** Draft v1.0
-**Last updated:** 2026-09-10
+**Status:** Draft v1.1 (v1.0 planning baseline + §15 as-built UX Parity extension)
+**Last updated:** 2026-09-24
 **Related docs:** [PRD.md](./PRD.md) · [Rules.md](./Rules.md) · [Phases.md](./Phases.md) · [memory.md](./memory.md)
 
 ---
@@ -92,7 +92,8 @@
 **Core entities:**
 
 - `users` — Supabase Auth-managed identity; `profiles` table extends it with display name, avatar.
-- `case_rooms` — id, name, case_type, owner_id, access_code_hash, code_rotated_at, created_at, status (active/archived).
+- `case_rooms` — id, name, case_type, owner_id, access_code_hash, code_rotated_at, created_at, status (active/archived), investigation_status (open/under_investigation/review/closed), briefing (nullable — shared case briefing, 0042).
+- `room_last_seen` — (user_id, room_id) watermark powering the activity feed; 0043 lets approved co-members read each other's row for presence ("Active Xm ago"). Writes remain own-watermark only.
 - `room_members` — room_id, user_id, role, status (pending/approved/revoked), joined_at.
 - `roles` — case_type-scoped role definitions and their permission matrix (JSONB permission grid, evaluated in RLS policies).
 - `evidence_items` — id, room_id, uploader_id, filename, storage_path, file_hash, version, uploaded_at.
@@ -241,14 +242,18 @@ CaseThread is greenfield — no existing system to migrate from. Forward-compati
 - The AI Adapter Layer's provider-agnostic interface is designed explicitly so that no core logic depends on a single LLM vendor's API shape — swapping/adding a provider should never require touching room/permission/audit logic.
 - Domain modules are config, not code, specifically so new case types (insurance fraud, incident response, etc.) never require a schema migration for the core tables — only new rows in the case-type/role-definition config tables.
 
-## 15. UX Parity PRD extension (client request)
+## 15. UX Parity PRD extension (client request) — AS BUILT 2026-09-24
 
-- Light theme: `AppColorsLight` class (same field names as `AppColors`, never rename existing tokens) — Phase 1. `app.dart` switches `theme:`/`darkTheme:`/`themeMode:` via a `theme_mode_provider` (shared_preferences).
-- Demo role switcher (debug only): `demoRoleOverrideProvider` read by `myRoomPermissionsProvider`; permission grids per PRD §1.
-- Briefing card: nullable `CaseRoom.briefing` field (no migration in Phase 2 — read via `fromMap`; absent → null).
-- Export: `CaseReport.toPdf()` / `export_sheet.dart`; RPC contract unchanged; `pdf` + `printing` packages.
-- Evidence detail sheet: two tabs (Details / AI Analysis); `suggestionsForEvidence(roomId, evidenceId, filename)` filter helper; `showAlibiVerificationSheet()` reusable.
-- Discussion: pinned/starred in `shared_preferences`; "Extract to Case" inserts manual timeline event `classification: 'claim'` via `addManualEvent`.
-- Demo seed expansion: `0042_demo_seed_expansion.sql` (Harbor Bay Bank Fraud #2188, Mill Street Vehicle Theft #2104) + `briefing` column on `case_rooms`.
-- Optional chat media: voice notes (`chat_media` payload in `discussion_messages`), read receipts via `room_last_seen` watermark, media drawer, role dots — all behind feature flags; bucket migration `0043` only if 7.1 needs a `chat_media` bucket.
+All phases implemented; deviations from the original plan noted inline.
+
+- **Light theme:** `AppColorsLight` class (same field names as `AppColors` — value swap, no renames); `buildAppTheme({Brightness brightness})`; `themeModeProvider` (`Notifier<ThemeMode>` persisted via shared_preferences, cycles system→dark→light); `app.dart` wires `theme:`/`darkTheme:`/`themeMode:`.
+- **Debug tools:** `demoRoleOverrideProvider` read by `myRoomPermissionsProvider`; kDebugMode-only demo sign-in + permission-override pill on the console.
+- **Briefing:** migration `0042_room_briefing.sql` (nullable `case_rooms.briefing`); `CaseRoom.briefing` parsed in `fromMap`; `CaseBriefingCard` + `BriefingEditorSheet`; `RoomsRepository.updateBriefing` (existing UPDATE policy enforces edit_case). **Fix:** `getMyRooms`' explicit select now includes `investigation_status, briefing`.
+- **Overview enrichment:** `AlertCards` set `analysisTabRequestProvider` (NotifierProvider<_AnalysisTabRequestNotifier, int?>); `AnalysisPane` listens in `initState` and animates its nested TabController; `TaskDonut` CustomPaint ring; `AttentionCounts` extended with alibi/gap breakdowns.
+- **Export:** `ExportSheet.show` fetches the report then offers PDF (`CaseReportPdf.toPdfBytes` — `pdf` + `printing` packages, `Printing.sharePdf` = OS save/share/download) or Markdown copy; RPC contract unchanged.
+- **Evidence detail:** single scrollable `EvidenceDetailSheet` (not the planned two-tab layout) — metadata + sha256, AI run (`runAgent` gained optional `evidenceItemId` → Edge Function `evidence_item_id`), verify-alibi tiles with required reason + `evidenceItemIds` attachment via the existing `verify()` contract.
+- **Discussion:** `discussionFlagsProvider` (`NotifierProvider.family` over `FamilyNotifier`, per-room star/pin in shared_preferences — client-side view flags); "Extract to Case" inserts a manual timeline event `classification: 'claim'` via the existing `addManualEvent` (edit_case-gated).
+- **Demo seed:** `supabase/seed_demo.sql` (NOT a numbered migration — needs a real `auth.users` id per environment; config-CTE single edit point, idempotent). Numbering as built: `0042` = briefing column, `0043` = presence policy.
+- **Presence (P7 partial):** `0043_presence_watermarks.sql` (approved co-members read each other's `room_last_seen` — writes stay own-only); `getRoomPresence` + `roomPresenceProvider`; `roleDotColor`/`lastSeenLabel` in `presence.dart`; role-colored dots on the avatar stack + member tiles, "Active Xm ago" lines.
+- **Not built (P7 skipped):** voice notes and chat media — would require a recording plugin + mic permissions, a `chat_media` storage bucket + RLS/storage policies, playback UI, and a message-attachment schema. Scoped as a separate mini-sprint.
 

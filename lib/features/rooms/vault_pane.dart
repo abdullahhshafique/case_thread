@@ -8,6 +8,7 @@ import '../../core/theme/app_spacing.dart';
 import 'data/supabase_evidence_repository.dart' show evidenceRepositoryProvider;
 import 'domain/evidence_repository.dart';
 import 'domain/evidence_upload.dart';
+import 'evidence_detail_sheet.dart';
 import '../../core/api/models.dart' show Permission;
 import 'room_permissions.dart';
 import 'vault_providers.dart';
@@ -228,24 +229,24 @@ class _VaultToolbar extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.consoleBorder),
-              color: const Color(0xFF0B0D14),
+              color: AppColors.consolePanel,
             ),
             child: Row(
               children: [
                 const SizedBox(width: 14),
-                const Icon(Icons.search, size: 15, color: Color(0xFF9AA2B6)),
+                const Icon(Icons.search, size: 15, color: AppColors.consoleMuted),
                 Expanded(
                   child: TextField(
                     controller: searchController,
                     onChanged: (_) => onType(typeFilter), // re-run filter
                     style: const TextStyle(
-                      color: Color(0xFFF7F8FC),
+                      color: AppColors.consoleText,
                       fontSize: 13,
                     ),
                     decoration: const InputDecoration(
                       hintText: 'Search the vault',
                       hintStyle: TextStyle(
-                        color: Color(0xFF9AA2B6),
+                        color: AppColors.consoleMuted,
                         fontSize: 13,
                       ),
                       border: InputBorder.none,
@@ -278,16 +279,16 @@ class _VaultToolbar extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: typeFilter == id
-                            ? const Color(0xFFA5B4FC)
-                            : const Color(0xFF9AA2B6),
+                            ? AppColors.v3Info
+                            : AppColors.consoleMuted,
                       ),
                     ),
                     selected: typeFilter == id,
                     onSelected: (_) => onType(id),
-                    selectedColor: const Color(0x1A6366F1),
+                    selectedColor: AppColors.v3IndigoTint,
                     side: BorderSide(
                       color: typeFilter == id
-                          ? const Color(0x4D8180F8)
+                          ? AppColors.graphEdge
                           : AppColors.consoleBorder,
                     ),
                     shape: RoundedRectangleBorder(
@@ -318,31 +319,36 @@ class _EvidenceTile extends ConsumerWidget {
     final (icon, tint) = switch (entry.mimeType) {
       final m when m.startsWith('image/') => (
         Icons.image_outlined,
-        const Color(0x1A6193FF),
+        AppColors.statusOpen.withValues(alpha: 0.10),
       ),
       final m when m.startsWith('video/') => (
         Icons.videocam_outlined,
-        const Color(0x1AB98AE0),
+        AppColors.statusGap.withValues(alpha: 0.10),
       ),
       final m when m.startsWith('audio/') => (
         Icons.graphic_eq,
-        const Color(0x1AE1A66B),
+        AppColors.statePending.withValues(alpha: 0.10),
       ),
-      _ => (Icons.description_outlined, const Color(0x1A4EE3B8)),
+      _ => (Icons.description_outlined, AppColors.stateSuccess.withValues(alpha: 0.10)),
     };
 
-    return Container(
+    // Phase 4: tapping a tile opens the evidence detail sheet
+    // (metadata + AI analysis + verify-alibi).
+    return InkWell(
       key: Key('vault-entry-${entry.id}'),
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: AppColors.consoleBorder),
-      ),
+      onTap: () => EvidenceDetailSheet.show(context, entry.roomId, entry),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: AppColors.consoleBorder),
+        ),
       child: Row(
         children: [
           Container(
@@ -409,10 +415,11 @@ class _EvidenceTile extends ConsumerWidget {
           IconButton(
             tooltip: 'Download',
             icon: const Icon(Icons.download_outlined, size: 19),
-            color: const Color(0xFF9AA2B6),
+            color: AppColors.consoleMuted,
             onPressed: () => _download(context, ref),
           ),
         ],
+      ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../contradictions/contradiction_providers.dart';
 import '../contradictions/contradiction_screen.dart';
 import '../investigation_gaps/gap_providers.dart';
 import '../investigation_gaps/gap_screen.dart';
+import 'rooms_providers.dart' show analysisTabRequestProvider;
 
 /// Analysis section of RoomDetailScreen (Phase 5).
 /// Nested tabs: Alibis, Contradictions, Investigation Gaps
@@ -34,6 +35,13 @@ class _AnalysisPaneState extends ConsumerState<AnalysisPane>
 
   @override
   Widget build(BuildContext context) {
+    // Riverpod 3.4.3: ref.listen is only legal inside build (not
+    // initState) — it registers the subscription for this build.
+    ref.listen<int?>(analysisTabRequestProvider, (_, request) {
+      if (request != null && request != _tabs.index) {
+        _tabs.animateTo(request);
+      }
+    });
     return Column(
       children: [
         // -- Quick Actions bar ---------------------------------

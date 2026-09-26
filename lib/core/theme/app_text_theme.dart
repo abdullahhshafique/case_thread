@@ -11,15 +11,20 @@ abstract final class AppTextTheme {
   static const String _inter = 'Geist';
   static const String _mono = 'GeistMono';
 
-  static TextTheme build() {
+  static TextTheme build({
+    Color primaryColor = AppColors.textPrimary,
+    Color secondaryColor = AppColors.textSecondary,
+  }) {
+    final color = primaryColor;
+    final muted = secondaryColor;
     return TextTheme(
-      displayLarge: _style(32, FontWeight.w700),
-      headlineLarge: _style(28, FontWeight.w700),
-      headlineMedium: _style(22, FontWeight.w600),
-      headlineSmall: _style(18, FontWeight.w600),
-      bodyLarge: _style(16, FontWeight.w400),
-      bodyMedium: _style(14, FontWeight.w400),
-      labelMedium: _style(12, FontWeight.w500),
+      displayLarge: _style(32, FontWeight.w700, color: color),
+      headlineLarge: _style(28, FontWeight.w700, color: color),
+      headlineMedium: _style(22, FontWeight.w600, color: color),
+      headlineSmall: _style(18, FontWeight.w600, color: color),
+      bodyLarge: _style(16, FontWeight.w400, color: color),
+      bodyMedium: _style(14, FontWeight.w400, color: color),
+      labelMedium: _style(12, FontWeight.w500, color: muted),
     );
   }
 
@@ -38,12 +43,12 @@ abstract final class AppTextTheme {
     );
   }
 
-  static TextStyle _style(double size, FontWeight weight) {
+  static TextStyle _style(double size, FontWeight weight, {Color? color}) {
     return TextStyle(
       fontFamily: _inter,
       fontSize: size,
       fontWeight: weight,
-      color: AppColors.textPrimary,
+      color: color ?? AppColors.textPrimary,
       height: weight == FontWeight.w400 ? 1.5 : 1.3,
     );
   }

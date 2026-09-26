@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../core/theme/app_colors.dart';
 
 /// Ambient atmosphere (v3 §2) — one shared decorative layer behind the
 /// whole console: a faint 54px shell grid, a slowly rotating conic
@@ -52,7 +53,7 @@ class _AmbientAtmosphereState extends State<AmbientAtmosphere>
                         top: -260,
                         child: _GlowOrb(
                           size: 560 + 90 * t,
-                          color: const Color(0xFF2563EB),
+                          color: AppColors.heroBlue,
                         ),
                       ),
                       Positioned(
@@ -60,7 +61,7 @@ class _AmbientAtmosphereState extends State<AmbientAtmosphere>
                         top: 120,
                         child: _GlowOrb(
                           size: 480 + 70 * (1 - t),
-                          color: const Color(0xFF7C3AED),
+                          color: AppColors.v3DeepViolet,
                         ),
                       ),
                     ],
@@ -86,7 +87,7 @@ class _ShellGrid extends StatelessWidget {
         final cols = (constraints.maxWidth / cell).ceil() + 1;
         final rows = (constraints.maxHeight / cell).ceil() + 1;
         final linePaint = Paint()
-          ..color = const Color(0x0B6F82FF)
+          ..color = AppColors.brandTeal.withValues(alpha: 0.04)
           ..strokeWidth = 1;
         return RepaintBoundary(
           // Static layer — never needs to repaint once laid out.
@@ -173,19 +174,19 @@ class _RotatingAuroraState extends State<_RotatingAurora>
           child: Container(
             width: 920,
             height: 560,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: SweepGradient(
                 startAngle: math.pi / 2,
                 endAngle: math.pi / 2 + 2 * math.pi,
                 colors: [
-                  Color(0x0041DBFF),
-                  Color(0x2E41DBFF),
-                  Color(0x0041DBFF),
-                  Color(0x2E8D5BFF),
-                  Color(0x0041DBFF),
-                  Color(0x29FF51C7),
-                  Color(0x0041DBFF),
+                  Colors.transparent,
+                  AppColors.brandBlue.withValues(alpha: 0.18),
+                  Colors.transparent,
+                  AppColors.v3Indigo.withValues(alpha: 0.18),
+                  Colors.transparent,
+                  AppColors.accentPink.withValues(alpha: 0.16),
+                  Colors.transparent,
                 ],
                 transform: GradientRotation(0),
               ),

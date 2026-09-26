@@ -1,21 +1,26 @@
 # CaseThread — Project Memory
 
-**Last updated:** 2026-09-19 (Phase 6 branch: spec-alignment epics + v3 Investigation Console rebuilt in Flutter; local gates green; pushed 8d2901e after a push-protection history scrub; CI validation pending)
+**Last updated:** 2026-09-24 (UX Parity PRD phases 1–7 implemented; working tree ahead of `main` — gates + DB resync + CI pending)
 **Update this file at the end of every work session — it's the fastest way for anyone (including a resuming AI assistant) to get back up to speed.**
 
 ---
 
 ## 1. Current Project State Summary
 
-**PHASE 5 COMPLETE (2026-09-17) · PHASE 6 code-complete (2026-09-19) — work branch `feature/phase-6-spec-alignment`, pushed 8d2901e.** Phase 5 shipped the investigation-intelligence layer (0025–0031: alibis, contradictions, gaps, classification, statistics view, status/closed summary, AI consent, export extension). Phase 6 closed the instructor-doc gaps (dashboard header + graphs, classification UI, connections map tab, Riverside Robbery seed — 0033) and then rebuilt the Flutter shell to the v3 HTML console: Geist + GeistMono fonts, brand gradient + ambient atmosphere, topbar/rail/cases shell with an 11-tab embedded room detail, Overview hero + six stat tiles + charts + coverage meter, live-count "Waiting on you" card, animated connections graph, and the previously-missing Audit Log + Summary panes — zero backend changes. Gate totals: **flutter analyze 0 issues, 118/118 Dart tests, 9/9 Deno, web release build ✓**; pgTAP suite 27 files / 229 run of 232 declared.
+**PHASES 0–6 COMPLETE (merged to `main`, 43048cb, tagged `v0.1.0`) · UX PARITY PRD PHASES 1–7 + OBSIDIAN-STYLE CONNECTIONS GRAPH STEPS 1–3 IMPLEMENTED (2026-09-24, working tree — commit/push pending).** Graph upgrade: `force_layout.dart` (hand-rolled d3-style physics, alpha-cooled settle, deterministic), `_GraphView` camera (focal-anchored zoom 0.4–3× + pan via onScale*), node drag with re-heat, hover 1-hop highlight, entity/relationship type filter chips, local-graph focus mode (depth 1–3), type-ahead search-jump. Reduced-motion renders the settled layout. 10 physics unit tests in `force_layout_test.dart`. Step 4 DONE: migration `0044_entity_seed.sql` (`entity_seed` jsonb on case_type_templates + `materialize_entity_seed` security-definer RPC — placeholder substitution, key→UUID resolution, idempotent per (room,name), one audit entry per import), pgTAP `entity_seed_test.sql` (7 assertions), client `SeedTemplate` model + `listSeedTemplates`/`importEntitySeed` repo methods + `seedTemplatesProvider`, and `entity_import_sheet.dart` (pick template → fill placeholders → resolved preview → import) behind an edit_case-gated FAB on the Connections tab.
 
-**Incoming UX Parity PRD** (`CaseThread-UX-Parity-PRD.md`): phases 1–7, none started. Migration numbering: 0042 = demo seed, 0043 = chat-media bucket.
+Phase 5 shipped the investigation-intelligence layer (0025–0031: alibis, contradictions, gaps, classification, statistics view, status/closed summary, AI consent, export extension). Phase 6 closed the instructor-doc gaps (dashboard header + graphs, classification UI, connections map tab, Riverside Robbery seed — 0033) and rebuilt the Flutter shell to the v3 HTML console (Geist + gradient + atmosphere, topbar/rail/cases shell, 11-tab embedded room detail, overview hero + stat tiles + charts + coverage meter, live-count "Waiting on you" card, animated connections graph, audit/summary panes) plus the polish tail (mobile bottom nav, notifications sheet, invite copy-link, chat bubbles, vault search + chips, timeline restyle).
 
-- **P4-S2 cross-case search** — migration 0022: `search_cases()` RPC (RLS-scoped prefix full-text across room names, discussion bodies, manual timeline summaries via v_timeline, task titles, evidence filenames; 50-row limit, descending). Flutter: `features/search/` (search_repository + SearchScreen with 350ms debounce, deep-link into rooms). Route `/search` via app_router; search icon on rooms hub AppBar. pgTAP **10/10** (member-scoped no-leak, prefix match, redaction boundary, RLS deny proof).
-- **P4-S3 offline-first sync** — migration 0023: `conflict_flag`/`conflict_note`/`conflict_resolved_at` columns on tasks + timeline_events; `update_task_with_stamp()` + `edit_timeline_event_with_stamp()` LWW-stamped RPCs (check membership/permissions, compare client_value_at, flag loser); `clear_conflict()` (security definer, audit entry); tasks + timeline_events added to realtime publication. Flutter: `features/offline/` (offline_providers connectivity/queue-depth, offline_queue SharedPreferences store 500-cap, OfflineSync controller with 4 replay outcomes, OfflineBanner + ConflictChip UI). pgTAP **12/12** (LWW detection, revoked-member typed deny, clear_conflict idempotent, audit ordering preserved).
-- **P4-S4 version history** — migration 0024: `list_versions(object_kind, target_id)` RPC reading audit_log via row_number(); tasks start v1 (create/update), timeline edits start v2; before/after details from audit metadata. Flutter: `features/history/` (version_history_repository + VersionHistorySheet bottom sheet, version_history_sheet.dart). pgTAP **7/7** (task/timeline versions, RLS deny proof, typed error for unknown kinds).
+**The 2026-09-24 session implemented the client-requested UX Parity PRD end-to-end:**
+- **P1 Light theme + debug tools** — `AppColorsLight` (same token names, WCAG-AA values), `buildAppTheme(brightness:)`, persisted `ThemeModeNotifier`, theme toggle on the console, kDebugMode-only demo sign-in (`demo@casethread.test`) + `demoRoleOverrideProvider` permission pill.
+- **P2 Overview enrichment** — `CaseBriefingCard`, `AlertCards` (contradictions/gaps/alibis; tap → `analysisTabRequestProvider` → AnalysisPane `animateTo`), `TaskDonut` (52px verified-alibi ring), `AttentionCounts` extended (alibiVerified/Partial/Conflict, openGaps, `totalAlibis`), dashboard order hero→briefing→stats→alerts→donut→charts. `CaseRoom.briefing` added to the model.
+- **P3 Export overhaul** — `ExportSheet.show` bottom sheet (fetches the RLS-scoped report, then PDF via `CaseReportPdf.toPdfBytes` + `Printing.sharePdf`, or Markdown copy); `pdf 3.11.2` + `printing 5.13.4` added to pubspec.
+- **P4 Evidence detail + verify-alibi** — `EvidenceDetailSheet` (metadata incl. sha256, permission-gated per-item AI run passing `evidence_item_id` to the Edge Function, verify-alibi tiles with required status reason + `evidenceItemIds` attachment); `runAgent` gained an optional `evidenceItemId`; vault tiles are tappable.
+- **P5 Discussion enhancements** — `discussionFlagsProvider` (per-room star/pin in SharedPreferences), long-press action sheet, `_PinnedStrip`, "Extract to case timeline" (`addManualEvent`, classification `claim`, edit_case-gated). `main.dart` inits `ThemeModeNotifier` + `DiscussionFlagsNotifier`.
+- **P6 Demo seeding + briefing editor** — `0042_room_briefing.sql` (briefing column), `supabase/seed_demo.sql` (idempotent full Riverside seed, code `DEMO1234`, config-CTE user id), `BriefingEditorSheet` + pencil affordance on the card, `RoomsRepository.updateBriefing`. **Bug fixed:** `getMyRooms` select omitted `investigation_status` + `briefing`.
+- **P7 (partial by design)** — `0043_presence_watermarks.sql` (co-member watermark reads), `getRoomPresence`, `roomPresenceProvider`, `roleDotColor`/`lastSeenLabel`, role-colored avatar dots (dashboard stack + members tiles), "Active Xm ago" lines. **Voice notes + chat media intentionally skipped** (recording plugin, bucket + policies, playback UI, message-schema work — separate mini-sprint).
 
-**Still pending from Phase 3:** GROK key (`npx supabase secrets set AI_PROVIDER=grok GROK_API_KEY=…` — function runs mock until then); mobile store submission + paid-tier groundwork (Phase 4 tail — external/decision-blocked). **All formerly pending items resolved 2026-09-23:** CI 3/3 green (43048cb), phase-6 branch squash-merged to main (tagged `v0.1.0`), cloud synced (0040–0041 + seed rerun, `riverside_seeded = 1`), Edge Function deploy pending registry access (mock mode per docs), p6j secret rotated, backup tag removed, v3 polish tail shipped (69e23dc).
+**Gate totals at last full verified pass (Phase 6, 43048cb):** flutter analyze 0, 118/118 Dart, 9/9 Deno, web release ✓, pgTAP 27 files/229 run/232 declared, CI 3/3. **The UX Parity session added 4 migrations' worth of… actually 2 migrations (0042, 0043) + 10 new/extended Dart test files and 2 new deps — gates NOT yet re-run (no Flutter SDK in the authoring environment).**
 
 ---
 
@@ -23,34 +28,12 @@
 
 | Date | Task | Note |
 |---|---|---|
-| 2026-09-20 | **v3 field-hardening wave** (post-demo feedback) | Fixed: v3 theme canonicalized app-wide (login/setup/join/search/templates inherit console palette); console controls functional (copy-link, Ask AI→tab, rail tabs, notifications sheet w/ live feed + badge, account sheet + sign-out); discussion Discord-order + author names via member map + @mention chips; timeline view-streaming fix (v_timeline is a VIEW — stream base table as change signal, refetch redacted view) + plain `profiles(display_name)` embed hints; createRoom array-shape cast fix (JSArray→Map TypeError); vault substring RangeError → ellipsis; avatar-stack negative-margin assertion → Positioned overlap; evidence→profiles FK (0036, PGRST200); realtime publication gap for discussion_messages (0035, + contract test); creator-chosen access codes (0037, server-validated/uniqueness-checked); v_timeline regains conflict columns (0038, 42703 — lost in 0033's recreate); Record Alibi implemented (person picker from entity map + window + claim → alibis insert); template editor scrolls; RepaintBoundary isolation on atmosphere + connections graph |
+| 2026-09-24 | **UX PARITY PRD PHASES 1–7 IMPLEMENTED** | Light theme + debug tools, overview enrichment (briefing/alerts/donut), export bottom sheet (PDF/Markdown), evidence detail AI + verify-alibi, discussion star/pin/extract, demo seed + briefing editor, presence dots + last-seen. Migrations 0042–0043; deps pdf+printing; see HANDOFF §4 for the full file map |
 | 2026-09-23 | **PHASE 6 FINAL** — spec alignment + v3 polish tail merged to `main` | 43048cb — squash merge; 118/118 Dart, 27 pgTAP files/229 run/232 declared, 9/9 Deno, web release ✓; CI 3/3; cloud synced (0040–0041), backup tag removed |
-| 2026-09-19 | Push-protection incident + history scrub | `p6j.txt` (pasted CI log with a Supabase secret at line 594, committed in 0093efa) blocked the push; `git filter-branch` removed it from history, force-pushed **8d2901e**, local backup ref + reflogs expired. Key never reached GitHub; **rotation still required** |
-| 2026-09-17 | **PHASE 6 SPEC EPICS COMPLETE** — instructor-doc alignment | Dashboard header + stat tiles + hand-drawn graphs (0033 `v_case_breakdown`), Fact/Claim/Finding/Unknown badges + filters, Connections map tab (`get_entity_map` RPC UI), Riverside Robbery #2291 seed (code ROBBERY2); case_breakdown pgTAP suite |
-| 2026-09-17 | **PHASE 5 COMPLETE** — Investigation Intelligence Layer | 0025–0031 migrations; models + 4 feature folders; Analysis tab + AI consent; export extended | Historical baseline — final state 43048cb (Phase 6 merged) |
+| 2026-09-20 | **v3 field-hardening wave** (post-demo feedback) | v3 theme canonicalized app-wide; console controls functional; discussion Discord-order + @mention chips; timeline view-streaming fix; creator-chosen access codes (0037); realtime publication gap (0035); evidence→profiles FK (0036); v_timeline conflict columns (0038); Record Alibi implemented |
+| 2026-09-19 | Push-protection incident + history scrub | `p6j.txt` (pasted CI log with a Supabase secret) blocked the push; history scrubbed, force-pushed 8d2901e; key rotated 2026-09-23 |
 
-| Date | Task | Note |
-|---|---|---|
-| 2026-09-10 | Refined product concept finalized | Original "investigator's app" reframed as a universal Case Room platform (see original concept doc) |
-| 2026-09-10 | PRD.md drafted | Personas, KPIs, prioritized user stories, functional/non-functional requirements defined |
-| 2026-09-10 | Architecture.md drafted | Flutter + Supabase + provider-agnostic AI adapter architecture locked in |
-| 2026-09-10 | Rules.md, Phases.md, Design.md drafted | Coding standards, phased roadmap (6–12mo), navy/slate/teal design system all defined |
-| 2026-09-10 | ExecutionPlan.md drafted | Operational companion to Phases.md: Phase 0 exit checklist, 2-week sprint process (both-platform DoD rule), Sprint 0–7 detail for Phase 1, sprint-level Phase 2–3, gate summary, risk register |
-| 2026-09-10 | Sprint 0 scaffold built | Feature-based `lib/` structure, Design.md tokens (`lib/core/theme/`), typed errors (`lib/core/errors/`), env config (`lib/core/config/`), fonts (Inter + JetBrains Mono, OFL bundled), CI (`.github/workflows/ci.yml`), pinned deps in pubspec |
-| 2026-09-10 | Sprint 1 auth built | `features/auth/` domain/data/presentation, Supabase sign-up/in/out, setup screen for unconfigured state, rooms placeholder, router guards; 20 tests green |
-| 2026-09-11 | Sprint 2 schema + harness built | Migrations 0002–0006 (core tables, audit immutability, Legal+Academic seeds, RLS policies, rate limiting), pgTAP suite in `supabase/tests/db/`, CI `rls-tests` gate, typed Dart models + CaseTypeRepository, profile fetch wiring; 29 tests green; branch `feature/sprint-2-schema` pushed (bb8ae90) |
-| 2026-09-11 | Sprint 3 rooms + join flow complete, merged to main | Migrations 0007–0008 (room-service RPCs, append_audit, owner-default roles, co-member profiles policy, member FK), rooms UI (list/create/join/detail), router routes; live E2E verified; 3 SQL runtime bugs fixed via E2E (pgcrypto schema-qual, OUT-param name collision, missing FK) |
-| 2026-09-11 | RLS suite green: 47/47 | Docker Desktop installed → local `db reset`+`test db` loop (2s iterations) unblocked everything after ~7 blind CI attempts. Real policy hole found+fixed (owner vs membership). pgTAP 3.36 semantics documented in §8. Squash-merged to main e2a3649, CI green |
-| 2026-09-12 | Sprint 4 evidence vault complete, merged to main | Migration 0009 (bucket + storage RLS + register_evidence RPC; direct INSERT removed), vault UI with tabs/upload/progress; 58/58 pgTAP + 42/42 Dart, analyze 0, CI green; live cloud E2E verified (upload, dual-layer denial, auto-versioning, audit) |
-| 2026-09-12 | Sprint 5 timeline/discussion/tasks complete, merged to main | 0010 (audit→timeline mirror, edit-audit, task triggers) + 0011 (embed FKs); 5-tab room detail with realtime + @mentions; 65/65 pgTAP + 55/55 Dart; CI green |
-| 2026-09-12 | Sprint 6 config validation + UI gating complete, merged to main | Academic flow on pure config — ZERO migrations (architecture gate green); RoomPermissions provider; vault/discussion/tasks gated; 75/75 pgTAP + 59/59 Dart; CI green |
-| 2026-09-12 | **Sprint 7 + PHASE 1 COMPLETE**, merged to main (9e31315) | Error audit (typed messages everywhere), demo seed via db reset, Phase-1 retro in Phases.md §6; demo-day flow rehearsed LIVE on cloud dev (room → join → approve → upload → 4-entry audit trail + mirrored timeline); CI green |
-| 2026-09-13 | **PHASE 2 COMPLETE**, merged to main (dd99aaf) | 0012–0016: 3 new case types (corporate fraud_lead owner verified live), redaction live-proven (owner sees/analyst stripped), watermark feed live, export+audit live, entity map v1; 98/98 pgTAP + 59/59 Dart; 9 bugs fixed via phase-boundary CI pass |
-| 2026-09-13 | Phase 3 core on `feature/phase-3` (c9a5705→ca08a1c) | 0017 agent registry + review RPC, Edge Function adapter (mock default), AI pane v1, ai_review_test.sql; PRD §10 provider decision RESOLVED: GROK |
-| 2026-09-14 | **PHASE 3 COMPLETE** on `feature/phase-3` | 0018 workflow builder + realtime publication (ai_workflows/ai_workflow_runs, member-read/edit_case-write/service-role-runs), 0019 P1 agents (academic+medical, SME-gate respected), workflow chain mode in Edge Function (per-step pending suggestions, untrusted prior-findings context), edit-review dialog, timeline AI badge, realtime suggestions, Deno contract tests 9/9 + CI edge-functions job, 121/121 pgTAP + 73/73 Dart; workflow-pipeline.svg README asset |
-| 2026-09-15 | **P4-S2 COMPLETE** — cross-case search: 0022 `search_cases()` RPC (RLS-scoped prefix full-text across room names, discussion, timeline summaries via v_timeline, task titles, evidence filenames, 50-row limit); `features/search/` (SearchRepository + SearchScreen w/ 350ms debounce, deep-link); `/search` route, search icon on rooms hub; pgTAP 10/10, Dart unit tests |
-| 2026-09-15 | **P4-S3 COMPLETE** — offline-first sync: 0023 conflict columns (tasks + timeline_events) + LWW-stamped RPCs (`update_task_with_stamp`, `edit_timeline_event_with_stamp`) + `clear_conflict()` security definer + realtime pub; `features/offline/` (OfflineSync controller w/ 4 replay outcomes, SharedPreferences queue store 500-cap, OfflineBanner, ConflictChip); pgTAP 12/12, Dart unit tests |
-| 2026-09-15 | **P4-S4 COMPLETE** — version history: 0024 `list_versions()` RPC (audit-log read surface; tasks v1+, timeline edits v2+; before/after details); `features/history/` (VersionHistoryRepository, VersionHistorySheet bottom sheet); pgTAP 7/7, Dart unit tests |
+*(Earlier session-by-session history: Sprints 0–7 and Phases 1–5 landed 2026-09-10 → 2026-09-17; see Phases.md §6 retrospective log for the full record.)*
 
 ---
 
@@ -58,18 +41,14 @@
 
 | File/Feature | Owner | Status |
 |---|---|---|
-| `supabase/migrations/0001–0039` + `seed.sql` | Backend eng | Migrations ✅ applied to cloud (`db push --include-all` verified "up to date" 2026-09-19 — the "cloud at 0017" note was stale). Seed: Riverside was **never** applied to cloud (rerun died on the demo-email conflict — cloud users were app-created with different UUIDs); `seed.sql` hardened 2026-09-19 with `public.demo_user_id(email, fixed_id)` resolution — **cloud seed rerun pending** |
-| `supabase/tests/db/` pgTAP suite (27 files, 232 declared / 229 run) | Backend eng | Fixture-context fixes 0040–0041; **CI 3/3 green** on final merge 43048cb |
-| `.github/workflows/ci.yml` `rls-tests` job | Eng lead | Awaiting the 8d2901e run — validates the 0093efa fixture fixes for the first time |
-| `lib/core/api/` (models, CaseTypeRepository) + `lib/features/profiles/` | Flutter eng | Complete, 9 model-contract tests |
-| `docs/permission-matrix-draft.md` | Product Lead + SME | DRAFT — SME review is the merge gate before Phase 1 exit |
-| `lib/features/auth/` | Flutter eng | Sprint 1 complete, stable |
-| `lib/core/theme/`, routing, setup screen | Flutter eng | Sprint 0 complete, stable |
-| `lib/features/search/` + `features/offline/` + `features/history/` | Flutter eng | Phase 4 S2–S4 complete, stable |
-| `lib/shell/ambient_atmosphere.dart`, `features/rooms/audit_pane.dart` + `summary_pane.dart`, v3 console panes | Flutter eng | Phase 6 v3 rebuild complete (2026-09-19) — analyze 0, 118/118 Dart; pushed 8d2901e |
-| `supabase/migrations/0022–0024` | Backend eng | Written + committed; cloud apply pending |
-| Mobile store submission (iOS/Android) | Eng lead + PM | Blocked on developer account provisioning — provision EARLY per Phases.md §5 |
+| UX Parity + graph working tree (all `lib/features/...` changes above; `features/connections/force_layout.dart` new) | Flutter eng | Code-complete; **local gates + commit + push + CI pending** — first gate pass happened 2026-09-24 (fixed Riverpod family-notifier API, Uint8List, imports); graph steps 1–3 added after, gates re-run pending |
+| Migrations 0042–0044 + seed_demo.sql | Backend eng | pgTAP suite green locally (28/237). **Cloud push of 0044 + per-env seed run remain** (`npx supabase db push --include-all`; run `seed_demo.sql` in the SQL editor with your demo user id) |
+| `supabase/migrations/0042_room_briefing.sql`, `0043_presence_watermarks.sql` | Backend eng | Written; **cloud push pending** (`npx supabase db push --include-all`) |
+| `supabase/seed_demo.sql` | Backend eng | Written (idempotent); **per-environment run pending** — replace `demo_user_id` in the config CTE first |
+| Edge Function deploy | Eng lead | `npx supabase functions deploy ai-agent --project-ref hxrztoakimebjcibvkaa` — pending connectivity; mock mode until GROK key set |
+| Mobile store submission (iOS/Android) | Eng lead + PM | Blocked on developer account provisioning |
 | Paid-tier groundwork (billing/SSO/compliance export) | Product | Blocked on Go/No-Go product decision |
+| Voice notes + chat media (UX Parity 7.1/7.2) | — | Intentionally skipped; scoped as separate mini-sprint |
 
 ---
 
@@ -77,29 +56,26 @@
 
 | Issue | Severity | Link |
 |---|---|---|
-| Permission matrix (Phase 0 item P1) still draft — SME review required before Phase 1 exit | Medium | docs/permission-matrix-draft.md |
-| ~~Windows Developer Mode off~~ — ✅ ON 2026-09-19 (Android builds unblocked; run `flutter pub get` once to create the skipped plugin symlinks; first Android run still pending) | Resolved | memory.md §8 |
-| Anon key was briefly in a public repo via stray txt.txt (audited: anon key ONLY; rotate in dashboard when convenient — routine hygiene, RLS is the boundary) | Low | Supabase dashboard → Settings → API |
-| **Supabase secret key printed in a pasted CI log** (`p6j.txt:594`, committed in 0093efa) — push protection blocked it from ever reaching GitHub; history scrubbed + local objects pruned 2026-09-19, but the **key itself must be ROTATED** (treat as burned) | **High** | Supabase dashboard → Settings → API; HANDOFF §7 |
-| Dev email confirmation currently on; E2E test users were confirmed manually in the DB — consider disabling confirmation in the dev project for smoother testing | Info | Dashboard → Authentication → Providers |
+| UX Parity work not yet machine-verified (analyze/test) — authored without a local Flutter SDK | **High** | HANDOFF §3 Step 1 |
+| Migrations 0042–0043 not yet on cloud; seed_demo.sql not yet run | Medium | HANDOFF §3 Step 2 |
+| Edge Function deploy blocked by connectivity; AI_PROVIDER/GROK_API_KEY unset (mock mode) | Info | memory.md §7 |
+| Dev email confirmation currently on; consider disabling in dev project | Info | Dashboard → Authentication → Providers |
+| p6j secret — **resolved**: rotated 2026-09-23 | Closed | — |
 
 ---
 
 ## 5. Next Immediate Steps
 
-**Phase 5 CLOSED 2026-09-17; Phase 6 code-complete 2026-09-19 (branch `feature/phase-6-spec-alignment`, pushed 8d2901e). In order:**
+**In order (details in HANDOFF §3):**
 
-1. **Squash-merge the phase-6 branch to main** (all local gates green 2026-09-23: analyze 0, 118/118 Dart, 9/9 Deno, web release build ✓; p6k.txt scrubbed from history) and let CI validate.
-2. If green → squash-merge `feature/phase-6-spec-alignment` to main (HANDOFF §3).
-3. **Rotate the Supabase secret key** exposed in the p6j.txt incident (Dashboard → Settings → API) — push protection kept it off GitHub, but treat it as burned.
-4. Merge `feature/phase-4-s2-s4` (CI green at 908893d); re-base + fix `feature/phase-5-investigation-intelligence`.
-5. Cloud resync: migrations ✅ (push verified up to date 2026-09-19). **Seed rerun pending** — Riverside was missing on cloud; `seed.sql` hardened with `demo_user_id()` email-first resolution → run `npx supabase db query --linked --file supabase/seed.sql`, then verify `riverside_seeded = 1`.
-6. Deploy the Edge Function: `npx supabase functions deploy ai-agent --project-ref hxrztoakimebjcibvkaa`; set `AI_PROVIDER=grok` + `GROK_API_KEY` when ready.
-7. v3 UI polish: discussion/evidence/timeline pane restyles, notifications sheet, invite/code restyle, mobile bottom nav.
-8. Phase 4 tail (external/decision-blocked): mobile store submission, paid-tier groundwork.
+1. `flutter pub get` → `dart format .` → `flutter analyze` (fix any nits) → `flutter test`.
+2. `npx supabase db push --include-all` (0042 + 0043), then run `seed_demo.sql` in the SQL editor with your demo user id.
+3. Commit (Conventional Commits), push, CI green, squash-merge to `main`.
+4. Deploy the Edge Function; set `AI_PROVIDER=grok` + `GROK_API_KEY` when ready.
+5. E2E walkthrough of all new UX Parity features (HANDOFF §3 Step 5).
+6. Decide on voice notes / chat media mini-sprint (7.1/7.2) — or close the PRD as delivered.
 
-**Testing cadence (user decision 2026-09-12):** full verification pass at each PHASE boundary
-(local gates + pgTAP + cloud E2E + CI), not after every sprint. CI still gates every push.
+**Testing cadence (user decision 2026-09-12):** full verification pass at each PHASE boundary; CI gates every push.
 
 ---
 
@@ -107,62 +83,64 @@
 
 | Question | Context | Raised in |
 |---|---|---|
-| Full permission matrix per role, per case type | Needed before any RLS policy can be written correctly | PRD.md §10 |
+| ~~Default LLM provider~~ **RESOLVED: GROK** (mock for keyless CI/dev) | Done | PRD.md §10 |
 | Data retention policy for closed case rooms | Needed before storage/deletion logic is built | PRD.md §10 |
-| ~~Default LLM provider~~ **RESOLVED 2026-09-13: GROK** (mock for keyless CI/dev; swap = AI_PROVIDER env per Architecture.md §14) | Done — recorded in Edge Function + Phases tracking | PRD.md §10 |
-| API key rotation cadence | Needed before Phase 1 goes to any real (non-dev) environment | Rules.md §10 |
+| API key rotation cadence | Needed before any real (non-dev) environment | Rules.md §10 |
+| Voice notes / chat media (UX Parity 7.1/7.2) — build or formally close? | Scoped: `record` plugin + mic perms, `chat_media` bucket + policies, playback UI, message-attachment schema | UX Parity PRD Phase 7 |
 
-### Phase 5 Open Conflicts — Recorded as Decisions
+### Phase 5 Open Conflicts — Recorded as Decisions (unchanged)
 
-These three conflicts from PRD-Phase5.md §7 were reviewed and the project-level decision was made to proceed without resolving the underlying tension. Each is recorded here so future work doesn't re-debate the same question.
-
-| Conflict | Decision | Rationale |
-|---|---|---|
-| **Mobile-first framing** — PRD envisions mobile as primary, but the current codebase shares a single Flutter codebase with web-first navigation patterns (tab bars, scrollable lists) | **No dedicated mobile navigation layer.** Mobile inherits the existing tab-based room detail and feature navigation. Mobile-specific patterns (bottom sheets, swipe actions) will be added when mobile store submission begins. RLS-first security means no re-architecture is needed for mobile. | The shared Flutter codebase already targets Web + Android + iOS from one codebase (Architecture.md §1). Mobile-first is a UX polish concern, not an architecture concern. RLS-first ensures the security model is identical across platforms. |
-| **Template-marketplace stance** — PRD-Phase5 implies investigation features should be template-driven, but Phase 4 shipped the marketplace as a P2 item separate from case content | **Investigation features are NOT template-driven.** Alibis, contradictions, gaps, and analysis are room-scoped features that apply to any case type. They are added to all rooms uniformly, not gated behind template configs. | Investigation intelligence is a cross-cutting capability (Phase 5 epics apply to Legal, Corporate, Medical, Academic, Technical uniformly). Template-driving would add config complexity without benefit — per Architecture.md §3 "one core, many configs" principle, investigation features are part of the core, not a config. |
-| **Cross-case pattern-matching depth** — PRD suggests AI should find patterns across cases, but RLS prevents cross-room reads | **Pattern matching is per-room only for now.** AI agents operate within the RLS-scoped data of the room they're run in. Cross-case pattern aggregation is a Phase 6+ feature requiring a security-definer aggregation service (not client-side). | RLS-first is a non-negotiable security boundary (Architecture.md §2). Cross-case AI would require a dedicated security-definer service that aggregates across rooms for authorized users — architecturally distinct from per-room agents. Defer until Phase 6 with proper design doc. |
+| Conflict | Decision |
+|---|---|
+| Mobile-first framing | No dedicated mobile navigation layer; mobile inherits the tab-based shell; RLS-first means no re-architecture for mobile |
+| Template-marketplace stance | Investigation features are core, not template-driven |
+| Cross-case pattern-matching depth | Per-room only; cross-case aggregation deferred behind a security-definer service design |
 
 ---
 
 ## 7. Environment State
 
-- **Repo:** GitHub `abdullahhshafique/case_thread`, default branch `main` (tagged `v0.1.0`); work branch `feature/phase-6-spec-alignment` retired after squash-merge. Conventional Commits + squash-merge per Rules.md §2.
-- **Local setup:** Flutter 3.47.2 at `D:\5th Semester\MAD\flutter` (export PATH per shell); `flutter pub get` + `npm install` (supabase CLI 2.117.0 via `npx supabase`); **Deno 2.9.6** via winget at `C:\Users\Aadi\AppData\Local\Microsoft\WinGet\Packages\DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe\deno.exe` (not on PATH — use full path or new shell); config via `.env` (never commit) or `--dart-define` on web.
-- **Cloud:** Supabase project ref `hxrztoakimebjcibvkaa` (live, linked); **Edge Function secrets currently: only the auto SUPABASE_* set — AI_PROVIDER/GROK_API_KEY NOT set (function runs mock mode until set)**.
-- **Commands (gates):** `dart format .` → `flutter analyze` → `flutter test` → `npx supabase test db` (local Docker stack; start with `--exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta` — pg_meta is chronically unhealthy locally) → `deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts` → `flutter build web --release`.
+- **Repo:** GitHub `abdullahhshafique/case_thread`, default branch `main` (tagged `v0.1.0`); UX Parity work in the local working tree (uncommitted at doc time). Conventional Commits + squash-merge per Rules.md §2.
+- **Local setup:** Flutter 3.47.2 at `D:\5th Semester\MAD\flutter` (export PATH per shell); `flutter pub get` + `npm install` (supabase CLI via `npx supabase`); Deno via winget (not on PATH — use full path); config via `.env` (never commit) or `--dart-define` on web.
+- **Cloud:** Supabase project ref `hxrztoakimebjcibvkaa` (live, linked); Edge Function secrets: only auto SUPABASE_* — AI_PROVIDER/GROK_API_KEY NOT set (mock mode).
+- **Commands (gates):** `dart format .` → `flutter analyze` → `flutter test` → `npx supabase test db` (local Docker stack; exclude `studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta`) → `deno test --no-check --allow-env supabase/functions/ai-agent/index.test.ts` → `flutter build web --release`.
 - **App behavior when unconfigured:** boots to the setup screen with instructions — by design, not a crash.
 
 ---
 
 ## 8. Recent Learnings & Gotchas
 
-- Flutter SDK lives at `D:\5th Semester\MAD\flutter` (not on PATH — export it per shell). Mirror `flutter-io.cn` is configured; pub.dev access works.
-- `flutter pub get` prints a "symlink support / Developer Mode" warning on this Windows machine — it only blocks plugin builds, not analyze/test. Enable Developer Mode before building Android.
-- **supabase_flutter 2.17.2 API names:** no `Supabase.instanceOrNull` (asserts instead — use `Supabase.isInitialized` on the singleton or guard before touching `.instance`); `Supabase.instance.client` for the client; `publishableKey:` (not deprecated `anonKey:`) in `initialize`; no `clearSession` on GoTrueClient; gotrue exports `AuthException`/`AuthState` which collide with our domain names — prefix supabase imports (`as supabase`).
-- **Riverpod 3.4.3:** `AsyncValue.valueOrNull` is gone — use `.value`. `NotifierProvider(Class.new)` constructor-tearoff style works. Sealed classes can't be extended outside their library — feature exceptions live in `core/errors/app_exceptions.dart`.
-- **go_router 18:** `GoRouter.notifyListeners` removed — use `refreshListenable` (we bridge the session stream via a small ChangeNotifier).
-- **Flutter 3.47 theme:** `ElevatedButton.styleFrom` lost `hoverColor`/`disabledBackgroundColor` — build `ButtonStyle` with `WidgetStateProperty.resolveWith`; `withOpacity` is deprecated for `withValues(alpha:)`; `ThemeData.fontFamily` is not a getter — assert via `textTheme.bodyLarge!.fontFamily`.
-- **Postgres:** UNIQUE table constraints reject function expressions (`SQLSTATE 42601`) — use `create unique index ... (col, lower(name))` instead. Cloud `db push` runs migrations transactionally: a failure rolls the whole file back cleanly (only previously-applied versions stay in `supabase_migrations.schema_migrations`).
-- **Supabase cloud testing:** `npx supabase db query --linked "..."` works great for live verification (list tables, check triggers, query seeds). PostgREST SELECT under RLS returns `200` with `[]` for denied rows — not 403 — so "empty array" IS the deny proof. Its table renderer SWALLOWS TAP output and stops after `set role` — useless for pgTAP runs; use the local Docker loop instead.
-- **Local Docker loop (the Sprint-3 unblocker):** `npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api` → `npx supabase db reset` → `npx supabase test db` — full pg_prove output in ~2s per iteration. Windows: Hyper-V reserves ports 54262–54361, so config.toml uses DB port **65432** (shadow 65420, pooler 65429). Valid exclude names for CLI 2.117: edge-runtime, gotrue, imgproxy, kong, logflare, mailpit, postgres-meta, postgrest, realtime, storage-api, studio, supavisor, vector — NOT inbucket/analytics. Docker Desktop sometimes stops on its own — relaunch `C:\Program Files\Docker\Docker\Docker Desktop.exe` if `docker ps` fails. **(2026-09-14: local `db reset` health-checks ALL services incl. pg_meta even when excluded — add `postgres-meta` to the exclude list or the reset stops the whole stack as 'unhealthy'.)**
-- **pgTAP 3.36 semantics (cost a day of blind CI):** `throws_ok(query, msg)` matches the EXACT full error string (the 3-arg SQLSTATE form concatenates the description into the comparison and always fails); `is()` over an empty result set emits NO test line (silent plan/run mismatch) — use scalar-subquery assertions that always yield exactly one row; each test file runs as its own psql session, so a shared `_helpers.sql` must COMMIT (not run in begin/rollback) and self-declare as a passing TAP file; pgTAP assertions run under SET ROLE contexts — grant the `tests` schema/fixtures/functions to `public`; impersonated sessions can't see rows RLS hides, so row-state verification must run as postgres.
-- **Supabase Auth:** dev project rejects `example.com` etc. as invalid emails at signup, and sends a rate-limited confirmation email (429 `over_email_send_rate_limit`) — for dev, disable email confirmation in Dashboard → Authentication → Providers, or wait out the limit.
-- **Postgres RLS deny semantics (2026-09-14):** a failing INSERT (no policy) THROWS `new row violates row-level security policy` — testable with `throws_ok`; a failing UPDATE/DELETE (policy exists, USING false for the role) is a SILENT 0-row no-op — assert state-unchanged as postgres instead, never `throws_ok`. Also: CHECK constraints can't contain subqueries (SQLSTATE 42626) — validate array shape/bounds only; validate contents in the consuming service.
-- **Realtime (2026-09-14):** supabase_flutter's `.stream()` (postgres_changes) silently no-ops for tables NOT in the `supabase_realtime` publication — Sprint-5 panes worked only because CI's stack recreates nothing; the gap surfaced only when wiring AI suggestions live. New rule: any migration introducing a streamed table adds it to the publication (guarded DO-block) + a pgTAP assertion via `pg_publication_tables`. Local stacks started with `realtime` excluded create the publication as empty — 0018's guarded `create publication if not exists` handles both fresh and cloud-default environments.
-- **Deno on Windows (2026-09-14):** winget installs to `WinGet\Packages\DenoLand.Deno…\deno.exe` with a PATH change that only new shells see — Git Bash may not find `deno` until re-opened; use the full path. `deno test` type-CHECKS by default and trips on esm.sh supabase-js's `@types/node` references — run with `--no-check` (function source is @ts-nocheck anyway) and keep `deno.lock` committed for reproducibility.
+**Added 2026-09-24 (UX Parity session):**
+- **Riverpod 3.4.3 `NotifierProvider` requires both type args** — `NotifierProvider<int?>` alone fails with "Expected 2 type arguments"; use `NotifierProvider<MyNotifier, int?>(MyNotifier.new)`. Family notifiers: `NotifierProvider.family<MyFamilyNotifier, State, Arg>` with `FamilyNotifier<State, Arg>` (build takes `arg`, access via `this.arg`).
+- **`const` on widgets with runtime constructor args doesn't compile** — `const AlertCards(roomId: roomId)` inside `build()` is "not a constant expression" when `roomId` is a parameter; drop the `const`.
+- **`AppTextTheme` has no static style members** — styles live on the built `TextTheme`; use `Theme.of(context).textTheme.labelMedium` etc.
+- **`ref.listen` inside `initState` of a `ConsumerState`** is the clean one-shot cross-widget signal pattern (overview alert card → analysis nested TabController `animateTo`).
+- **`getMyRooms` explicit column lists are a footgun** — the select omitted `investigation_status` (and would have omitted `briefing`), silently defaulting the client model. Fixed 2026-09-24; keep column lists in sync with the model.
+- **`Printing.sharePdf`** is the one-call PDF handoff (save/share/print; browser download on web) — no path_provider needed.
+- **pgTAP/history gotchas (2026-09-10 → 09-19) remain in force** — see the entries below from prior sessions:
+- Flutter SDK lives at `D:\5th Semester\MAD\flutter` (not on PATH); mirror `flutter-io.cn` configured.
+- supabase_flutter 2.17.2: no `Supabase.instanceOrNull`; `publishableKey:` (not `anonKey:`); prefix supabase imports (`as supabase`) — gotrue names collide with domain types.
+- Riverpod 3.x: `AsyncValue.valueOrNull` gone — use `.value`; sealed classes can't be extended outside their library.
+- Flutter 3.47: `withOpacity` → `withValues(alpha:)`; `ElevatedButton.styleFrom` lost hover/disabled colors — build `ButtonStyle` with `WidgetStateProperty.resolveWith`.
+- Postgres: UNIQUE constraints reject function expressions; cloud `db push` is transactional per file. RLS deny semantics: INSERT throws, UPDATE/DELETE silently no-op — assert state, never `throws_ok`, for UPDATE/DELETE denials.
+- Realtime: tables must be in the `supabase_realtime` publication (same-migration DO-block + pgTAP assertion).
+- Local Docker loop: `npx supabase start --exclude studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,postgres-meta` → `db reset` → `test db`; DB port 65432 (Hyper-V reserves 543xx).
+- pgTAP 3.36: `throws_ok` exact-match; empty-set `is()` emits no line (use scalar-subquery form); `_helpers.sql` must COMMIT; unimpersonate before fixture inserts.
 
 ---
 
 ## 9. Links to Relevant Conversations
 
 - Original concept doc: `CaseThread-Refined-Concept.md` (source material for all six planning documents).
-- Planning conversation that produced PRD/Architecture/Rules/Phases/Design/memory.md: 2026-09-10 session — key decisions made: Supabase over Firebase/custom backend, larger-team 6–12 month timeline, Legal/Investigative + Academic as Phase 1 case types, navy/slate/teal design direction, provider-agnostic AI layer, Vercel+Supabase deployment, public repo with all-rights-reserved licensing.
+- UX Parity PRD: `CaseThread-UX-Parity-PRD.md` (client request, phases 1–7 — implemented 2026-09-24).
+- Planning session 2026-09-10: Supabase over Firebase, 6–12mo timeline, Legal+Academic first, navy/slate/teal, provider-agnostic AI, public repo all-rights-reserved.
 
 ---
 
 ## 10. Testing Status
 
-**2026-09-23 (PHASE 6 FINAL, `main` 43048cb — squash of feature/phase-6-spec-alignment):** Dart **118/118**, analyze 0, pgTAP **27 files / 229 declared tests — all PASS**, 9/9 Deno, web release build ✓; CI 3/3 green; p6k.txt scrubbed, p6j secret rotated, cloud synced; backup tag removed. Prior: **2026-09-15 (PHASE 4 EXIT, `feature/phase-4-s2-s4`):** ALL GREEN — **166/166 pgTAP** (137 from P4-S1 + 10 search: member-scoped no-leak, prefix match, redaction boundary, RLS deny proof; 12 offline: LWW detection, revoked-member typed deny, clear_conflict idempotent, audit ordering preserved; 7 history: task/timeline versions, RLS deny proof, typed error for unknown kinds), **82 Dart** (from P4-S1 + Dart unit tests for SearchHit, OfflineQueue serialization, VersionEntry parsing), **9/9 Deno** (from P4-S1), analyze 0, web release build ✓. Cloud E2E for search + offline + history pending (Phase boundaries use full verification per §5). Prior: **2026-09-14 (PHASE 3 EXIT, `feature/phase-3`):** 121/121 pgTAP, 73/73 Dart, 9/9 Deno. **2026-09-13 (PHASE 2 EXIT, `main` dd99aaf):** 98/98 pgTAP, 59/59 Dart. **2026-09-12 (PHASE 1 EXIT, `main` 9e31315):** 75/75 pgTAP, 59/59 Dart.
+**2026-09-25 (all gates GREEN on the working tree):** pgTAP **28 files / 237 tests — all PASS** (incl. new `entity_seed_test.sql` for the 0044 import RPC); Dart analyze 0 + full test suite green (168+ tests; last fix = force-layout alpha decay clamp); migrations 0042–0044 verified by local `db reset`. Prior: **2026-09-24 (UX Parity, working tree — UNVERIFIED):** +10 new/extended Dart test files (theme_switch, alert_cards, case_briefing_card, dashboard_layout extended, export_report, evidence_detail_sheet, discussion_flags, presence, app_theme extended, auth extended). **Last machine-verified pass — 2026-09-23 (PHASE 6 FINAL, `main` 43048cb):** Dart **118/118**, analyze 0, pgTAP **27 files / 229 run — all PASS**, 9/9 Deno, web release ✓, CI 3/3. Prior gates: 166 pgTAP + 82 Dart (Phase 4 exit), 121 + 73 (Phase 3), 98 + 59 (Phase 2), 75 + 59 (Phase 1).
+
 Live cloud E2E covers: create → join → approve → upload → audit (Phase 1); redaction/feed/export/entity-map (Phase 2); agent run → review → audit (Phase 3); draft → publish → room-from-template (P4-S1).
 
 ---
@@ -171,30 +149,11 @@ Live cloud E2E covers: create → join → approve → upload → audit (Phase 1
 
 | Timestamp | Environment | Version | Notes |
 |---|---|---|---|
-| 2026-09-10 | GitHub (private repo) | bb8ae90 base | Sprint 0–1 pushed by user; CI active |
-| 2026-09-11 | GitHub `feature/sprint-2-schema` | bb8ae90 → caf6919 | Sprint 2 commits + 0002 fix; CI `rls-tests` first run (result unconfirmed — check Actions) |
-| 2026-09-11 | Supabase dev cloud `hxrztoakimebjcibvkaa` | migrations 0001–0006 | Applied via `npx supabase db push --include-all` after expression-index fix; 14 tables, RLS armed, seeds present; GoTrue v2.196.0 |
-| 2026-09-11 | Supabase dev cloud | 0007 + 0008 + policy hotfixes | Room-service RPCs applied; request_room_join recreated (OUT-param rename); owner-visibility policy on room_members + case_rooms patched directly (recorded-migration hotfixes — fresh envs get them via the migration files) |
-| 2026-09-11 | GitHub `main` | e2a3649 | Sprint 2+3 squash-merged; CI green on both jobs (flutter + rls-tests) |
-| 2026-09-11 | Local (Docker) | stack running | DB port 65432; 47/47 pgTAP locally; standing infra for future sprints |
-| 2026-09-12 | Supabase dev cloud | 0010 + 0011 applied | Mirror + embed FKs live; task→timeline E2E verified |
-| 2026-09-12 | GitHub `main` | 0bfbf4d → 58ab348 | Sprints 5 + 6 squash-merged; CI green |
-| 2026-09-12 | Supabase dev cloud | demo data | Demo-day rehearsal room (code CBJN8VP8) + 4-entry audit trail |
-| 2026-09-12 | GitHub `main` | 9e31315 → 29b6ea0 | **PHASE 1 COMPLETE** — Sprint 7 squash-merged + docs; CI green |
-| 2026-09-12 | Supabase dev cloud | 0009 applied | Evidence bucket + storage RLS + register_evidence live; vault E2E verified |
-| 2026-09-12 | GitHub `main` | 3699093 | Sprint 4 squash-merged; CI green on both jobs |
-| 2026-09-13 | Supabase dev cloud | 0017 applied | Agent registry + review_suggestion live (Phase-3 core) |
-| 2026-09-14 | Local (Docker) | 0018 + 0019 verified | Full reset + 121/121 pgTAP; ai_workflows/runs + realtime publication + P1 agents |
-| 2026-09-14 | Supabase dev cloud | 0018 + 0019 + 0020 applied; ai-agent deployed | Live E2E COMPLETE: 3 agents, accept/edit/dismiss, workflow chain (2 steps → 2 pending suggestions, run completed 2/2); 0020 hotfix = created_by default. GROK key still unset (mock mode) |
-| 2026-09-14 | GitHub `main` | 4ed09b4 | **PHASE 3 COMPLETE** — PR #1 squash-merged; CI green on all 3 jobs (flutter, rls-tests, edge-functions) |
-| 2026-09-14 | `feature/phase-4` (P4-S1) | 0021 + marketplace UI | Template marketplace: drafts/publish/materialization; offline-sync policy doc |
-| 2026-09-14 | Supabase dev cloud | 0021 applied | LIVE E2E: draft → publish (journalism) → room-from-template, owner got journalism_editor |
-| 2026-09-14 | GitHub `main` | 78f4e33 | **P4-S1 COMPLETE** — PR #2 squash-merged; CI 3/3 green (137 pgTAP, 82 Dart, 9 Deno) |
-| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S2) | 0022 `search_cases()` | Cross-case RLS-scoped prefix full-text search across 5 object types; Flutter SearchScreen + /search route; pgTAP 10/10, Dart unit tests |
-| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S3) | 0023 offline sync | Conflict columns + LWW-stamped RPCs + clear_conflict; Flutter OfflineSync + OfflineBanner + ConflictChip; pgTAP 12/12, Dart unit tests |
-| 2026-09-15 | `feature/phase-4-s2-s4` (P4-S4) | 0024 version history | `list_versions()` RPC over audit log; Flutter VersionHistorySheet; pgTAP 7/7, Dart unit tests |
-| 2026-09-15 | GitHub (PR pending) | feature/phase-4-s2-s4 | **PHASE 4 COMPLETE** — S1 was merged via PR #2; S2–S4 landed on the phase-4-s2-s4 branch (CI green at 908893d) and reached main via the phase-6 branch's tree; CI 3/3 green (166 pgTAP, 82 Dart, 9 Deno) |
-
-| 2026-09-17 | Phase 6 — Spec Alignment | Dashboard header+graphs, classification UI, Connections map tab, Riverside seed | COMPLETE |
-| 2026-09-19 | GitHub `feature/phase-6-spec-alignment` | push BLOCKED | Push protection: 0093efa contained `p6j.txt` (pasted CI log with a Supabase secret at line 594) — key never reached the remote |
-| 2026-09-23 | GitHub `main` | 43048cb | Final: 118/118 Dart, 27 pgTAP/229 PASS, 9/9 Deno, web ✓; CI 3/3; p6j key rotated; cloud synced (0040–0041 + seed); backup tag removed |
+| 2026-09-23 | GitHub `main` | 43048cb | Phase 6 final: v3 console + polish tail; CI 3/3; cloud synced (0040–0041 + seed); p6j key rotated; tagged `v0.1.0` |
+| 2026-09-17 | Phase 6 — Spec Alignment | Dashboard graphs, classification UI, Connections map, Riverside seed | COMPLETE |
+| 2026-09-15 | GitHub (phase-4 tree) | S2–S4 | Search + offline + version history; reached main via phase-6 tree; CI 3/3 |
+| 2026-09-14 | GitHub `main` | 4ed09b4 | **PHASE 3 COMPLETE** — PR #1; CI green on all 3 jobs; live AI E2E (3 agents, workflow chain) |
+| 2026-09-13 | GitHub `main` | dd99aaf | **PHASE 2 COMPLETE** — 5 case types, redaction, feed, export, entity map |
+| 2026-09-12 | GitHub `main` | 9e31315 | **PHASE 1 COMPLETE** — live demo-day rehearsal on cloud |
+| 2026-09-11 | Supabase cloud `hxrztoakimebjcibvkaa` | 0001–0008+ | Core schema, RLS, room service live |
+| **2026-09-24 (pending)** | working tree → `main` | UX Parity 1–7 | **NOT YET PUSHED** — gates + 0042–0043 push + CI + squash-merge outstanding |

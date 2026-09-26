@@ -127,8 +127,8 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
                         (f.$1 == 'all'
                             ? _sourceFilter == null
                             : _sourceFilter == f.$1)
-                        ? const Color(0xFFA5B4FC)
-                        : const Color(0xFF9AA2B6),
+                        ? AppColors.v3Info
+                        : AppColors.consoleMuted,
                   ),
                 ),
                 selected: f.$1 == 'all'
@@ -137,13 +137,13 @@ class _TimelinePaneState extends ConsumerState<TimelinePane> {
                 onSelected: (_) => setState(() {
                   _sourceFilter = (f.$1 == 'all') ? null : f.$1;
                 }),
-                selectedColor: const Color(0x1A6366F1),
+                selectedColor: AppColors.v3IndigoTint,
                 side: BorderSide(
                   color:
                       (f.$1 == 'all'
                           ? _sourceFilter == null
                           : _sourceFilter == f.$1)
-                      ? const Color(0x4D8180F8)
+                      ? AppColors.graphEdge
                       : AppColors.consoleBorder,
                 ),
                 shape: RoundedRectangleBorder(

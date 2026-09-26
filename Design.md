@@ -1,7 +1,7 @@
 # CaseThread — Design System
 
-**Status:** Draft v2.1 (adds §16 — v3 console addendum)
-**Last updated:** 2026-09-19
+**Status:** Draft v2.2 (§16 v3 console addendum, §17 light theme AS BUILT, §18 UX Parity components)
+**Last updated:** 2026-09-24
 **Design direction:** Calm, investigation-grade, dark navy canvas with a single restrained mint accent. Colors are functional: mint = confirmed/healthy, amber = needs attention/partial, coral = conflict, slate = neutral/unknown. Nothing implies guilt — colors flag *data states*, not people.
 **Source of truth:** sampled from the approved UI prototype walkthrough (Sept 2026) and cross-referenced with the "Complete Project Understanding" document.
 **Related docs:** [PRD.md](./PRD.md) · [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md)
@@ -299,7 +299,29 @@ Phase 6 rebuilt the Flutter shell to the approved v3 HTML console (`casethread-v
 ## 17. Light-theme extension (Phase 1)
 
 - Parallel palette `AppColorsLight` with the same field names as `AppColors` — white/very-light blue-gray backgrounds, navy text, cyan/mint/amber accents darkened ~15% for contrast; light blue-gray borders; flat cards (no elevation shadow).
-- Toggle: sun/moon icon in `_TopBar` + auth screen; persisted via `shared_preferences`; instant re-theme; survives hot restart.
+- Toggle: sun/moon/auto icon on the console shell; persisted via `shared_preferences`; instant re-theme; survives restart.
 - WCAG AA contrast on all text/background pairs in light mode; never color-alone signals (labels paired).
-- Do NOT add `ThemeMode.system` — light/dark toggle only.
+- AS BUILT (2026-09-24): the toggle cycles **system → dark → light** and `ThemeMode.system` IS the default — the original "no system mode" decision was reversed during implementation so the app follows OS preference out of the box.
 
+
+
+---
+
+## 18. UX Parity components (2026-09-24)
+
+| Component | Tokens | Rules |
+|---|---|---|
+| Case Briefing card (`CaseBriefingCard`) | `bgSurface`, `borderSubtle`, `consoleMuted` label + `textPrimary` body | Label "CASE BRIEFING" + "SHARED · TEAM" chip always shown; empty state renders the honest "No briefing yet." muted placeholder, never a dash. Edit pencil only for edit_case holders. |
+| Alert cards (`AlertCards`) | Contradictions `v3Err` (coral), Gaps `v3Warn` (amber), Alibis `stateSuccess` (mint) | Border + 6% tint fill; muted (neutral surface, no chevron) when the count is 0 — zeros render honestly. Tap = deep-link to the Analysis sub-tab; never decorative. |
+| Alibi donut (`TaskDonut`) | `stateSuccess` arc on `consoleBorder` track | 52 px, 4 px stroke, rounded caps; hidden entirely when the room has zero alibis. |
+| Export sheet (`ExportSheet`) | `brandBlue` icons, `bgSurfaceRaised` option rows | Two options only (PDF / Markdown copy); spinner replaces the chevron while generating; errors surface as typed SnackBars. |
+| Evidence detail sheet | `bgSurfaceRaised` metadata block, `GeistMono` for sha256 | Chain-of-custody hash is selectable; AI section hidden behind a permission line for roles without `approve_ai_findings`; alibi status buttons keep the label-paired color rule (Verified mint / Partial amber / Conflict coral / Insufficient slate). |
+| Pinned strip + star (discussion) | `v3Info` pin, `statePending` star | Star/pin are view flags, not case data; pinned strip sits above the thread with an ✕ unpin; messages keep their place in the thread. |
+| Role-colored dots (`roleDotColor`) | lead=brandBlue, analyst=statusGap, forensic=v3Cyan, legal=brandViolet, viewer=statusNeutral, unknown=stateSuccess | Color flags the ROLE, never the person or a case state; role name always rides alongside as text (§1 tone rules). |
+| Presence ("Active Xm ago") | `consoleMuted` bodySmall | Relative-time only (just now / Xm / Xh / Xd); hidden when no watermark exists — never a fake "online" indicator. |
+
+---
+
+## 19. Token sweep (2026-09-25) — single source of colors enforced
+
+Every raw `Color(0x…)` outside `core/theme/app_colors.dart` has been replaced with a named token — **zero hardcoded hexes remain in feature code** (Rules.md §Design compliance). 19 new tokens were added to both palettes for values that had no home (v3Indigo, v3DeepViolet, accentSky/Cyan/Pink/Rose/Periwinkle, skyGlow, mintDeep/Ink/Surface, heroBlue, graphEdge, v3IndigoTint, overlayPanel/Solid, borderStrong, nodeRing, veilNavy), each with a light-theme counterpart. Alpha-variant hexes became `TOKEN.withValues(alpha: …)` on the base token. Visual output is unchanged — this was a rename-only refactor, and it means the light theme now actually recolors surfaces that previously baked in dark values.

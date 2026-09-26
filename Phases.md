@@ -1,7 +1,7 @@
 # CaseThread — Phases
 
-**Status:** Draft v1.1
-**Last updated:** 2026-09-15
+**Status:** Draft v1.2 (adds §12 — UX Parity PRD, complete 2026-09-24)
+**Last updated:** 2026-09-24
 **Timeline basis:** Larger team, standard 6–12 month startup timeline
 **Related docs:** [PRD.md](./PRD.md) · [Architecture.md](./Architecture.md) · [Rules.md](./Rules.md) · [memory.md](./memory.md)
 
@@ -17,9 +17,9 @@
 | Phase 3 | AI agent workflows | Months 5–7 | ✅ Complete |
 | Phase 4 | SaaS polish — marketplace, cross-case search, offline mode, mobile store release | Months 7–12 | ✅ Complete (S1–S4); mobile store + paid tier deferred |
 | Phase 5 | Investigation intelligence — alibis, contradictions, gaps, dashboard, case status/closed summary | — | ✅ Complete (2026-09-17) |
-| Phase 6 — UX Parity PRD (client request) | Light theme, overview enrichment, export overhaul, evidence AI tab + verify-alibi, discussion enhancements, demo seeding + briefing editor, optional chat media | — | ⬜ Not started — see `CaseThread-UX-Parity-PRD.md` |
-| Phase 7 — OPTIONAL | Voice notes, read receipts, chat media drawer, role-colored avatar dots | — | ⬜ Not started — behind feature flags; skippable |
-| Phase 6 | Spec alignment + v3 Investigation Console + polish tail | — | ✅ Complete (2026-09-23); CI 3/3 green; main tagged `v0.1.0` |
+| Phase 6 — UX Parity PRD (client request) | Light theme, overview enrichment, export overhaul, evidence AI tab + verify-alibi, discussion enhancements, demo seeding + briefing editor, optional chat media | — | ✅ Complete (2026-09-24) — see §12; voice notes + chat media (7.1/7.2) intentionally skipped |
+| Phase 7 — OPTIONAL | Voice notes, read receipts, chat media drawer, role-colored avatar dots | — | 🟡 Partial (2026-09-24) — presence + role dots shipped (§12.7); voice notes/chat media skipped behind a scoped mini-sprint |
+| Phase 6 — v3 | Spec alignment + v3 Investigation Console + polish tail | — | ✅ Complete (2026-09-23); CI 3/3 green; main tagged `v0.1.0` |
 
 ---
 
@@ -325,3 +325,57 @@ Presentation-layer rebuild of the Flutter shell to the approved v3 design — ze
 | Audit Log + Summary panes (were imported but missing — the build blocker this phase fixed) | `audit_pane.dart`, `summary_pane.dart` |
 
 **Gates:** flutter analyze 0 issues; 118/118 Dart tests; pgTAP 27 files / 229 all green; 9/9 Deno; web release build ✓. CI 3/3 green on `43048cb`; squash-merged to main, tagged `v0.1.0`. v3 polish tail shipped (mobile bottom nav, notifications sheet, invite copy-link, chat bubbles, vault search + chips, timeline restyle, hero title).
+
+---
+
+## 12. UX Parity PRD (client request) — COMPLETE 2026-09-24
+
+Implemented end-to-end in one session; migration numbering deviated from the PRD plan (see 12.6). No Edge Function or RPC changes; every feature reuses existing providers/RPCs except the noted additions.
+
+### 12.1 Light theme + debug tools (P1)
+- `AppColorsLight` in `app_colors.dart` — same token names as `AppColors`, light-appropriate WCAG-AA values; components swap classes, never hardcode.
+- `buildAppTheme({Brightness brightness})`; `themeModeProvider` (Notifier, persisted via SharedPreferences, cycles system→dark→light).
+- Theme toggle on the console; kDebugMode-only demo sign-in (`demo@casethread.test`) and `demoRoleOverrideProvider` permission-override pill for instant role testing.
+
+### 12.2 Overview enrichment (P2)
+- `CaseBriefingCard` reading `CaseRoom.briefing`; `AlertCards` (contradictions/coral, gaps/amber, alibis/mint; tap → `analysisTabRequestProvider` → AnalysisPane animates the nested TabController); `TaskDonut` (52 px verified-alibi ring).
+- `AttentionCounts` extended (alibiVerified/Partial/Conflict, openGaps, totalAlibis getter).
+- Dashboard order: hero → briefing → 6 stats → 3 alerts → donut → charts.
+
+### 12.3 Export overhaul (P3)
+- `ExportSheet` bottom sheet: fetches the RLS-scoped `export_case_report` document, then **PDF** (`CaseReportPdf.toPdfBytes` via `pdf 3.11.2`, handed to the OS with `Printing.sharePdf` 5.13.4 — a download on web) or **Markdown copy**. Replaces the copy-only AppBar action.
+
+### 12.4 Evidence detail AI analysis + verify-alibi (P4)
+- `EvidenceDetailSheet` on vault-tile tap: full metadata (type/size/version/uploader/date/sha256), permission-gated per-item AI run (`runAgent(evidenceItemId:)` → Edge Function `evidence_item_id`), verify-alibi tiles (Verified/Partial/Conflict/Insufficient → required status reason dialog → `verify_alibi` with `evidenceItemIds: [this item]`).
+
+### 12.5 Discussion enhancements (P5)
+- `discussionFlagsProvider` — per-room star/pin sets in SharedPreferences (client-side view flags, not case data). Long-press action sheet; pinned strip above the thread; **Extract-to-case** writes a manual timeline event classified `claim` (edit_case-gated).
+
+### 12.6 Demo seeding + briefing editor (P6)
+- `0042_room_briefing.sql` (nullable `case_rooms.briefing`); `BriefingEditorSheet` + edit-pencil on the card (edit_case-gated); `RoomsRepository.updateBriefing`.
+- **Bug fixed:** `getMyRooms` explicit column list omitted `investigation_status` (and would omit `briefing`) — both added.
+- `supabase/seed_demo.sql` — idempotent full Riverside Robbery #2291 seed (briefing, entities, classified evidence, tasks, open contradiction, two alibis, gaps, timeline; code `DEMO1234`). Lives outside the numbered migrations because it needs a real `auth.users` id per environment. **Numbering note:** 0042 = briefing (not "demo seed expansion"), 0043 = presence policy (not "chat-media bucket" — chat media was skipped).
+
+### 12.7 Optional extras (P7) — partial
+- Shipped: role-colored presence dots (`roleDotColor` — lead=blue, analyst=violet, forensic=cyan, legal=magenta, viewer=slate) on the dashboard avatar stack + member tiles; "Active Xm ago" per member (`0043_presence_watermarks.sql` lets approved co-members read each other's `room_last_seen`; `getRoomPresence` + `roomPresenceProvider`).
+- Skipped: voice notes, read receipts on messages, chat media drawer — need a recording plugin + mic permissions, a `chat_media` storage bucket + policies, playback UI, and a message-attachment schema. Scoped as a separate mini-sprint.
+
+### 12.8 Tests added/extended (10 files)
+theme_switch, alert_cards, case_briefing_card, dashboard_layout (extended), export_report, evidence_detail_sheet, discussion_flags, presence, app_theme (extended), auth (extended).
+
+**Gates at doc time:** code-complete; local gates + `flutter pub get` (new deps) + migrations 0042–0043 push + seed run + CI **pending** (authored without a local Flutter SDK) — see HANDOFF §3.
+
+---
+
+## 13. Obsidian-style Connections Graph upgrade (2026-09-24)
+
+Client-approved plan (guideline approved in session): bring Obsidian.md's graph experience — force-directed layout, camera, filters, and template-driven entity import — to the Connections tab. Zero backend changes for steps 1–3.
+
+| Step | Scope | Status |
+|---|---|---|
+| 1 | Force-directed layout engine (`force_layout.dart`, pure Dart: repulsion + springs + centering, alpha-cooled settle, deterministic golden-angle start, drag support), wired into `_GraphView` with a settle-and-stop Ticker; reduced-motion settles synchronously. 10 unit tests (convergence, no-NaN, spring/repulsion behavior, determinism, drag pin, hit-test, dangling edges, drift bounds) | ✅ |
+| 2 | Camera + hover: focal-anchored pinch zoom (0.4–3×) + pan via `onScale*` (one gesture arena for node-drag/pan/zoom), constant screen-space stroke widths, MouseRegion hover highlight of the 1-hop neighborhood | ✅ |
+| 3 | Filters + local graph + search: entity-type & relationship-type filter chips, local-graph focus mode (tap refocuses, depth 1–3 hops), type-ahead search-jump that centers the camera and flashes the target's neighborhood | ✅ |
+| 4 | Obsidian-templates half: `entity_seed` JSONB on `case_type_templates` (migration 0044), `materialize_entity_seed` security-definer RPC (stable keys → UUID resolution, edit_case-gated, idempotent per (room,name), audited), import-with-preview sheet (`entity_import_sheet.dart`) behind an edit_case-gated FAB, `SeedTemplate` model + 2 tests, 7-assertion pgTAP suite (`entity_seed_test.sql`) | ✅ |
+
+Key decisions: no graph package (hand-rolled physics per the pinned-deps rule; O(n²) repulsion is fine for case-sized graphs — Barnes-Hut only if rooms exceed hundreds of entities); no WebGL canvas (CustomPainter + Ticker settles this scale); the existing "Why connected?" sheets are kept (better than Obsidian's equivalent).

@@ -71,6 +71,11 @@ void main() {
   );
 
   testWidgets('populated overview lays out without exceptions', (tester) async {
+    // Tall viewport: the alert cards/donut sit far down a lazy ListView
+    // and would never be built at the default 600x800 test size.
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -104,6 +109,17 @@ void main() {
           ),
           roomMembersProvider(roomId).overrideWith((ref) => members),
           roomsProvider.overrideWith(() => _LoadedRooms(room)),
+          attentionCountsProvider(roomId).overrideWith(
+            (ref) => const AttentionCounts(
+              openTasks: 1,
+              openContradictions: 2,
+              alibisToVerify: 1,
+              alibiVerified: 3,
+              alibiPartial: 1,
+              alibiConflict: 1,
+              openGaps: 2,
+            ),
+          ),
         ],
         child: app(const DashboardScreen(roomId: roomId)),
       ),
@@ -115,11 +131,19 @@ void main() {
     expect(find.text('Riverside Robbery #2291'), findsOneWidget);
     expect(find.text('80%'), findsOneWidget); // coverage meter
     expect(find.text('2 investigators in this room'), findsOneWidget);
+    // Phase 2 widgets rendered
+    expect(find.textContaining('No briefing yet'), findsOneWidget);
+    expect(find.text('2 Contradictions'), findsOneWidget);
+    expect(find.text('2 Gaps'), findsOneWidget);
+    expect(find.text('Alibis'), findsOneWidget);
   });
 
   testWidgets('empty overview (fresh case) lays out without exceptions', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -142,6 +166,17 @@ void main() {
           vaultProvider(roomId).overrideWith((ref) => VaultLoaded(const [])),
           roomMembersProvider(roomId).overrideWith((ref) => const []),
           roomsProvider.overrideWith(() => _LoadedRooms(room)),
+          attentionCountsProvider(roomId).overrideWith(
+            (ref) => const AttentionCounts(
+              openTasks: 0,
+              openContradictions: 0,
+              alibisToVerify: 0,
+              alibiVerified: 0,
+              alibiPartial: 0,
+              alibiConflict: 0,
+              openGaps: 0,
+            ),
+          ),
         ],
         child: app(const DashboardScreen(roomId: roomId)),
       ),
@@ -151,6 +186,9 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('0%'), findsOneWidget); // empty coverage renders 0
     expect(find.text('0 investigators in this room'), findsOneWidget);
+    // Phase 2: empty counts → alert cards render muted (all three still
+    // visible, honest zeros), donut hidden (no alibis at all)
+    expect(find.text('Alibis'), findsOneWidget);
   });
 }
 

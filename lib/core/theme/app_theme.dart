@@ -9,38 +9,95 @@ import 'app_text_theme.dart';
 /// MVP is dark-only and this IS the default experience (Design.md §10), built
 /// entirely from named tokens so a light theme can later reuse the same token
 /// names with different values.
-ThemeData buildAppTheme() {
-  final text = AppTextTheme.build();
-  final colorScheme = const ColorScheme.dark(
-    primary: AppColors.accentPrimary,
-    onPrimary: AppColors.bgPrimary,
-    secondary: AppColors.accentPrimaryHover,
-    onSecondary: AppColors.bgPrimary,
-    surface: AppColors.bgSurface,
-    onSurface: AppColors.textPrimary,
-    error: AppColors.stateError,
-    onError: AppColors.bgPrimary,
+///
+/// Pass [brightness] to enable the light theme (Phase 1 PRD). The helper
+/// extracts all shared styling so both palettes are built from one path.
+ThemeData buildAppTheme({Brightness brightness = Brightness.dark}) {
+  final text = AppTextTheme.build(
+    primaryColor: brightness == Brightness.dark
+        ? AppColors.textPrimary
+        : AppColorsLight.textPrimary,
+    secondaryColor: brightness == Brightness.dark
+        ? AppColors.textSecondary
+        : AppColorsLight.textSecondary,
   );
+  return _buildTheme(
+    brightness: brightness,
+    textTheme: text,
+    colorScheme: brightness == Brightness.dark
+        ? const ColorScheme.dark(
+            primary: AppColors.accentPrimary,
+            onPrimary: AppColors.bgPrimary,
+            secondary: AppColors.accentPrimaryHover,
+            onSecondary: AppColors.bgPrimary,
+            surface: AppColors.bgSurface,
+            onSurface: AppColors.textPrimary,
+            error: AppColors.stateError,
+            onError: AppColors.bgPrimary,
+          )
+        : const ColorScheme.light(
+            primary: AppColorsLight.accentPrimary,
+            onPrimary: AppColorsLight.bgPrimary,
+            secondary: AppColorsLight.accentPrimaryHover,
+            onSecondary: AppColorsLight.bgPrimary,
+            surface: AppColorsLight.bgSurface,
+            onSurface: AppColorsLight.textPrimary,
+            error: AppColorsLight.stateError,
+            onError: AppColorsLight.bgPrimary,
+          ),
+  );
+}
+
+ThemeData _buildTheme({
+  required Brightness brightness,
+  required TextTheme textTheme,
+  required ColorScheme colorScheme,
+}) {
+  final isDark = brightness == Brightness.dark;
+  final bgPrimary = isDark ? AppColors.bgPrimary : AppColorsLight.bgPrimary;
+  final bgSurface = isDark ? AppColors.bgSurface : AppColorsLight.bgSurface;
+  final bgSurfaceRaised = isDark
+      ? AppColors.bgSurfaceRaised
+      : AppColorsLight.bgSurfaceRaised;
+  final textPrimary = isDark
+      ? AppColors.textPrimary
+      : AppColorsLight.textPrimary;
+  final textSecondary = isDark
+      ? AppColors.textSecondary
+      : AppColorsLight.textSecondary;
+  final accentPrimary = isDark
+      ? AppColors.accentPrimary
+      : AppColorsLight.accentPrimary;
+  final accentPrimaryHover = isDark
+      ? AppColors.accentPrimaryHover
+      : AppColorsLight.accentPrimaryHover;
+  final borderSubtle = isDark
+      ? AppColors.borderSubtle
+      : AppColorsLight.borderSubtle;
+  final consoleText = isDark
+      ? AppColors.consoleText
+      : AppColorsLight.consoleText;
+  final consoleMuted = isDark
+      ? AppColors.consoleMuted
+      : AppColorsLight.consoleMuted;
+  final brandBlue = isDark ? AppColors.brandBlue : AppColorsLight.brandBlue;
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: brightness,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: AppColors.bgPrimary,
-    textTheme: text,
+    scaffoldBackgroundColor: bgPrimary,
+    textTheme: textTheme,
     fontFamily: 'Geist',
     splashFactory: NoSplash.splashFactory,
-    dividerColor: AppColors.borderSubtle,
-    dividerTheme: const DividerThemeData(
-      color: AppColors.borderSubtle,
-      thickness: 1,
-    ),
+    dividerColor: borderSubtle,
+    dividerTheme: DividerThemeData(color: borderSubtle, thickness: 1),
     // Focus ring: 2px teal, never removed without replacement (Design.md §11).
-    focusColor: AppColors.accentPrimary.withValues(alpha: 0.25),
+    focusColor: accentPrimary.withValues(alpha: 0.25),
   ).copyWith(
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.bgPrimary,
-      foregroundColor: AppColors.textPrimary,
+    appBarTheme: AppBarTheme(
+      backgroundColor: bgPrimary,
+      foregroundColor: textPrimary,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
@@ -48,59 +105,91 @@ ThemeData buildAppTheme() {
         fontFamily: 'Geist',
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+        color: textPrimary,
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: AppColors.bgSurfaceRaised,
+      backgroundColor: bgSurfaceRaised,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(22)),
-        side: const BorderSide(color: AppColors.borderSubtle),
+        side: BorderSide(color: borderSubtle),
       ),
     ),
-    tabBarTheme: const TabBarThemeData(
-      labelColor: AppColors.consoleText,
-      unselectedLabelColor: AppColors.consoleMuted,
+    tabBarTheme: TabBarThemeData(
+      labelColor: consoleText,
+      unselectedLabelColor: consoleMuted,
       dividerColor: Colors.transparent,
-      indicatorColor: AppColors.brandBlue,
+      indicatorColor: brandBlue,
     ),
-    inputDecorationTheme: _inputDecoration(),
-    elevatedButtonTheme: _elevatedButton(),
-    outlinedButtonTheme: _outlinedButton(),
-    textButtonTheme: _textButton(),
-    cardTheme: _card(),
-    snackBarTheme: _snackBar(),
-    navigationBarTheme: _navigationBar(),
-    navigationRailTheme: _navigationRail(),
+    inputDecorationTheme: _inputDecoration(
+      bgSurface: bgSurface,
+      borderSubtle: borderSubtle,
+      accentPrimary: accentPrimary,
+      textSecondary: textSecondary,
+    ),
+    elevatedButtonTheme: _elevatedButton(
+      bgSurfaceRaised: bgSurfaceRaised,
+      accentPrimary: accentPrimary,
+      accentPrimaryHover: accentPrimaryHover,
+      textSecondary: textSecondary,
+      bgPrimary: bgPrimary,
+    ),
+    outlinedButtonTheme: _outlinedButton(
+      accentPrimary: accentPrimary,
+      borderSubtle: borderSubtle,
+    ),
+    textButtonTheme: _textButton(accentPrimary: accentPrimary),
+    cardTheme: _card(bgSurface: bgSurface, borderSubtle: borderSubtle),
+    snackBarTheme: _snackBar(
+      bgSurfaceRaised: bgSurfaceRaised,
+      textPrimary: textPrimary,
+    ),
+    navigationBarTheme: _navigationBar(
+      bgSurface: bgSurface,
+      accentPrimary: accentPrimary,
+      textSecondary: textSecondary,
+      textTheme: textTheme,
+    ),
+    navigationRailTheme: _navigationRail(
+      bgSurface: bgSurface,
+      accentPrimary: accentPrimary,
+      bgPrimary: bgPrimary,
+      textSecondary: textSecondary,
+    ),
   );
 }
 
-InputDecorationTheme _inputDecoration() {
+InputDecorationTheme _inputDecoration({
+  required Color bgSurface,
+  required Color borderSubtle,
+  required Color accentPrimary,
+  required Color textSecondary,
+}) {
   const radius = BorderRadius.all(Radius.circular(12));
   return InputDecorationTheme(
     filled: true,
-    fillColor: AppColors.bgSurface,
-    hintStyle: const TextStyle(color: AppColors.textSecondary),
-    labelStyle: const TextStyle(color: AppColors.textSecondary),
-    border: const OutlineInputBorder(
+    fillColor: bgSurface,
+    hintStyle: TextStyle(color: textSecondary),
+    labelStyle: TextStyle(color: textSecondary),
+    border: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: AppColors.borderSubtle),
+      borderSide: BorderSide(color: borderSubtle),
     ),
-    enabledBorder: const OutlineInputBorder(
+    enabledBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: AppColors.borderSubtle),
+      borderSide: BorderSide(color: borderSubtle),
     ),
-    focusedBorder: const OutlineInputBorder(
+    focusedBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: AppColors.accentPrimary, width: 2),
+      borderSide: BorderSide(color: accentPrimary, width: 2),
     ),
-    errorBorder: const OutlineInputBorder(
+    errorBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: AppColors.stateError, width: 2),
+      borderSide: const BorderSide(color: AppColors.stateError, width: 2),
     ),
-    focusedErrorBorder: const OutlineInputBorder(
+    focusedErrorBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: AppColors.stateError, width: 2),
+      borderSide: const BorderSide(color: AppColors.stateError, width: 2),
     ),
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.md,
@@ -109,22 +198,27 @@ InputDecorationTheme _inputDecoration() {
   );
 }
 
-ElevatedButtonThemeData _elevatedButton() {
+ElevatedButtonThemeData _elevatedButton({
+  required Color bgSurfaceRaised,
+  required Color accentPrimary,
+  required Color accentPrimaryHover,
+  required Color textSecondary,
+  required Color bgPrimary,
+}) {
   // Primary action button: teal fill (Design.md §6 Button — Primary).
   // State-resolved colors handle the disabled variant (hover via overlay).
   return ElevatedButtonThemeData(
     style: ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.disabled)
-            ? AppColors.bgSurfaceRaised
-            : AppColors.accentPrimary,
+            ? bgSurfaceRaised
+            : accentPrimary,
       ),
       foregroundColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? AppColors.textSecondary
-            : AppColors.bgPrimary,
+        (states) =>
+            states.contains(WidgetState.disabled) ? textSecondary : bgPrimary,
       ),
-      overlayColor: const WidgetStatePropertyAll(AppColors.accentPrimaryHover),
+      overlayColor: WidgetStatePropertyAll(accentPrimaryHover),
       minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
       textStyle: const WidgetStatePropertyAll(
         TextStyle(
@@ -142,28 +236,31 @@ ElevatedButtonThemeData _elevatedButton() {
   );
 }
 
-OutlinedButtonThemeData _outlinedButton() {
+OutlinedButtonThemeData _outlinedButton({
+  required Color accentPrimary,
+  required Color borderSubtle,
+}) {
   return OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
-      foregroundColor: AppColors.accentPrimary,
-      side: const BorderSide(color: AppColors.borderSubtle),
+      foregroundColor: accentPrimary,
+      side: BorderSide(color: borderSubtle),
       minimumSize: const Size(64, 48),
       textStyle: const TextStyle(
         fontFamily: 'Geist',
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(12)),
       ),
     ),
   );
 }
 
-TextButtonThemeData _textButton() {
+TextButtonThemeData _textButton({required Color accentPrimary}) {
   return TextButtonThemeData(
     style: TextButton.styleFrom(
-      foregroundColor: AppColors.accentPrimary,
+      foregroundColor: accentPrimary,
       minimumSize: const Size(48, 48),
       textStyle: const TextStyle(
         fontFamily: 'Geist',
@@ -174,26 +271,29 @@ TextButtonThemeData _textButton() {
   );
 }
 
-CardThemeData _card() {
-  return const CardThemeData(
-    color: AppColors.bgSurface,
+CardThemeData _card({required Color bgSurface, required Color borderSubtle}) {
+  return CardThemeData(
+    color: bgSurface,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(20)),
-      side: BorderSide(color: AppColors.borderSubtle),
+      side: BorderSide(color: borderSubtle),
     ),
     margin: EdgeInsets.zero,
   );
 }
 
-SnackBarThemeData _snackBar() {
-  return const SnackBarThemeData(
-    backgroundColor: AppColors.bgSurfaceRaised,
+SnackBarThemeData _snackBar({
+  required Color bgSurfaceRaised,
+  required Color textPrimary,
+}) {
+  return SnackBarThemeData(
+    backgroundColor: bgSurfaceRaised,
     contentTextStyle: TextStyle(
       fontFamily: 'Geist',
       fontSize: 14,
-      color: AppColors.textPrimary,
+      color: textPrimary,
     ),
     behavior: SnackBarBehavior.floating,
     shape: RoundedRectangleBorder(
@@ -202,24 +302,32 @@ SnackBarThemeData _snackBar() {
   );
 }
 
-NavigationBarThemeData _navigationBar() {
+NavigationBarThemeData _navigationBar({
+  required Color bgSurface,
+  required Color accentPrimary,
+  required Color textSecondary,
+  required TextTheme textTheme,
+}) {
   // Mobile shell: bottom tab bar (Design.md §12).
   return NavigationBarThemeData(
-    backgroundColor: AppColors.bgSurface,
-    indicatorColor: AppColors.accentPrimary.withValues(alpha: 0.15),
-    labelTextStyle: WidgetStatePropertyAll(AppTextTheme.build().labelMedium),
-    iconTheme: const WidgetStatePropertyAll(
-      IconThemeData(color: AppColors.textSecondary),
-    ),
+    backgroundColor: bgSurface,
+    indicatorColor: accentPrimary.withValues(alpha: 0.15),
+    labelTextStyle: WidgetStatePropertyAll(textTheme.labelMedium),
+    iconTheme: WidgetStatePropertyAll(IconThemeData(color: textSecondary)),
   );
 }
 
-NavigationRailThemeData _navigationRail() {
+NavigationRailThemeData _navigationRail({
+  required Color bgSurface,
+  required Color accentPrimary,
+  required Color bgPrimary,
+  required Color textSecondary,
+}) {
   // Tablet/desktop shell: sidebar (Design.md §12).
-  return const NavigationRailThemeData(
-    backgroundColor: AppColors.bgSurface,
-    indicatorColor: AppColors.accentPrimary,
-    selectedIconTheme: IconThemeData(color: AppColors.bgPrimary),
-    unselectedIconTheme: IconThemeData(color: AppColors.textSecondary),
+  return NavigationRailThemeData(
+    backgroundColor: bgSurface,
+    indicatorColor: accentPrimary,
+    selectedIconTheme: IconThemeData(color: bgPrimary),
+    unselectedIconTheme: IconThemeData(color: textSecondary),
   );
 }

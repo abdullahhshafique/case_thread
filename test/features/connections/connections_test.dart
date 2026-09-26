@@ -31,6 +31,46 @@ void main() {
       expect(data.nodeById('missing'), isNull);
     });
 
+  group('SeedTemplate (0044 entity-seed import)', () {
+    const map = {
+      'id': 't1',
+      'display_name': 'Robbery Starter',
+      'description': 'Cast + scene for a street robbery',
+      'entity_seed': {
+        'entities': [
+          {'key': 'suspect', 'entity_type': 'person', 'name': '{{suspect_name}}'},
+          {'key': 'scene', 'entity_type': 'location', 'name': 'Dock 7 Warehouse'},
+        ],
+        'relationships': [
+          {'from': 'suspect', 'to': 'scene', 'type': 'present_at'},
+        ],
+      },
+    };
+
+    test('parses entities/relationships and extracts placeholders', () {
+      final t = SeedTemplate.fromMap(map);
+      expect(t.displayName, 'Robbery Starter');
+      expect(t.entities, hasLength(2));
+      expect(t.relationships, hasLength(1));
+      expect(t.placeholders, ['suspect_name']);
+    });
+
+    test('empty seed lists render as zero-count honest zeros', () {
+      final t = SeedTemplate.fromMap({
+        'id': 't2',
+        'display_name': 'Empty',
+        'entity_seed': {
+          'entities': [],
+          'relationships': [],
+        },
+      });
+      expect(t.entities, isEmpty);
+      expect(t.relationships, isEmpty);
+      expect(t.placeholders, isEmpty);
+    });
+  });
+
+
     test('handles empty map payloads', () {
       final data = EntityMapData.fromMap({'nodes': [], 'edges': []});
 

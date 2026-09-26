@@ -12,6 +12,7 @@ import 'domain/room_content_models.dart';
 import '../../core/api/models.dart' show Permission;
 import '../auth/auth_providers.dart' show sessionProvider;
 import 'room_permissions.dart';
+import 'discussion_flags.dart';
 
 /// Discussion pane (Sprint 5): realtime thread with @mentions
 /// (PRD §6.6). Posting is permission-gated by RLS; denied roles see a
@@ -62,6 +63,10 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
     // Member identity: the realtime stream's rows carry no embed, so
     // author names resolve from the member list (works for live rows too).
     final members = ref.watch(roomMembersProvider(widget.roomId));
+    final flags = ref.watch(discussionFlagsProvider(widget.roomId));
+    final canEditCase = ref
+        .watch(myRoomPermissionsProvider(widget.roomId))
+        .maybeWhen(data: (p) => p.can(Permission.editCase), orElse: () => false);
     final nameByUser = members.maybeWhen(
       data: (m) => {for (final x in m) x.userId: x.displayName ?? ''},
       orElse: () => const <String, String>{},
@@ -91,6 +96,9 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
               // snapshot order is not guaranteed.
               final ordered = [...list]
                 ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+              final pinned = ordered
+                  .where((m) => flags.isPinned(m.id))
+                  .toList(growable: false);
               if (_pinnedToBottom) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
@@ -100,14 +108,38 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
                   }
                 });
               }
-              return ListView.builder(
-                controller: _scrollController,
-                itemCount: ordered.length,
-                itemBuilder: (context, index) => _MessageTile(
-                  message: ordered[index],
-                  nameByUser: nameByUser,
-                  currentUserId: ref.watch(sessionProvider).value?.id,
-                ),
+              // Phase 5: pinned messages stay in a compact strip at the
+              // top; the main thread skips them (they're still in it —
+              // the strip is a view, not a move).
+              final body = ordered
+                  .where((m) => !flags.isPinned(m.id))
+                  .toList(growable: false);
+              return Column(
+                children: [
+                  if (pinned.isNotEmpty)
+                    _PinnedStrip(
+                      pinned: pinned,
+                      nameByUser: nameByUser,
+                      flags: flags,
+                      onUnpin: (id) => ref
+                          .read(discussionFlagsProvider(widget.roomId).notifier)
+                          .togglePin(id),
+                    ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: body.length,
+                      itemBuilder: (context, index) => _MessageTile(
+                        message: body[index],
+                        nameByUser: nameByUser,
+                        currentUserId: ref.watch(sessionProvider).value?.id,
+                        starred: flags.isStarred(body[index].id),
+                        pinned: flags.isPinned(body[index].id),
+                        onLongPress: () => _messageActions(body[index], canEditCase),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -220,6 +252,101 @@ class _DiscussionPaneState extends ConsumerState<DiscussionPane> {
     }
   }
 
+  /// Phase 5: long-press actions — star, pin, extract-to-case.
+  /// Star/pin are client-side view flags; extract writes a real manual
+  /// timeline event (edit_case holders, 0005 policy).
+  Future<void> _messageActions(DiscussionMessage message, bool canEditCase) async {
+    final flags = ref.read(discussionFlagsProvider(widget.roomId).notifier);
+    final starred = ref.read(discussionFlagsProvider(widget.roomId)).isStarred(message.id);
+    final pinned = ref.read(discussionFlagsProvider(widget.roomId)).isPinned(message.id);
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('msg-action-star'),
+              leading: Icon(
+                starred ? Icons.star : Icons.star_border,
+                color: AppColors.statePending,
+              ),
+              title: Text(starred ? 'Remove star' : 'Star message'),
+              onTap: () => Navigator.of(sheetContext).pop('star'),
+            ),
+            ListTile(
+              key: const Key('msg-action-pin'),
+              leading: Icon(
+                pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                color: AppColors.v3Info,
+              ),
+              title: Text(pinned ? 'Unpin' : 'Pin to top'),
+              onTap: () => Navigator.of(sheetContext).pop('pin'),
+            ),
+            ListTile(
+              key: const Key('msg-action-extract'),
+              leading: Icon(
+                Icons.playlist_add,
+                color: canEditCase ? AppColors.stateSuccess : AppColors.consoleMuted,
+              ),
+              title: Text(
+                canEditCase
+                    ? 'Extract to case timeline'
+                    : 'Extract to case timeline (needs edit permission)',
+              ),
+              enabled: canEditCase,
+              onTap: () => Navigator.of(sheetContext).pop('extract'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case 'star':
+        flags.toggleStar(message.id);
+      case 'pin':
+        flags.togglePin(message.id);
+      case 'extract':
+        await _extractToCase(message);
+    }
+  }
+
+  /// Writes the message into the case timeline as a manual event,
+  /// classified 'claim' (it is an unverified statement until an
+  /// investigator confirms it — 0027 tone rules).
+  Future<void> _extractToCase(DiscussionMessage message) async {
+    final author = ref
+        .read(roomMembersProvider(widget.roomId))
+        .value
+        ?.where((m) => m.userId == message.authorId)
+        .firstOrNull
+        ?.displayName ??
+        message.authorName ??
+        'Member';
+    try {
+      await ref
+          .read(roomContentRepositoryProvider)
+          .addManualEvent(
+            roomId: widget.roomId,
+            summary: 'Extracted from discussion ($author): ${message.body}',
+            classification: 'claim',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Added to the case timeline.')),
+        );
+      }
+    } on AppException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
   /// display name → user id for mention resolution.
   Map<String, String> membersNameMap() {
     final members = ref.read(roomMembersProvider(widget.roomId)).value ?? [];
@@ -240,11 +367,17 @@ class _MessageTile extends StatelessWidget {
     required this.message,
     required this.nameByUser,
     required this.currentUserId,
+    this.starred = false,
+    this.pinned = false,
+    this.onLongPress,
   });
 
   final DiscussionMessage message;
   final Map<String, String> nameByUser;
   final String? currentUserId;
+  final bool starred;
+  final bool pinned;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +388,9 @@ class _MessageTile extends StatelessWidget {
     // others stay left on the card surface; avatar chip + timestamp.
     return Align(
       alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.xxs,
@@ -291,15 +426,31 @@ class _MessageTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!isOwn)
-                      Text(
-                        name,
-                        style: text.labelMedium?.copyWith(
-                          color: AppColors.v3Info,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    if (!isOwn) ...[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              style: text.labelMedium?.copyWith(
+                                color: AppColors.v3Info,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (pinned) ...[
+                            const SizedBox(width: AppSpacing.xxs),
+                            Icon(Icons.push_pin, size: 11, color: AppColors.v3Info),
+                          ],
+                          if (starred) ...[
+                            const SizedBox(width: AppSpacing.xxs),
+                            Icon(Icons.star, size: 11, color: AppColors.statePending),
+                          ],
+                        ],
                       ),
-                    if (!isOwn) const SizedBox(height: AppSpacing.xxs),
+                      const SizedBox(height: AppSpacing.xxs),
+                    ],
                     Text(
                       message.body,
                       style: text.bodyLarge?.copyWith(
@@ -320,6 +471,7 @@ class _MessageTile extends StatelessWidget {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -338,6 +490,86 @@ class _MessageTile extends StatelessWidget {
   }
 }
 
+/// Phase 5: compact strip of pinned messages above the thread. Tap a
+/// chip to unpin; the message stays in the thread below.
+class _PinnedStrip extends StatelessWidget {
+  const _PinnedStrip({
+    required this.pinned,
+    required this.nameByUser,
+    required this.flags,
+    required this.onUnpin,
+  });
+
+  final List<DiscussionMessage> pinned;
+  final Map<String, String> nameByUser;
+  final DiscussionFlags flags;
+  final ValueChanged<String> onUnpin;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.consoleBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.push_pin, size: 12, color: AppColors.v3Info),
+              const SizedBox(width: AppSpacing.xxs),
+              Text(
+                'Pinned',
+                style: text.labelMedium?.copyWith(
+                  color: AppColors.v3Info,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          for (final message in pinned)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+              child: Row(
+                key: Key('pinned-${message.id}'),
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${nameByUser[message.authorId] ?? message.authorName ?? 'Member'}: '
+                      '${message.body}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySmall?.copyWith(
+                        color: AppColors.consoleTextSecondary,
+                      ),
+                    ),
+                  ),
+                  if (flags.isStarred(message.id))
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xxs),
+                      child: Icon(Icons.star, size: 12, color: AppColors.statePending),
+                    ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Unpin',
+                    icon: const Icon(Icons.close, size: 14),
+                    color: AppColors.consoleMuted,
+                    onPressed: () => onUnpin(message.id),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Tiny v3 avatar chip (Design.md §1.5 palette — first tint).
 class _AvatarChipMini extends StatelessWidget {
   const _AvatarChipMini({required this.initials});
@@ -351,14 +583,14 @@ class _AvatarChipMini extends StatelessWidget {
       width: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF28433A),
+        color: AppColors.mintSurface,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x28FFFFFF)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Text(
         initials,
         style: const TextStyle(
-          color: Color(0xFF3E8F71),
+          color: AppColors.mintInk,
           fontSize: 10,
           fontWeight: FontWeight.w900,
         ),

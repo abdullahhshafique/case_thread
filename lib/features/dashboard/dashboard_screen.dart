@@ -12,10 +12,14 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../rooms/rooms_providers.dart'
     show RoomsLoaded, roomMembersProvider, roomsProvider;
+import '../rooms/presence.dart' show roleDotColor;
 import '../rooms/vault_providers.dart'
     show VaultLoaded, VaultState, vaultProvider;
 import '../rooms/domain/evidence_repository.dart' show VaultEntry;
+import 'alert_cards.dart';
+import 'case_briefing_card.dart';
 import 'dashboard_providers.dart';
+import 'task_donut.dart';
 
 /// Overview pane (Phase 6 — v3 §7): case-info hero with coverage meter,
 /// six stat tiles, and the investigation graphs. All numbers come from
@@ -54,10 +58,16 @@ class DashboardScreen extends ConsumerWidget {
           total: total,
         ),
         const SizedBox(height: AppSpacing.lg),
+        CaseBriefingCard(roomId: roomId),
+        const SizedBox(height: AppSpacing.lg),
         stats.maybeWhen(
           data: (s) => _StatGrid(stats: s),
           orElse: () => const _SectionSpinner(),
         ),
+        const SizedBox(height: AppSpacing.xl),
+        AlertCards(roomId: roomId),
+        const SizedBox(height: AppSpacing.xl),
+        TaskDonut(roomId: roomId),
         const SizedBox(height: AppSpacing.xl),
         _sectionTitle(context, 'Evidence by type'),
         const SizedBox(height: AppSpacing.sm),
@@ -174,10 +184,10 @@ class _HeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.v3StatusBorder(AppColors.v3Info)),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0x1A2563EB), Color(0x0F7C3AED)],
+          colors: [AppColors.heroBlue.withValues(alpha: 0.10), AppColors.v3DeepViolet.withValues(alpha: 0.06)],
         ),
         boxShadow: [
           BoxShadow(
@@ -343,12 +353,7 @@ class _AvatarStack extends StatelessWidget {
 
   final List<RoomMember> members;
 
-  static const _gradients = [
-    [Color(0xFF22D3EE), Color(0xFF3B82F6)],
-    [Color(0xFFA78BFA), Color(0xFF8B5CF6)],
-    [Color(0xFFF472B6), Color(0xFFD946EF)],
-    [Color(0xFF34D399), Color(0xFF14B8A6)],
-  ];
+  static const _fallbackBorder = AppColors.nodeRing;
 
   @override
   Widget build(BuildContext context) {
@@ -356,6 +361,7 @@ class _AvatarStack extends StatelessWidget {
     if (shown.isEmpty) return const SizedBox(height: 26);
     // Overlapping stack via Positioned offsets — Container's margin
     // assertion rejects the negative margins an overlap would need.
+    // Phase 7: dots are colored by ROLE (roleDotColor), not by index.
     const size = 26.0;
     const overlap = 9.0;
     return SizedBox(
@@ -375,9 +381,14 @@ class _AvatarStack extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: _gradients[i % _gradients.length],
+                    colors: [
+                      roleDotColor(shown[i].roleId),
+                      roleDotColor(
+                        shown[i].roleId,
+                      ).withValues(alpha: 0.75),
+                    ],
                   ),
-                  border: Border.all(color: const Color(0xFF0A0D16), width: 2),
+                  border: Border.all(color: _fallbackBorder, width: 2),
                 ),
                 child: Text(
                   (shown[i].displayName ?? '?').substring(0, 1).toUpperCase(),
@@ -532,9 +543,9 @@ class _EvidenceChart extends StatelessWidget {
   final Map<String, int> byType;
 
   static const _barColors = [
-    Color(0xFF22D3EE),
-    Color(0xFF6366F1),
-    Color(0xFF7C3AED),
+    AppColors.accentCyan,
+    AppColors.v3Indigo,
+    AppColors.v3DeepViolet,
   ];
 
   @override
@@ -599,7 +610,7 @@ class _EvidenceChart extends StatelessWidget {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0x386366F1),
+                                  color: AppColors.v3Indigo.withValues(alpha: 0.22),
                                   blurRadius: 22,
                                 ),
                               ],
@@ -689,7 +700,7 @@ class _EventsChart extends StatelessWidget {
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Color(0xFF22D3EE), Color(0xFF6366F1)],
+                                colors: [AppColors.accentCyan, AppColors.v3Indigo],
                               ),
                             ),
                           ),

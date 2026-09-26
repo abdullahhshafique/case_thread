@@ -49,6 +49,11 @@ abstract class ActivityFeedRepository {
 
   /// Marks a room seen (clears its feed items).
   Future<void> markRoomSeen(String roomId);
+
+  /// Phase 7 presence: co-members' last-seen watermarks for one room
+  /// (0043 policy lets approved members read each other's watermark).
+  /// Missing entries = the member has never opened the room.
+  Future<Map<String, DateTime>> getRoomPresence(String roomId);
 }
 
 class SupabaseActivityFeedRepository implements ActivityFeedRepository {
@@ -75,6 +80,19 @@ class SupabaseActivityFeedRepository implements ActivityFeedRepository {
       'room_id': roomId,
       'last_seen_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'user_id, room_id');
+  }
+
+  @override
+  Future<Map<String, DateTime>> getRoomPresence(String roomId) async {
+    final rows = await _client
+        .from('room_last_seen')
+        .select('user_id, last_seen_at')
+        .eq('room_id', roomId);
+    return {
+      for (final row in (rows as List))
+        (row as Map<String, dynamic>)['user_id'] as String:
+            DateTime.parse(row['last_seen_at'] as String),
+    };
   }
 }
 

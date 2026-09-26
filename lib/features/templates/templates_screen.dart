@@ -6,6 +6,7 @@ import '../../shell/console_page.dart';
 import '../rooms/rooms_providers.dart' show activeCaseTypesProvider;
 import 'template_editor_sheet.dart';
 import 'templates.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Template marketplace (Phase 4, Phases.md §5): browse published
 /// templates, manage your drafts, design a custom case type (name +
@@ -210,7 +211,7 @@ class _PublishedTile extends StatelessWidget {
         ),
         trailing: const Icon(
           Icons.check_circle_outline,
-          color: Color(0xFF5FBF7A),
+          color: AppColors.mintDeep,
         ),
       ),
     );

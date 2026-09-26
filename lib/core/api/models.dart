@@ -101,6 +101,7 @@ class CaseRoom {
     required this.investigationStatus,
     required this.createdAt,
     this.codeRotatedAt,
+    this.briefing,
   });
 
   final String id;
@@ -111,6 +112,9 @@ class CaseRoom {
   final InvestigationStatus investigationStatus;
   final DateTime createdAt;
   final DateTime? codeRotatedAt;
+
+  /// Phase 2: optional case briefing (populated in Phase 6 via seed).
+  final String? briefing;
 
   factory CaseRoom.fromMap(Map<String, dynamic> map) {
     DateTime? tryParse(String? iso) =>
@@ -135,6 +139,7 @@ class CaseRoom {
       },
       createdAt: tryParse(map['created_at'] as String?) ?? DateTime.now(),
       codeRotatedAt: tryParse(map['code_rotated_at'] as String?),
+      briefing: map['briefing'] as String?,
     );
   }
 }

@@ -11,8 +11,10 @@ import '../auth/auth_providers.dart';
 import 'activity_feed.dart';
 import 'ai_pane.dart';
 import 'audit_pane.dart';
-import 'export_report.dart';
+import 'export_report.dart' show canExportProvider;
+import 'export_sheet.dart';
 import 'discussion_pane.dart';
+import 'presence.dart';
 import 'summary_pane.dart';
 import 'tasks_pane.dart';
 import 'timeline_pane.dart';
@@ -82,28 +84,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen>
     }
   }
 
+  /// Phase 3: export is a bottom sheet (PDF save/share + Markdown copy).
+  /// Report fetch happens before the sheet so options are instantly
+  /// actionable; failures surface as a SnackBar.
   Future<void> _export(BuildContext context, WidgetRef ref) async {
-    try {
-      final report = await ref
-          .read(exportRepositoryProvider)
-          .exportRoom(widget.roomId);
-      if (!context.mounted) return;
-      final md = report.toMarkdown();
-      await Clipboard.setData(ClipboardData(text: md));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report copied — paste it anywhere to save.'),
-          ),
-        );
-      }
-    } on Exception catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(toAppException(error).message)));
-      }
-    }
+    await ExportSheet.show(context, ref, widget.roomId);
   }
 
   @override
@@ -322,9 +307,9 @@ class _RoomHead extends ConsumerWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF3B82F6), Color(0xFF6366F1), Color(0xFF7C3AED)],
+          colors: [AppColors.accentSky, AppColors.v3Indigo, AppColors.v3DeepViolet],
         ),
-        border: Border.all(color: const Color(0x26FFFFFF)),
+        border: Border.all(color: AppColors.borderStrong),
       ),
       child: Text(
         initials,
@@ -469,8 +454,8 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: const Color(0xFF0B0D14),
-                  border: Border.all(color: const Color(0x338180F8)),
+                  color: AppColors.consolePanel,
+                  border: Border.all(color: AppColors.graphEdge.withValues(alpha: 0.20)),
                 ),
                 child: Text(
                   _newCode!,
@@ -570,6 +555,7 @@ class _MembersPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final members = ref.watch(roomMembersProvider(roomId));
+    final presence = ref.watch(roomPresenceProvider(roomId));
     final me = ref.watch(sessionProvider).value;
     final text = Theme.of(context).textTheme;
 
@@ -584,6 +570,7 @@ class _MembersPane extends ConsumerWidget {
           itemBuilder: (context, index) => _MemberTile(
             member: value[index],
             isMe: value[index].userId == me?.id,
+            lastSeen: presence.value?[value[index].userId],
           ),
         ),
       ),
@@ -603,15 +590,20 @@ class _MembersPane extends ConsumerWidget {
 }
 
 class _MemberTile extends ConsumerWidget {
-  const _MemberTile({required this.member, required this.isMe});
+  const _MemberTile({required this.member, required this.isMe, this.lastSeen});
 
   final RoomMember member;
   final bool isMe;
+
+  /// Phase 7 presence: when the member last opened this room (null =
+  /// never / not readable).
+  final DateTime? lastSeen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final status = member.status;
+    final dotColor = roleDotColor(member.roleId);
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -623,8 +615,8 @@ class _MemberTile extends ConsumerWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              foregroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: dotColor.withValues(alpha: 0.18),
+              foregroundColor: dotColor,
               child: Text(
                 (member.displayName ?? '?').substring(0, 1).toUpperCase(),
                 style: text.headlineSmall,
@@ -642,12 +634,38 @@ class _MemberTile extends ConsumerWidget {
                     style: text.bodyLarge,
                   ),
                   const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    '${member.roleId} · ${status.name}',
-                    style: text.bodyMedium?.copyWith(
-                      color: text.bodyMedium?.color?.withValues(alpha: 0.7),
-                    ),
+                  Row(
+                    children: [
+                      // Role-colored dot — color flags the ROLE (Design.md
+                      // §1); the role name rides alongside as text.
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: dotColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Text(
+                        '${member.roleId} · ${status.name}',
+                        style: text.bodyMedium?.copyWith(
+                          color:
+                              text.bodyMedium?.color?.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (lastSeen != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                      child: Text(
+                        'Active ${lastSeenLabel(lastSeen!, DateTime.now())}',
+                        style: text.bodySmall?.copyWith(
+                          color: AppColors.consoleMuted,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

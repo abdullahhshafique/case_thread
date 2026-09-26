@@ -95,4 +95,52 @@ void main() {
       expect(AppBreakpoints.desktop, 1440);
     });
   });
+
+  group('Light theme (Phase 1 PRD)', () {
+    final light = buildAppTheme(brightness: Brightness.light);
+
+    test('brightness is light', () {
+      expect(light.brightness, Brightness.light);
+    });
+
+    test('scaffold uses light bgPrimary', () {
+      expect(light.scaffoldBackgroundColor, AppColorsLight.bgPrimary);
+    });
+
+    test('colorScheme primary uses light accentPrimary', () {
+      expect(light.colorScheme.primary, AppColorsLight.accentPrimary);
+    });
+
+    test('text colors are dark for contrast on light surfaces', () {
+      expect(light.textTheme.bodyLarge!.color, AppColorsLight.textPrimary);
+    });
+
+    test('appBar uses light surface tokens', () {
+      expect(light.appBarTheme.backgroundColor, AppColorsLight.bgPrimary);
+      expect(light.appBarTheme.foregroundColor, AppColorsLight.textPrimary);
+    });
+
+    test('card uses light surface token', () {
+      expect(light.cardTheme.color, AppColorsLight.bgSurface);
+    });
+
+    test('dialog uses light raised surface', () {
+      expect(light.dialogTheme.backgroundColor, AppColorsLight.bgSurfaceRaised);
+    });
+
+    test('inputDecoration fill uses light surface', () {
+      expect(light.inputDecorationTheme.fillColor, AppColorsLight.bgSurface);
+    });
+
+    test('navigationBar uses light surface', () {
+      expect(
+        light.navigationBarTheme.backgroundColor,
+        AppColorsLight.bgSurface,
+      );
+    });
+
+    test('font is still Geist', () {
+      expect(light.textTheme.bodyLarge!.fontFamily, 'Geist');
+    });
+  });
 }

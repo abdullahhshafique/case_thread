@@ -259,13 +259,13 @@ Phases 1–7, strictly ordered; Phase 7 optional. No backend migration/RPC/RLS c
 
 | Phase | Content | Status |
 |---|---|---|
-| Phase 1 — Light Theme + Debug Tools | Light variant of `buildAppTheme()`, theme toggle (shared_preferences), debug role switcher + demo investigator button | ⬜ Not started |
-| Phase 2 — Case Room Overview Enrichment | Briefing card, 3 alert cards (contradictions/gaps/alibi), task donut, sub-tab jumping | ⬜ Not started |
-| Phase 3 — Export Overhaul | Export sheet (PDF via `pdf` package / TXT / Print), counts preview, generation spinner | ⬜ Not started |
-| Phase 4 — Evidence AI + Verify-Alibi | Two-tab evidence detail (Details / AI Analysis), Verify alibi deep-link | ⬜ Not started |
-| Phase 5 — Discussion Enhancements | Pinned bar, starred messages (shared_preferences), Extract to Case as claim timeline event | ⬜ Not started |
-| Phase 6 — Demo Seeding + Briefing Editor | 2 new demo rooms (Harbor Bay Bank Fraud #2188, Mill Street Vehicle Theft #2104), `briefing` column + editor sheet | ⬜ Not started |
-| Phase 7 — OPTIONAL | Voice notes, read receipts, chat media drawer, role-colored avatar dots — each behind a `ENABLE_*` build flag | ⬜ Not started |
+| Phase 1 — Light Theme + Debug Tools | `AppColorsLight` + `buildAppTheme(brightness:)`, persisted theme toggle, demo sign-in + role-override pill (kDebugMode) | ✅ Complete 2026-09-24 |
+| Phase 2 — Case Room Overview Enrichment | Briefing card, 3 alert cards with Analysis deep-links, alibi donut, `analysisTabRequestProvider` | ✅ Complete 2026-09-24 |
+| Phase 3 — Export Overhaul | Export bottom sheet: formatted PDF (`pdf` + `printing`, OS save/share/download) + Markdown copy | ✅ Complete 2026-09-24 |
+| Phase 4 — Evidence AI + Verify-Alibi | Evidence detail sheet (metadata + sha256, per-item AI run, verify-alibi with evidence attachment) | ✅ Complete 2026-09-24 |
+| Phase 5 — Discussion Enhancements | Star + pin (per-room SharedPreferences flags), pinned strip, Extract to Case as `claim` timeline event | ✅ Complete 2026-09-24 |
+| Phase 6 — Demo Seeding + Briefing Editor | `0042_room_briefing.sql` + `BriefingEditorSheet`; idempotent `supabase/seed_demo.sql` (Riverside Robbery #2291, code DEMO1234) | ✅ Complete 2026-09-24 |
+| Phase 7 — OPTIONAL (partial) | Role-colored presence dots + "Active Xm ago" (`0043_presence_watermarks.sql`) ✅; voice notes / read receipts / chat media ⏭ intentionally skipped — scoped as a separate mini-sprint | 🟡 Partial 2026-09-24 |
 
-Migration numbering note: `0040`/`0041` are already taken by shipped bugfixes — Phase 6 demo seed uses `0042_demo_seed_expansion.sql`, Phase 7.1 chat-media bucket uses `0043` (if needed).
+**As-built deviations from this plan:** single-room seed (Riverside) instead of 2 extra demo rooms; migration numbering 0042 = briefing, 0043 = presence policy; demo seed lives at `supabase/seed_demo.sql`, not a numbered migration; evidence detail is a single scrollable sheet, not two tabs. Full map in HANDOFF.md §4. Gates (pub get / analyze / test) + migrations push + CI outstanding — see HANDOFF §3.
 

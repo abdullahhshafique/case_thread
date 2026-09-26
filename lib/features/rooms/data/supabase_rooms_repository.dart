@@ -20,13 +20,26 @@ class SupabaseRoomsRepository implements RoomsRepository {
     final rows = await _client
         .from('case_rooms')
         .select(
-          'id, name, case_type, owner_id, status, created_at, code_rotated_at',
+          'id, name, case_type, owner_id, status, investigation_status, '
+          'briefing, created_at, code_rotated_at',
         )
         .order('created_at', ascending: false);
 
     return (rows as List)
         .map((row) => CaseRoom.fromMap(Map<String, dynamic>.from(row)))
         .toList();
+  }
+
+  @override
+  Future<void> updateBriefing(String roomId, String briefing) async {
+    try {
+      await _client
+          .from('case_rooms')
+          .update({'briefing': briefing})
+          .eq('id', roomId);
+    } catch (error) {
+      throw toAppException(error);
+    }
   }
 
   @override

@@ -16,6 +16,8 @@ import 'features/auth/fake_auth_repository.dart';
 /// Fake rooms repo: static data, no network (Rules.md §7).
 class FakeRoomsRepository implements RoomsRepository {
   @override
+  Future<void> updateBriefing(String roomId, String briefing) async {}
+  @override
   Future<List<CaseRoom>> getMyRooms() async => const [];
 
   @override

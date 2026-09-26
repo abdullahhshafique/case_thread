@@ -9,6 +9,7 @@ import '../auth/auth_providers.dart';
 import '../contradictions/contradiction_providers.dart'
     show contradictionListProvider;
 import '../dashboard/dashboard_providers.dart';
+import '../investigation_gaps/gap_providers.dart' show gapListProvider;
 import 'activity_feed.dart';
 import 'data/supabase_room_content_repository.dart';
 import 'data/supabase_rooms_repository.dart';
@@ -118,14 +119,29 @@ class AttentionCounts {
     required this.openTasks,
     required this.openContradictions,
     required this.alibisToVerify,
+    this.alibiVerified = 0,
+    this.alibiPartial = 0,
+    this.alibiConflict = 0,
+    this.openGaps = 0,
   });
 
   final int openTasks;
   final int openContradictions;
   final int alibisToVerify;
 
+  /// Alibi status breakdown — read from alibiListProvider.
+  final int alibiVerified;
+  final int alibiPartial;
+  final int alibiConflict;
+
+  /// Open investigation gaps.
+  final int openGaps;
+
   bool get isClear =>
       openTasks == 0 && openContradictions == 0 && alibisToVerify == 0;
+
+  /// Total alibis ever recorded (verified + partial + conflict).
+  int get totalAlibis => alibiVerified + alibiPartial + alibiConflict;
 
   /// '2 open tasks · 2 contradictions · 1 alibi to verify' — zero
   /// segments are omitted; a fully clear room gets the calm line.
@@ -144,26 +160,57 @@ class AttentionCounts {
   }
 }
 
-final attentionCountsProvider = FutureProvider.family<AttentionCounts, String>((
-  ref,
-  roomId,
-) async {
-  ref.watch(sessionProvider);
-  final tasks = await ref.watch(roomTasksStreamProvider(roomId).future);
-  final contradictions = await ref.watch(
-    contradictionListProvider(roomId).future,
-  );
-  final alibis = await ref.watch(alibiListProvider(roomId).future);
-  return AttentionCounts(
-    openTasks: tasks.where((t) => t.status != 'done').length,
-    openContradictions: contradictions
-        .where((c) => c.status == ContradictionStatus.open)
-        .length,
-    alibisToVerify: alibis
-        .where((a) => a.status != AlibiStatus.verified)
-        .length,
-  );
-});
+final attentionCountsProvider = FutureProvider.family<AttentionCounts, String>(
+  (ref, roomId) async {
+    ref.watch(sessionProvider);
+    final tasks = await ref.watch(roomTasksStreamProvider(roomId).future);
+    final contradictions = await ref.watch(
+      contradictionListProvider(roomId).future,
+    );
+    final alibis = await ref.watch(alibiListProvider(roomId).future);
+    final gaps = await ref.watch(gapListProvider(roomId).future);
+    return AttentionCounts(
+      openTasks: tasks.where((t) => t.status != 'done').length,
+      openContradictions: contradictions
+          .where((c) => c.status == ContradictionStatus.open)
+          .length,
+      alibisToVerify: alibis
+          .where((a) => a.status != AlibiStatus.verified)
+          .length,
+      alibiVerified: alibis
+          .where((a) => a.status == AlibiStatus.verified)
+          .length,
+      alibiPartial: alibis
+          .where((a) => a.status == AlibiStatus.partiallyVerified)
+          .length,
+      alibiConflict: alibis
+          .where((a) => a.status == AlibiStatus.conflict)
+          .length,
+      openGaps: gaps.where((g) => g.status != GapStatus.resolved).length,
+    );
+  },
+);
+
+/// Hoisted sub-tab request: Overview alert cards set this to the
+/// Analysis nested-tab index (0 = Alibis, 1 = Contradictions,
+/// 2 = Gaps); AnalysisPane listens, animates, then clears to null.
+final analysisTabRequestProvider =
+    NotifierProvider<_AnalysisTabRequestNotifier, int?>(
+      _AnalysisTabRequestNotifier.new,
+    );
+
+class _AnalysisTabRequestNotifier extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  void request(int tabIndex) {
+    state = tabIndex;
+  }
+
+  void clear() {
+    state = null;
+  }
+}
 
 /// Global unseen-activity feed (0014 v_activity_feed) — powers the
 /// console notifications sheet and bell badge.

@@ -19,6 +19,9 @@ dependencies:
   # PRD §6.4) + platform file picking for uploads.
   crypto: 3.0.7
   file_picker: 12.3.0
+  # Phase 3 (export overhaul): client-side PDF case report + save/share.
+  pdf: 3.11.2
+  printing: 5.13.4
 
 dev_dependencies:
   flutter_test:

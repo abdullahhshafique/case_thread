@@ -98,7 +98,13 @@ abstract class AiAgentRepository {
 
   /// Runs an agent via the Edge Function. Returns the new suggestion id,
   /// or null when the provider found nothing worth flagging.
-  Future<String?> runAgent({required String roomId, required String agentId});
+  /// [evidenceItemId] scopes Phase 4 evidence-detail analysis to one
+  /// vault item (the Edge Function receives it as `evidence_item_id`).
+  Future<String?> runAgent({
+    required String roomId,
+    required String agentId,
+    String? evidenceItemId,
+  });
 
   /// Lead-tier review: accept/edited/dismiss (0017 RPC — atomic
   /// timeline + audit on promotion).
@@ -163,11 +169,16 @@ class SupabaseAiAgentRepository implements AiAgentRepository {
   Future<String?> runAgent({
     required String roomId,
     required String agentId,
+    String? evidenceItemId,
   }) async {
     try {
       final response = await _client.functions.invoke(
         'ai-agent',
-        body: {'agent_id': agentId, 'room_id': roomId},
+        body: {
+          'agent_id': agentId,
+          'room_id': roomId,
+          'evidence_item_id': ?evidenceItemId,
+        },
       );
       final data = Map<String, dynamic>.from(
         jsonDecode(jsonEncode(response.data)) as Map,

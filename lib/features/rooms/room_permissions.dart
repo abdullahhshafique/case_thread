@@ -1,7 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/models.dart';
 import '../auth/auth_providers.dart';
+
+/// When non-null, overrides the live Supabase permission resolution
+/// for debug/testing only (PRD §Phase 1). The value is a permission
+/// grid — e.g. {'canEditEvidence': true, 'canDeleteComment': false}.
+/// Use any key; unlisted keys default to false unless isOwner is true.
+/// Debug-only override: non-null = demo mode with these permissions.
+/// Use demoRoleOverrideProvider.notifier.state = {...} to set.
+final demoRoleOverrideProvider =
+    NotifierProvider<_DemoRoleNotifier, Map<String, bool>?>(
+      _DemoRoleNotifier.new,
+    );
+
+class _DemoRoleNotifier extends Notifier<Map<String, bool>?> {
+  @override
+  Map<String, bool>? build() => null;
+
+  void set(Map<String, bool> perms) => state = perms;
+  void clear() => state = null;
+}
 
 /// The caller's effective permissions in one room — resolved from
 /// their membership role's config grid (0004) by joining
@@ -32,6 +52,16 @@ final myRoomPermissionsProvider =
       final me = ref.watch(sessionProvider).value?.id;
       if (me == null) return RoomPermissions.empty;
 
+      if (kDebugMode) {
+        final override = ref.read(demoRoleOverrideProvider);
+        if (override != null) {
+          return RoomPermissions(
+            roleId: 'demo',
+            isOwner: true,
+            permissions: override,
+          );
+        }
+      }
       // Owner check: the room row itself (visible to owner + members).
       final rooms = await client
           .from('case_rooms')
